@@ -61,6 +61,10 @@ yapılandırmasına public route/SSL bloğu eklenmedi. Bu bilgi tamamlandığın
    eklenir;
 4. HTTPS `/health`, PWA açılışı ve `wss://.../ws` smoke testi yapılır.
 
+VDS üzerinde bu commit'in izole staging yayını build edilip çalıştırıldı;
+`glix-client` ve `glix-server` container'ları healthy durumuna geldi. Host'tan
+loopback health/WebSocket smoke için SSH tüneliyle ayrıca doğrulama yapılacak.
+
 Oyun odaları RAM'de kaldığı için container restart'ında aktif odaların silinmesi
 beklenen davranıştır; kalıcı veri deposu eklenmedi.
 

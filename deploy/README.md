@@ -64,13 +64,25 @@ mount'ları kontrol eder. `curl` cevabında `ok: true` ve `service:
 glix-server` görülmelidir. PWA'yı dışarı açmadan önce host reverse proxy ile
 `127.0.0.1:18080` hedefine yönlendirme yapılmalıdır.
 
-Güncelleme için:
+Repo VDS'te GitHub kimlik doğrulamasıyla clone edilmişse güncelleme için:
 
 ```bash
 git pull --ff-only
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml up -d --build
 docker compose --env-file deploy/.env -f deploy/docker-compose.yml logs --tail=100
 ```
+
+Bu projede `/opt/glix` ilk pilot sırasında GitHub kimlik doğrulaması olmayan
+sunucuya commit arşivi olarak aktarılmıştır. Aynı yöntemi kullanarak Windows
+çalışma makinesinden güncelleme:
+
+```powershell
+git archive --format=tar HEAD | ssh root@VDS_ADRESI "tar -xf - -C /opt/glix"
+ssh root@VDS_ADRESI "docker compose --env-file /opt/glix/deploy/.env -f /opt/glix/deploy/docker-compose.yml up -d --build"
+```
+
+`/opt/glix/deploy/.env` sunucuda korunur; arşiv aktarımı örnek environment
+dosyasını overwrite etmemelidir.
 
 Durdurmak için:
 
@@ -116,7 +128,9 @@ kullanılmalıdır.
 - Compose proje adı varsayılan olarak `glix-party`'dir; mevcut Compose
   projelerinden ayırmak için `GLIX_COMPOSE_PROJECT_NAME` ile değiştirilebilir.
 - `glix-server` yalnızca `glix-internal` ağına açılır ve host portu yayınlamaz.
-- `glix-client` aynı ağ üzerinden `glix-server:8787` adresine proxy yapar.
+- `glix-client`, `glix-edge` (loopback yayın) ve `glix-internal`
+  (server proxy) ağlarına birlikte bağlıdır; `glix-server:8787` adresine proxy
+  yapar.
 - Dışarıya yalnızca loopback üzerindeki client portu yayınlanır; host reverse
   proxy bunu alır.
 - Oyun odaları ve maç verileri mevcut ürün kararına uygun olarak bellektedir.
@@ -149,8 +163,8 @@ kullanılmalıdır.
 
 ## Operasyonel sınır
 
-Bu klasör yalnızca dağıtım artefaktlarını hazırlar; VDS'e SSH ile bağlanma,
-gerçek domain/SSL tanımlama ve mevcut Lynrax servislerini değiştirme işlemleri
-burada çalıştırılmadı. Gerçek host bilgileri ve Glix domain'i kesinleştiğinde
-önce `docker compose ... config`, ardından healthcheck ve HTTPS/WebSocket
-smoke testi yapılmalıdır.
+Bu klasör dağıtım artefaktlarını ve operasyon komutlarını taşır. Gerçek public
+domain/SSL bilgisi kesinleşmeden host Caddy yapılandırmasına route eklenmemeli;
+önce `docker compose ... config`, ardından loopback healthcheck ve
+HTTPS/WebSocket smoke testi yapılmalıdır. Mevcut Lynrax servisleri ayrı
+kalmalıdır.

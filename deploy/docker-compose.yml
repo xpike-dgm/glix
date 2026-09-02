@@ -55,11 +55,18 @@ services:
       retries: 5
     logging: *default-logging
     networks:
+      - glix-edge
       - glix-internal
 
 networks:
-  # The game server is intentionally not published to the host. Only the
-  # client/reverse-proxy edge is reachable through the loopback port above.
+  # Only the client/reverse-proxy edge joins this normal bridge and publishes
+  # the loopback port above. The game server remains off the host network.
+  glix-edge:
+    name: ${GLIX_COMPOSE_PROJECT_NAME:-glix-party}-edge
+    driver: bridge
+
+  # The game server and the client proxy share this private network. It has no
+  # external route; the client can still reach the server by service name.
   glix-internal:
     name: ${GLIX_COMPOSE_PROJECT_NAME:-glix-party}-internal
     driver: bridge
