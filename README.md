@@ -1,0 +1,57 @@
+# GLIX
+
+Türkçe, telefon odaklı, gerçek zamanlı neon arcade kaos parti oyunları.
+
+Bu depo eski `C:\Users\Xpike\Desktop\glix` projesinden bağımsız yeni sürümdür.
+Kural sözleşmesi ve kalıcı proje kararları için:
+
+- `GLIX-PROJE-HAFIZASI.md`
+- `GLIX-MINIOYUN-KURALLARI-FORMU.md`
+
+## Yapı
+
+```text
+apps/
+  client/       React + Vite PWA istemcisi
+  server/       Node.js + WebSocket sunucusu
+packages/
+  shared/       İstemci/sunucu ortak tipleri ve mini oyun kataloğu
+  docs/
+  ASAMA-02-TEKNIK-TEMEL.md
+  ASAMA-03-ODA-VE-REALTIME.md
+  ASAMA-04-MOTOR-VE-PUAN.md
+  ASAMA-06-GERCEK-MINIGAME-DILIMI.md
+  ASAMA-07-OYUN-PAKETI-A.md
+  ASAMA-08-OYUN-PAKETI-B.md
+  ASSET-PIPELINE-NEON-TOYBOX.md
+```
+
+## Yerel geliştirme
+
+Node.js 20 veya üzeri gerekir.
+
+```powershell
+npm install
+npm run typecheck
+npm run build
+```
+
+İki ayrı terminalde:
+
+```powershell
+npm run dev:server
+npm run dev:client
+```
+
+İstemci `http://localhost:5173`, sağlık kontrolü
+`http://localhost:8787/health`, WebSocket ise
+`ws://localhost:8787/ws` üzerinden çalışır.
+
+## Durum
+
+Aşama 8 tamamlandı: Aşama 6 ve 7 oyunlarına ek olarak sosyal/stratejik Paket
+B'deki 9 oyun (`yazi-yaz`, `kendim`, `sozluk-blofu`, `cagrisim-agi`,
+`rusvet-darbe`, `karalama-defteri`, `ittifak`, `kontrol-paneli-kaosu`,
+`zehirli-kadeh`) gerçek sunucu adapter'ı ve telefon kontrolüyle çalışır.
+Sıradaki adım, kalan `rus-ruleti` ve `son-kisi` oyunlarıyla birlikte tam maç
+entegrasyonu ve kalite kapısıdır.

@@ -1,0 +1,19 @@
+{
+  "name": "GLIX — Kaos Parti Oyunları",
+  "short_name": "GLIX",
+  "lang": "tr",
+  "description": "Arkadaşlarınla telefonundan oynadığın neon arcade mini oyunları.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#080b18",
+  "background_color": "#080b18",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
