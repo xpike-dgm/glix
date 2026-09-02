@@ -15,7 +15,7 @@
     "dev:server": "npm run build --workspace @glix/shared && npm run dev --workspace @glix/server",
     "build": "npm run build --workspace @glix/shared && npm run build --workspace @glix/client && npm run build --workspace @glix/server",
     "typecheck": "npm run build --workspace @glix/shared && npm run typecheck --workspace @glix/client && npm run typecheck --workspace @glix/server",
-    "test:engine": "npm run build --workspace @glix/shared && node --test packages/shared/dist/engine.test.js packages/shared/dist/games.test.js packages/shared/dist/games-stage7.test.js packages/shared/dist/games-stage8.test.js",
+    "test:engine": "npm run build --workspace @glix/shared && node --test packages/shared/dist/engine.test.js packages/shared/dist/games.test.js packages/shared/dist/games-stage7.test.js packages/shared/dist/games-stage8.test.js packages/shared/dist/games-stage9.test.js",
     "test": "npm run test:engine",
     "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server"
   }

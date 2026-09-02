@@ -78,6 +78,11 @@ const STAGE8_GAME_IDS = new Set<GameId>([
   "zehirli-kadeh"
 ]);
 
+const STAGE9_GAME_IDS = new Set<GameId>([
+  "rus-ruleti",
+  "son-kisi"
+]);
+
 function isStage6GameId(gameId: GameId): boolean {
   return STAGE6_GAME_IDS.has(gameId);
 }
@@ -88,6 +93,10 @@ function isStage7GameId(gameId: GameId): boolean {
 
 function isStage8GameId(gameId: GameId): boolean {
   return STAGE8_GAME_IDS.has(gameId);
+}
+
+function isStage9GameId(gameId: GameId): boolean {
+  return STAGE9_GAME_IDS.has(gameId);
 }
 
 function getRealGameOptions(gameId: GameId): MiniGameDefinitionOptions | null {
@@ -166,6 +175,22 @@ function getRealGameOptions(gameId: GameId): MiniGameDefinitionOptions | null {
   }
 
   if (isStage8GameId(gameId)) {
+    return {
+      phases: [
+        REAL_GAME_PHASES.tutorial,
+        REAL_GAME_PHASES.preparing,
+        { id: "playing", durationMs: null, advance: "manual" },
+        REAL_GAME_PHASES.results,
+        REAL_GAME_PHASES.transition
+      ],
+      inputPolicy: "repeatable",
+      inputVisibility: "private",
+      allowEmptyInput: false,
+      scoreTransfer: "direct"
+    };
+  }
+
+  if (isStage9GameId(gameId)) {
     return {
       phases: [
         REAL_GAME_PHASES.tutorial,

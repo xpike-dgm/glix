@@ -274,3 +274,4 @@ export * from "./engine.js";
 export * from "./games.js";
 export * from "./games-stage7.js";
 export * from "./games-stage8.js";
+export * from "./games-stage9.js";

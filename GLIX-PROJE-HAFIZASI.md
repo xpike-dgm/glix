@@ -1465,3 +1465,27 @@ birleştirilmesidir.
 - Katalogda gerçek adapter bekleyen iki oyun kaldı: `rus-ruleti` ve
   `son-kisi`. Bunlar Aşama 9 oyun dilimiyle birlikte tam maç kalite kapısında
   ele alınacak.
+
+### 2026-09-02 — Aşama 9 kalan oyunlar tamamlandı
+
+- `packages/shared/src/games-stage9.ts` içinde `rus-ruleti` ve `son-kisi` için
+  iki gerçek sunucu adapter'ı oluşturuldu; böylece 24 oyunluk katalogda gerçek
+  adapter bekleyen oyun kalmadı.
+- Rus Ruleti'nde rastgele başlangıç sahibi, 18 saniyelik karar süresi, kendini
+  veya hayatta olan hedefi seçme, %16 başlangıç riski, güvenli atışlarda +10 ve
+  %76 üst sınır, patlamada eliminasyon ve başlangıç oyuncu sayısının yarısında
+  bitiş uygulandı. Risk bilgisi yalnızca silah sahibine özel state'te tutuldu.
+- Son Kişi'nde sunucuda rastgele 10–20 saniyelik gizli bitiş, tek kaçış hakkı,
+  milisaniye bazlı son kaçış eşitliği, son kaçan +1, erken kaçan 0 ve kaçmayan
+  -1 puan akışı uygulandı. Gizli bitiş zamanı istemciye gönderilmedi.
+- `Stage9GameControls.tsx` ile hedef/risk, kaçış kolu, sonuç listeleri ve
+  Neon Toybox uyumlu animasyonlu mobil CSS yüzeyi eklendi.
+- Ortak engine ve server Stage 9 oyunlarını gerçek `manual` oynama fazına,
+  sonuç aktarımına ve rejection kodlarına bağladı; client/server sürümü `0.7.0`
+  oldu, PWA shell cache'i `glix-shell-v6` olarak yükseltildi.
+- `docs/ASAMA-09-KALAN-OYUNLAR.md` Aşama 9 kabul kaydı olarak eklendi.
+- `npm test` 33 test, `npm run typecheck` ve `npm run build` başarılı oldu.
+- İzole iki istemcili canlı WebSocket testinde Son Kişi'nin tutorial →
+  preparing → playing → results akışı, gizli state alanları ve sonuç puanları
+  doğrulandı. Sıradaki aşama tam rota, mobil UX/performance, reconnect ve VDS
+  dağıtım kalite kapısıdır.

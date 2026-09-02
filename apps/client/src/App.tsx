@@ -17,17 +17,19 @@ import {
   type ServerMessage,
   type Stage6GameId,
   type Stage7GameId,
-  type Stage8GameId
+  type Stage8GameId,
+  type Stage9GameId
 } from "@glix/shared";
 import { Stage6GameControls } from "./games/Stage6GameControls";
 import { Stage7GameControls } from "./games/Stage7GameControls";
 import { Stage8GameControls } from "./games/Stage8GameControls";
+import { Stage9GameControls } from "./games/Stage9GameControls";
 import { NeonToyboxScene } from "./visuals/NeonToyboxScene";
 
 type ConnectionState = "connecting" | "connected" | "offline";
 type Screen = "home" | "create" | "join" | "lobby" | "match";
 
-const CLIENT_VERSION = "0.6.0";
+const CLIENT_VERSION = "0.7.0";
 const wsUrl = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:8787/ws`;
 const STORAGE_KEYS = {
   nickname: "glix:nickname",
@@ -91,6 +93,10 @@ function isStage7GameId(gameId: GameId): gameId is Stage7GameId {
 
 function isStage8GameId(gameId: GameId): gameId is Stage8GameId {
   return gameId === "yazi-yaz" || gameId === "kendim" || gameId === "sozluk-blofu" || gameId === "cagrisim-agi" || gameId === "rusvet-darbe" || gameId === "karalama-defteri" || gameId === "ittifak" || gameId === "kontrol-paneli-kaosu" || gameId === "zehirli-kadeh";
+}
+
+function isStage9GameId(gameId: GameId): gameId is Stage9GameId {
+  return gameId === "rus-ruleti" || gameId === "son-kisi";
 }
 
 function App(): JSX.Element {
@@ -892,6 +898,7 @@ function MatchScreen({
   const stage6GameId = isStage6GameId(state.currentGameId) ? state.currentGameId : null;
   const stage7GameId = isStage7GameId(state.currentGameId) ? state.currentGameId : null;
   const stage8GameId = isStage8GameId(state.currentGameId) ? state.currentGameId : null;
+  const stage9GameId = isStage9GameId(state.currentGameId) ? state.currentGameId : null;
   const remaining = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - now);
   const duration = state.phaseEndsAt === null ? null : state.phaseEndsAt - state.phaseStartedAt;
   const progress = state.phase === "finished" ? 1 : duration && duration > 0 ? Math.min(1, Math.max(0, 1 - (remaining ?? 0) / duration)) : 0;
@@ -984,6 +991,16 @@ function MatchScreen({
                 now={now}
                 onSubmit={onSubmit}
               />
+            ) : stage9GameId ? (
+              <Stage9GameControls
+                gameId={stage9GameId}
+                publicState={state.gameState}
+                ownState={ownGameState}
+                selfPlayerId={selfPlayerId}
+                players={state.players}
+                now={now}
+                onSubmit={onSubmit}
+              />
             ) : (
               <div className="match-play-area">
                 <button className="demo-action-button" type="button" disabled={ownHasSubmitted} onClick={() => onSubmit({ action: "motor-provasi" })}>
@@ -1005,6 +1022,17 @@ function MatchScreen({
               {stage8GameId && (
                 <Stage8GameControls
                   gameId={stage8GameId}
+                  publicState={state.gameState}
+                  ownState={ownGameState}
+                  selfPlayerId={selfPlayerId}
+                  players={state.players}
+                  now={now}
+                  onSubmit={onSubmit}
+                />
+              )}
+              {stage9GameId && (
+                <Stage9GameControls
+                  gameId={stage9GameId}
                   publicState={state.gameState}
                   ownState={ownGameState}
                   selfPlayerId={selfPlayerId}

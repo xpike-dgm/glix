@@ -37,12 +37,16 @@ import {
   createStage8GameAdapter,
   isStage8Game,
   type Stage8GameAdapter,
-  type Stage8InputRejection
+  type Stage8InputRejection,
+  createStage9GameAdapter,
+  isStage9Game,
+  type Stage9GameAdapter,
+  type Stage9InputRejection
 } from "@glix/shared";
 
 const host = process.env.HOST ?? "0.0.0.0";
 const port = Number(process.env.PORT ?? DEFAULT_SERVER_PORT);
-const serverVersion = "0.6.0";
+const serverVersion = "0.7.0";
 const roomCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const miniGameRegistry = createMiniGameRegistry(GAME_CATALOG);
 
@@ -62,7 +66,7 @@ interface MatchRecord {
   readonly gameIds: GameId[];
   currentGameIndex: number;
   engine: MiniGameEngine;
-  adapter: Stage6GameAdapter | Stage7GameAdapter | Stage8GameAdapter | null;
+  adapter: Stage6GameAdapter | Stage7GameAdapter | Stage8GameAdapter | Stage9GameAdapter | null;
   readonly miniGameScores: Map<string, number>;
   resultsApplied: boolean;
   stateVersion: number;
@@ -995,7 +999,9 @@ function createMatch(room: RoomRecord, gameIds: readonly GameId[]): MatchRecord 
       ? createStage7GameAdapter(firstGameId, playerIds)
       : isStage8Game(firstGameId)
         ? createStage8GameAdapter(firstGameId, playerIds)
-        : null;
+        : isStage9Game(firstGameId)
+          ? createStage9GameAdapter(firstGameId, playerIds)
+          : null;
 
   return {
     id: randomUUID(),
@@ -1087,7 +1093,9 @@ function startNextGame(room: RoomRecord, match: MatchRecord, now: number): boole
       ? createStage7GameAdapter(nextGameId, playerIds)
       : isStage8Game(nextGameId)
         ? createStage8GameAdapter(nextGameId, playerIds)
-        : null;
+        : isStage9Game(nextGameId)
+          ? createStage9GameAdapter(nextGameId, playerIds)
+          : null;
   match.miniGameScores.clear();
   match.resultsApplied = false;
   match.stateVersion += 1;
@@ -1255,6 +1263,23 @@ function stage8InputRejectionCode(
   }
 }
 
+function stage9InputRejectionCode(
+  reason: Stage9InputRejection
+): NonNullable<Extract<ServerMessage, { type: "server:game-input-ack" }>['reason']> {
+  switch (reason) {
+    case "phase-locked":
+      return "input_phase_locked";
+    case "late":
+      return "input_late";
+    case "duplicate":
+      return "input_duplicate";
+    case "spectator":
+      return "spectator";
+    case "invalid":
+      return "invalid_game_input";
+  }
+}
+
 function handleGameSubmit(
   socket: WebSocket,
   message: Extract<ClientMessage, { type: "client:game:submit" }>
@@ -1295,7 +1320,9 @@ function handleGameSubmit(
           ? stage6InputRejectionCode(adapterResult.reason)
           : isStage7Game(match.adapter.gameId)
             ? stage7InputRejectionCode(adapterResult.reason)
-            : stage8InputRejectionCode(adapterResult.reason)
+            : isStage8Game(match.adapter.gameId)
+              ? stage8InputRejectionCode(adapterResult.reason)
+              : stage9InputRejectionCode(adapterResult.reason)
       });
       return;
     }

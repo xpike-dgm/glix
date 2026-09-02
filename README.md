@@ -23,6 +23,7 @@ packages/
   ASAMA-06-GERCEK-MINIGAME-DILIMI.md
   ASAMA-07-OYUN-PAKETI-A.md
   ASAMA-08-OYUN-PAKETI-B.md
+  ASAMA-09-KALAN-OYUNLAR.md
   ASSET-PIPELINE-NEON-TOYBOX.md
 ```
 
@@ -49,9 +50,7 @@ npm run dev:client
 
 ## Durum
 
-Aşama 8 tamamlandı: Aşama 6 ve 7 oyunlarına ek olarak sosyal/stratejik Paket
-B'deki 9 oyun (`yazi-yaz`, `kendim`, `sozluk-blofu`, `cagrisim-agi`,
-`rusvet-darbe`, `karalama-defteri`, `ittifak`, `kontrol-paneli-kaosu`,
-`zehirli-kadeh`) gerçek sunucu adapter'ı ve telefon kontrolüyle çalışır.
-Sıradaki adım, kalan `rus-ruleti` ve `son-kisi` oyunlarıyla birlikte tam maç
-entegrasyonu ve kalite kapısıdır.
+Aşama 9 tamamlandı: Katalogdaki 24 oyunun tamamı gerçek sunucu adapter'ı ve
+telefon kontrol yüzeyiyle çalışır. Son eklenen `rus-ruleti` ve `son-kisi` için
+uygulama kaydı `docs/ASAMA-09-KALAN-OYUNLAR.md` dosyasındadır. Sıradaki adım;
+tam rota, mobil UX/performance, yeniden bağlanma ve VDS dağıtım kalite kapısıdır.
