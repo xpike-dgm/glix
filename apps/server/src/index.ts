@@ -44,8 +44,32 @@ import {
   type Stage9InputRejection
 } from "@glix/shared";
 
-const host = process.env.HOST ?? "0.0.0.0";
-const port = Number(process.env.PORT ?? DEFAULT_SERVER_PORT);
+const host = process.env.HOST?.trim() || "0.0.0.0";
+const serverStartedAt = Date.now();
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+function parsePort(rawPort: string | undefined): number {
+  const normalizedPort = rawPort?.trim();
+
+  if (!normalizedPort) {
+    return DEFAULT_SERVER_PORT;
+  }
+
+  if (!/^\d+$/.test(normalizedPort)) {
+    throw new Error("PORT yalnızca 1 ile 65535 arasında bir tam sayı olmalı.");
+  }
+
+  const parsedPort = Number(normalizedPort);
+
+  if (!Number.isSafeInteger(parsedPort) || parsedPort < 1 || parsedPort > 65_535) {
+    throw new Error("PORT yalnızca 1 ile 65535 arasında bir tam sayı olmalı.");
+  }
+
+  return parsedPort;
+}
+
+const port = parsePort(process.env.PORT);
 const serverVersion = "0.7.0";
 const roomCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const miniGameRegistry = createMiniGameRegistry(GAME_CATALOG);
@@ -98,6 +122,9 @@ interface SessionIndexEntry {
 const rooms = new Map<string, RoomRecord>();
 const sessionIndex = new Map<string, SessionIndexEntry>();
 const socketContexts = new WeakMap<WebSocket, SocketContext>();
+const socketHeartbeat = new WeakMap<WebSocket, boolean>();
+let isShuttingDown = false;
+let shutdownTimer: NodeJS.Timeout | undefined;
 
 function createSocketContext(): SocketContext {
   return {
@@ -145,7 +172,12 @@ function isGameId(value: unknown): value is GameId {
 
 function sendJson(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(message));
+    try {
+      socket.send(JSON.stringify(message));
+    } catch (error) {
+      console.warn("[glix-server] WebSocket gönderim hatası:", error);
+      socket.terminate();
+    }
   }
 }
 
@@ -194,14 +226,21 @@ function handleHttp(request: IncomingMessage, response: ServerResponse): void {
   );
 
   if (requestUrl.pathname === "/health") {
-    writeJson(response, 200, {
-      ok: true,
+    const ready = !isShuttingDown;
+
+    writeJson(response, ready ? 200 : 503, {
+      ok: ready,
+      status: ready ? "ready" : "draining",
       service: "glix-server",
       version: serverVersion,
       protocolVersion: PROTOCOL_VERSION,
       activeRooms: rooms.size,
       activeMatches: activeMatchCount(),
       connectedPlayers: connectedPlayerCount(),
+      activeConnections: websocketServer.clients.size,
+      uptimeSeconds: Math.floor(process.uptime()),
+      startedAt: new Date(serverStartedAt).toISOString(),
+      heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS,
       timestamp: new Date().toISOString()
     });
     return;
@@ -1470,12 +1509,57 @@ function handleMessage(socket: WebSocket, message: ClientMessage): void {
   sendError(socket, "unsupported_message", "Bu mesaj türü henüz desteklenmiyor.");
 }
 
+function checkWebSocketHeartbeats(): void {
+  if (isShuttingDown) {
+    return;
+  }
+
+  for (const socket of websocketServer.clients) {
+    if (socket.readyState !== WebSocket.OPEN) {
+      continue;
+    }
+
+    if (socketHeartbeat.get(socket) === false) {
+      console.warn("[glix-server] WebSocket heartbeat yanıtı alınamadı, soket sonlandırılıyor.");
+      socket.terminate();
+      continue;
+    }
+
+    socketHeartbeat.set(socket, false);
+
+    try {
+      socket.ping();
+    } catch (error) {
+      console.warn("[glix-server] WebSocket ping hatası:", error);
+      socket.terminate();
+    }
+  }
+}
+
+function closeSocketForShutdown(socket: WebSocket): void {
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.close(1001, "Sunucu kapatılıyor");
+  } else if (socket.readyState === WebSocket.CONNECTING) {
+    socket.terminate();
+  }
+}
+
 const httpServer = createServer(handleHttp);
 const websocketServer = new WebSocketServer({ server: httpServer, path: DEFAULT_WS_PATH });
 const matchTicker = setInterval(advanceMatches, 100);
+const heartbeatTimer = setInterval(checkWebSocketHeartbeats, HEARTBEAT_INTERVAL_MS);
+
+matchTicker.unref();
+heartbeatTimer.unref();
 
 websocketServer.on("connection", (socket) => {
   socketContexts.set(socket, createSocketContext());
+  socketHeartbeat.set(socket, true);
+
+  if (isShuttingDown) {
+    closeSocketForShutdown(socket);
+    return;
+  }
 
   sendJson(socket, {
     type: "server:ready",
@@ -1484,6 +1568,11 @@ websocketServer.on("connection", (socket) => {
   });
 
   socket.on("message", (data: RawData) => {
+    if (isShuttingDown) {
+      closeSocketForShutdown(socket);
+      return;
+    }
+
     const message = parseClientMessage(data.toString());
 
     if (!message) {
@@ -1494,7 +1583,20 @@ websocketServer.on("connection", (socket) => {
     handleMessage(socket, message);
   });
 
-  socket.on("close", () => handleSocketClose(socket));
+  socket.on("pong", () => socketHeartbeat.set(socket, true));
+
+  socket.on("error", (error) => {
+    console.warn("[glix-server] WebSocket bağlantı hatası:", error);
+
+    if (socket.readyState !== WebSocket.CLOSED) {
+      socket.terminate();
+    }
+  });
+
+  socket.on("close", () => {
+    socketHeartbeat.delete(socket);
+    handleSocketClose(socket);
+  });
 });
 
 httpServer.listen(port, host, () => {
@@ -1502,16 +1604,69 @@ httpServer.listen(port, host, () => {
   console.log("[glix-server] ws://127.0.0.1:" + port + DEFAULT_WS_PATH);
 });
 
+function finishShutdown(exitCode: number): void {
+  if (shutdownTimer) {
+    clearTimeout(shutdownTimer);
+    shutdownTimer = undefined;
+  }
+
+  process.exit(exitCode);
+}
+
 function shutdown(signal: string): void {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
   console.log("[glix-server] " + signal + " alındı, kapatılıyor.");
   clearInterval(matchTicker);
+  clearInterval(heartbeatTimer);
 
   for (const room of rooms.values()) {
     deleteRoom(room);
   }
 
-  websocketServer.close(() => {
-    httpServer.close(() => process.exit(0));
+  for (const socket of websocketServer.clients) {
+    closeSocketForShutdown(socket);
+  }
+
+  let websocketClosed = false;
+  let httpClosed = false;
+
+  const maybeFinish = (): void => {
+    if (websocketClosed && httpClosed) {
+      finishShutdown(0);
+    }
+  };
+
+  shutdownTimer = setTimeout(() => {
+    console.warn("[glix-server] Kapanış süresi aşıldı, açık soketler sonlandırılıyor.");
+
+    for (const socket of websocketServer.clients) {
+      socket.terminate();
+    }
+
+    finishShutdown(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  shutdownTimer.unref();
+
+  websocketServer.close((error) => {
+    if (error && (error as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING") {
+      console.error("[glix-server] WebSocket sunucusu kapanış hatası:", error);
+    }
+
+    websocketClosed = true;
+    maybeFinish();
+  });
+
+  httpServer.close((error) => {
+    if (error && (error as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING") {
+      console.error("[glix-server] HTTP sunucusu kapanış hatası:", error);
+    }
+
+    httpClosed = true;
+    maybeFinish();
   });
 }
 

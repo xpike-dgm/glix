@@ -4914,3 +4914,229 @@ h2 {
     min-height: 10.5rem;
   }
 }
+
+/* Aşama 10 — Telefon UX sağlamlaştırma: mevcut yüzeyler için düşük riskli ortak kurallar */
+html {
+  min-width: 320px;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+select {
+  touch-action: manipulation;
+}
+
+canvas {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.app-shell {
+  max-width: 100%;
+  min-height: 100dvh;
+  padding-block-start: max(1.2rem, calc(env(safe-area-inset-top) + 0.75rem));
+  padding-block-end: max(1.2rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+  padding-inline-start: max(1.2rem, calc(env(safe-area-inset-left) + 0.85rem));
+  padding-inline-end: max(1.2rem, calc(env(safe-area-inset-right) + 0.85rem));
+  overflow-x: clip;
+}
+
+.toast-message {
+  right: max(1rem, calc(env(safe-area-inset-right) + 0.85rem));
+  bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.85rem));
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    padding-block-start: max(1rem, calc(env(safe-area-inset-top) + 0.65rem));
+    padding-block-end: max(1rem, calc(env(safe-area-inset-bottom) + 0.65rem));
+    padding-inline-start: max(0.85rem, calc(env(safe-area-inset-left) + 0.85rem));
+    padding-inline-end: max(0.85rem, calc(env(safe-area-inset-right) + 0.85rem));
+  }
+
+  .site-header,
+  .lobby-header,
+  .match-header,
+  .match-stage-topline,
+  .stage7-game-heading,
+  .stage8-game-heading,
+  .stage9-game-heading {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .site-header,
+  .lobby-header,
+  .match-header {
+    row-gap: 0.65rem;
+  }
+
+  .lobby-header-actions,
+  .header-meta {
+    min-width: 0;
+  }
+
+  button:not(.wordmark),
+  .mode-switch button {
+    min-height: 2.75rem;
+  }
+
+  input,
+  textarea,
+  select {
+    min-height: 2.75rem;
+    font-size: 16px;
+  }
+
+  .match-stage-topline,
+  .stage7-game-heading,
+  .stage8-game-heading,
+  .stage9-game-heading {
+    align-items: flex-start;
+  }
+
+  .match-stage-topline > strong,
+  .stage7-game-heading > div,
+  .stage8-game-heading > div,
+  .stage9-game-heading > div {
+    min-width: 0;
+  }
+
+  .match-stage-topline > strong {
+    overflow-wrap: anywhere;
+  }
+
+  .toast-message {
+    max-width: min(24rem, calc(100% - 2rem));
+  }
+}
+
+@media (max-width: 360px) {
+  .app-shell {
+    padding-inline-start: max(0.65rem, calc(env(safe-area-inset-left) + 0.65rem));
+    padding-inline-end: max(0.65rem, calc(env(safe-area-inset-right) + 0.65rem));
+  }
+
+  .wordmark {
+    font-size: 1rem;
+    letter-spacing: 0.24em;
+  }
+
+  .header-meta,
+  .lobby-header-actions {
+    gap: 0.3rem;
+  }
+
+  .connection-pill {
+    padding-inline: 0.55rem;
+    letter-spacing: 0.08em;
+  }
+
+  .match-stage-card,
+  .match-side-card,
+  .final-score-card {
+    border-radius: 1rem;
+  }
+
+  .match-stage-card {
+    padding: 0.9rem;
+  }
+
+  .stage7-controls,
+  .stage8-controls,
+  .stage9-controls {
+    padding: 0.65rem;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .app-shell {
+    padding-block-start: max(0.55rem, calc(env(safe-area-inset-top) + 0.45rem));
+    padding-block-end: max(0.55rem, calc(env(safe-area-inset-bottom) + 0.45rem));
+  }
+
+  .match-layout {
+    padding-block: 0.65rem 0.75rem;
+  }
+
+  .match-header {
+    margin-bottom: 0.65rem;
+  }
+
+  .match-header h1 {
+    font-size: clamp(2rem, 6vw, 3.2rem);
+  }
+
+  .match-stage-card {
+    min-height: 0;
+    padding: 0.85rem 1rem;
+  }
+
+  .match-progress {
+    margin-block: 0.7rem 1.2rem;
+  }
+
+  .match-stage-card h2 {
+    font-size: clamp(1.6rem, 4.5vw, 2.6rem);
+  }
+
+  .match-description {
+    margin-bottom: 0.9rem;
+  }
+
+  .tutorial-steps span {
+    min-height: 4.2rem;
+    padding: 0.55rem;
+  }
+
+  .toybox-scene {
+    height: clamp(12rem, 52dvh, 17rem);
+    min-height: 12rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .stage7-controls,
+  .stage8-controls,
+  .stage9-controls {
+    gap: 0.65rem;
+    padding: 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}

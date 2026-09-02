@@ -16,7 +16,7 @@ apps/
   server/       Node.js + WebSocket sunucusu
 packages/
   shared/       İstemci/sunucu ortak tipleri ve mini oyun kataloğu
-  docs/
+docs/
   ASAMA-02-TEKNIK-TEMEL.md
   ASAMA-03-ODA-VE-REALTIME.md
   ASAMA-04-MOTOR-VE-PUAN.md
@@ -50,7 +50,8 @@ npm run dev:client
 
 ## Durum
 
-Aşama 9 tamamlandı: Katalogdaki 24 oyunun tamamı gerçek sunucu adapter'ı ve
-telefon kontrol yüzeyiyle çalışır. Son eklenen `rus-ruleti` ve `son-kisi` için
-uygulama kaydı `docs/ASAMA-09-KALAN-OYUNLAR.md` dosyasındadır. Sıradaki adım;
-tam rota, mobil UX/performance, yeniden bağlanma ve VDS dağıtım kalite kapısıdır.
+Aşama 10 teslim kapısı tamamlandı: Katalogdaki 24 oyunun tamamı gerçek sunucu
+adapter'ı ve telefon kontrol yüzeyiyle çalışır. Production dağıtım artefaktları
+`deploy/` altında, canlı bağlantı smoke testi `npm run smoke:realtime` komutuyla
+çalışır. VDS'e gerçek public yayın için alan adı ve host proxy bilgileri
+`deploy/README.md` içindeki placeholder'larla tamamlanmalıdır.

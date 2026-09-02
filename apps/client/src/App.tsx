@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
 import {
   GAME_CATALOG,
+  DEFAULT_WS_PATH,
   MAX_NICKNAME_LENGTH,
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -30,7 +31,23 @@ type ConnectionState = "connecting" | "connected" | "offline";
 type Screen = "home" | "create" | "join" | "lobby" | "match";
 
 const CLIENT_VERSION = "0.7.0";
-const wsUrl = import.meta.env.VITE_WS_URL ?? `ws://${window.location.hostname}:8787/ws`;
+
+function resolveWebSocketUrl(): string {
+  const configuredUrl = import.meta.env.VITE_WS_URL?.trim();
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  if (import.meta.env.DEV) {
+    return `ws://${window.location.hostname}:8787${DEFAULT_WS_PATH}`;
+  }
+
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}${DEFAULT_WS_PATH}`;
+}
+
+const wsUrl = resolveWebSocketUrl();
 const STORAGE_KEYS = {
   nickname: "glix:nickname",
   roomCode: "glix:room-code",
@@ -169,6 +186,7 @@ function App(): JSX.Element {
 
         reconnectAttemptRef.current = 0;
         setConnection("connected");
+        setError(null);
         socket.send(JSON.stringify({ type: "client:hello", clientVersion: CLIENT_VERSION }));
 
         const storedRoomCode = roomCodeRef.current.trim();
@@ -315,10 +333,29 @@ function App(): JSX.Element {
       });
     };
 
+    const heartbeatTimer = window.setInterval(() => {
+      const socket = socketRef.current;
+
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "client:ping", clientTime: Date.now() }));
+      }
+    }, 10_000);
+
+    const handleOnline = (): void => {
+      const socket = socketRef.current;
+
+      if (!socket || socket.readyState === WebSocket.CLOSED) {
+        scheduleReconnect();
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
     openSocket();
 
     return () => {
       active = false;
+      window.clearInterval(heartbeatTimer);
+      window.removeEventListener("online", handleOnline);
 
       if (reconnectTimerRef.current !== undefined) {
         window.clearTimeout(reconnectTimerRef.current);
@@ -603,7 +640,7 @@ function App(): JSX.Element {
               <i />
               <span>YALNIZCA TAKMA AD</span>
               <i />
-              <span>V0.6 PAKET B DİLİMİ</span>
+              <span>V0.7 / 24 OYUN KATALOĞU</span>
             </div>
           </div>
 
@@ -797,9 +834,9 @@ function App(): JSX.Element {
               type="button"
               disabled={!canStartMatch}
               onClick={handleStartMatch}
-              title={canStartMatch ? "Aşama 6 gerçek oyun rotasını başlat" : "En az iki bağlı oyuncu ve uygun oyunlar gerekli"}
+              title={canStartMatch ? "Seçtiğin gerçek oyun rotasını başlat" : "En az iki bağlı oyuncu ve uygun oyunlar gerekli"}
             >
-              OYUN ROTASINI BAŞLAT <small>AŞAMA 8</small>
+              OYUN ROTASINI BAŞLAT <small>24 OYUN HAZIR</small>
             </button>
           </div>
         </section>

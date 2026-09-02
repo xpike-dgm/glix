@@ -1,10 +1,11 @@
-const CACHE_NAME = "glix-shell-v6";
+const CACHE_NAME = "glix-shell-v7";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",
   "/favicon.svg",
   "/icon.svg",
   "/assets/stage/neon-toybox-arcade-deck-v1.png",
+  "/assets/characters/neon-toybox-roster-v1.png",
   "/assets/games/butona-bas-neon-toybox-v1.png",
   "/assets/games/sizma-neon-toybox-v1.png",
   "/assets/games/zaman-bombasi-hafizasi-neon-toybox-v1.png"
