@@ -43,8 +43,11 @@ production'a taşımak için gereken son ortak işleri kapsar:
 - Browser QA: 320×700 ve 844×390 viewport'larında DOM, safe-area/yatay taşma
   metrikleri ve responsive lobi kontrol edildi; `scrollWidth`, viewport
   genişliğini aşmadı; konsol warning/error görülmedi.
-- VDS read-only kontrolü: Ubuntu kernel, Docker Engine ve Docker Compose mevcut;
-  mevcut `deploy-web`, `deploy-api`, `deploy-caddy` stack'i ayrı çalışıyor.
+- VDS kontrolü ve izole staging yayını: Ubuntu kernel, Docker Engine ve Docker
+  Compose mevcut; mevcut `deploy-web`, `deploy-api`, `deploy-caddy` stack'i
+  ayrı çalışırken `glix-party` Compose projesi build edilip healthy çalışıyor.
+- VDS loopback `/health` kontrolü ve SSH tüneli üzerinden iki istemcili
+  WebSocket oda/maç/tutorial smoke testi başarılı.
 
 ## VDS yayın sınırı
 
@@ -63,7 +66,7 @@ yapılandırmasına public route/SSL bloğu eklenmedi. Bu bilgi tamamlandığın
 
 VDS üzerinde bu commit'in izole staging yayını build edilip çalıştırıldı;
 `glix-client` ve `glix-server` container'ları healthy durumuna geldi. Host'tan
-loopback health/WebSocket smoke için SSH tüneliyle ayrıca doğrulama yapılacak.
+loopback health ve WebSocket smoke testi SSH tüneliyle ayrıca doğrulandı.
 
 Oyun odaları RAM'de kaldığı için container restart'ında aktif odaların silinmesi
 beklenen davranıştır; kalıcı veri deposu eklenmedi.

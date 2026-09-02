@@ -989,22 +989,23 @@ kuralları için ayrıca kullanıcı onayı alınacak.
 
 ### Henüz yapılmayanlar
 
-- Aşama 6 dikey dilimindeki gerçek mini oyun adapter'ları ve özel puanlama.
-- Kalan oyunlar için özel puanlama uygulamaları.
-- Oyunlara özel üretim assetlerinin katmanlı dosyalara dönüştürülmesi.
-- Mini oyunlara özel animasyon ve sahne davranışları.
-- Mini oyunların yeni sürüme aktarılması.
-- Telefon ve VDS testleri.
+- `glix.lynrax.com` DNS kaydı ve host Caddy/TLS public route bilgisi.
+- Arkadaş grubuyla gerçek 2–8 telefonlu fiziksel pilot maçları.
+- Public HTTPS ve `wss://` rotasının, alan adı bilgisi geldikten sonra son kez
+  doğrulanması.
 
 ### Şu anki aşama
 
-**Aşama 6 — Dikey dilim: Butona Bas, Sızma ve Zaman Bombası Hafızası.**
+**Aşama 10 — İzole VDS yayını ve teslim kapısı tamamlandı.**
 
 Eski katalog çıkarıldı. 24 katalog oyununun kural, puan, süre, tutorial, görsel
-ve teknik kenar durumları forma işlendi ve kilitlendi. `kusursuz-denge` kapsam
-dışıdır. Aşama 1, Aşama 2, Aşama 3, Aşama 4 ve Aşama 5 tamamlandı. Sıradaki
-çalışma; Neon Toybox sahnesinin üç gerçek mini oyun adapter'ı ile uçtan uca
-birleştirilmesidir.
+ve teknik kenar durumları forma işlendi ve kilitlendi; `kusursuz-denge` kapsam
+dışıdır. Tüm katalog oyunlarında gerçek server adapter'ı, telefon kontrol
+yüzeyi, sonuç/puan aktarımı ve minimum oyuncu kuralı bulunuyor. Local test,
+typecheck/build, responsive browser QA, iki istemcili realtime smoke ve VDS
+üzerinde izole Docker staging doğrulandı. Public yayın için yalnızca alan adı
+DNS'i ile host Caddy/TLS proxy bilgisi bekliyor; mevcut Lynrax servislerine
+dokunulmadı.
 
 ## 9. Değişiklik günlüğü
 
@@ -1489,3 +1490,28 @@ birleştirilmesidir.
   preparing → playing → results akışı, gizli state alanları ve sonuç puanları
   doğrulandı. Sıradaki aşama tam rota, mobil UX/performance, reconnect ve VDS
   dağıtım kalite kapısıdır.
+
+### 2026-09-02 — Aşama 10 teslim kapısı tamamlandı
+
+- `apps/client/src/App.tsx` production'da aynı-origin `wss://.../ws`, geliştirmede
+  yerel WebSocket fallback'i, 10 saniyelik uygulama ping'i ve ağ geri dönüşünde
+  yeniden bağlanma akışını kullanıyor.
+- Responsive mobil kalite düzenlemeleri; 320px genişlik, safe-area, dokunma
+  hedefleri, iOS input zoom, landscape sıkıştırma ve reduced-motion davranışı
+  için eklendi. Browser QA 320×700 ve 844×390 viewport'larında yatay taşma ve
+  konsol hatası olmadan geçti.
+- Server health/heartbeat/graceful shutdown, 24 oyun katalog kapsam testi ve
+  `scripts/realtime-smoke.mjs` ile uçtan uca smoke akışı tamamlandı.
+- PWA shell cache'i `glix-shell-v7` oldu; karakter roster asset'i kabuk
+  önbelleğine alındı.
+- `deploy/` altında client/server Dockerfile, iki ağlı izole Compose ve Nginx
+  WebSocket/SPA proxy paketi hazırlandı. Server yalnızca `glix-internal` ağında;
+  client edge + internal ağlarda ve host'a yalnızca `127.0.0.1:18080` yayınlıyor.
+- `npm test` **37/37**, `npm run typecheck`, `npm run build` ve local smoke
+  başarılı. GitHub'a `2c1e2d6` commit'i pushlandı.
+- Ubuntu VDS'te `/opt/glix` altında `glix-party` staging build edilip healthy
+  çalıştırıldı; loopback health ve SSH tüneli üzerinden iki istemcili
+  WebSocket oda/maç/tutorial smoke testi geçti. `api.lynrax.com`,
+  `game.lynrax.com` ve mevcut Compose stack'i değiştirilmedi.
+- Public `glix.lynrax.com` DNS kaydı bulunmadığı için host Caddy/TLS public route
+  eklenmedi. Bu, staging'i değil yalnızca internetten erişim son adımını bekletiyor.

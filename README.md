@@ -16,6 +16,8 @@ apps/
   server/       Node.js + WebSocket sunucusu
 packages/
   shared/       İstemci/sunucu ortak tipleri ve mini oyun kataloğu
+deploy/         Docker Compose, client/server imajları ve Nginx proxy
+scripts/        Gerçek zamanlı uçtan uca smoke scriptleri
 docs/
   ASAMA-02-TEKNIK-TEMEL.md
   ASAMA-03-ODA-VE-REALTIME.md
@@ -24,6 +26,7 @@ docs/
   ASAMA-07-OYUN-PAKETI-A.md
   ASAMA-08-OYUN-PAKETI-B.md
   ASAMA-09-KALAN-OYUNLAR.md
+  ASAMA-10-TESLIM-VE-YAYIN.md
   ASSET-PIPELINE-NEON-TOYBOX.md
 ```
 
