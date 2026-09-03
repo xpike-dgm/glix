@@ -1,0 +1,95 @@
+name: CI Release Gate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  release-gate:
+    name: CI / Release Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Run build
+        run: npm run build
+
+      - name: Run realtime smoke test
+        run: |
+          HOST=127.0.0.1 PORT=8787 node apps/server/dist/index.js &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID 2>/dev/null || true" EXIT
+          node -e "
+            const start = Date.now();
+            async function check() {
+              while (Date.now() - start < 15000) {
+                try {
+                  const res = await fetch('http://127.0.0.1:8787/health');
+                  if (res.ok) process.exit(0);
+                } catch {}
+                await new Promise(r => setTimeout(r, 250));
+              }
+              console.error('Server health check timed out after 15s');
+              process.exit(1);
+            }
+            check();
+          "
+          npm run smoke:realtime
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: glix-build-dist
+          path: |
+            apps/client/dist
+            apps/server/dist
+            packages/shared/dist
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Generate CI release gate summary
+        if: success()
+        run: |
+          echo "### GLIX CI Release Gate Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event:** \`${{ github.event_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ref:** \`${{ github.ref }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Node Baseline:** Node.js 22 (pinned to Dockerfile & repository baseline)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Verified Quality Gates" >> $GITHUB_STEP_SUMMARY
+          echo "1. [PASS] \`npm ci\` (clean dependency install)" >> $GITHUB_STEP_SUMMARY
+          echo "2. [PASS] \`npm test\` (engine & reconnect integration test suite)" >> $GITHUB_STEP_SUMMARY
+          echo "3. [PASS] \`npm run typecheck\` (client & server TypeScript validation)" >> $GITHUB_STEP_SUMMARY
+          echo "4. [PASS] \`npm run build\` (shared, client & server production bundles)" >> $GITHUB_STEP_SUMMARY
+          echo "5. [PASS] \`npm run smoke:realtime\` (live HTTP health & WebSocket match smoke)" >> $GITHUB_STEP_SUMMARY
