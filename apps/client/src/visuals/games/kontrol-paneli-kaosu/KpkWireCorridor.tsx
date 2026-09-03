@@ -95,17 +95,45 @@ export function KpkWireCorridor({
     ? `Kablo ${index + 1}: ${config.label} (Kilitli)`
     : `Kablo ${index + 1}: ${config.label} — Kesmek için seç`;
 
+  const safeColor = color === "kırmızı" ? "red" : color === "yeşil" ? "green" : color === "sarı" ? "yellow" : "blue";
+  const clipId = `kpk-clip-${safeColor}-${index}-${isSevered ? "sev" : "int"}`;
+
+  const wireSvg = (
+    <div className={`kpk-wire-sprite ${isSevered ? "is-severed" : "is-intact"}`}>
+      <svg
+        className="kpk-wire-svg"
+        viewBox={isSevered ? "68 0 92 720" : "0 0 54 720"}
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden="true"
+      >
+        <defs>
+          <clipPath id={clipId}>
+            <rect
+              x={isSevered ? 68 : 0}
+              y={0}
+              width={isSevered ? 92 : 54}
+              height={720}
+            />
+          </clipPath>
+        </defs>
+        <image
+          href={wireSrc}
+          width="160"
+          height="720"
+          x="0"
+          y="0"
+          clipPath={`url(#${clipId})`}
+        />
+      </svg>
+    </div>
+  );
+
   return (
     <div className={wireClasses} style={slotStyle}>
       {/* Primary Interaction Surface */}
       {isSpectator ? (
         <div className="kpk-wire-surface spectator" aria-label={accessibleLabel}>
-          <div
-            className={`kpk-wire-sprite ${isSevered ? "is-severed" : "is-intact"}`}
-            style={{
-              backgroundImage: `url(${wireSrc})`
-            }}
-          />
+          {wireSvg}
           <div className="kpk-wire-tag" aria-hidden="true">
             <span className="kpk-wire-num">{index + 1}</span>
             <span className="kpk-wire-name">{config.label}</span>
@@ -132,13 +160,7 @@ export function KpkWireCorridor({
             }
           }}
         >
-          {/* Dual-state raster wire sprite: intact vs severed */}
-          <div
-            className={`kpk-wire-sprite ${isSevered ? "is-severed" : "is-intact"}`}
-            style={{
-              backgroundImage: `url(${wireSrc})`
-            }}
-          />
+          {wireSvg}
 
           {/* Snips reticle hovering over active target */}
           {canInteract && (isHovered || isPressed) && (
@@ -161,7 +183,7 @@ export function KpkWireCorridor({
           {/* Result outcome marker badge */}
           {isResultCut && (
             <div className={`kpk-wire-result-badge ${isResultTarget ? "is-correct" : "is-wrong"}`}>
-              {isResultTarget ? "DOĞRU KESİM" : "YANLIŞ KESİM"}
+              {isResultTarget ? "DOĞRU KABLO +1" : "YANLIŞ KABLO"}
             </div>
           )}
           {!isResultCut && isResultTarget && (

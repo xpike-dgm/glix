@@ -17,9 +17,9 @@ export function ResultOverlay({
     <div className={`glix-result-overlay ${final ? "is-final" : ""}`} aria-live="polite">
       <div className="glix-result-panel">
         <div className="glix-result-stamp" aria-hidden="true"><span>{final ? "★" : "✓"}</span></div>
-        <div className="glix-overlay-kicker"><span /> {final ? "ROTA SONU" : "ROUND RESOLVED"}</div>
+        <div className="glix-overlay-kicker"><span /> {final ? "ROTA SONU" : "TUR SONUCU"}</div>
         <h2>{final ? "Rota tamamlandı." : "Sonuç sahnede."}</h2>
-        <p><strong>{gameName}</strong> hamleleri kilitlendi. Skor ve açılım sunucudan geliyor.</p>
+        <p><strong>{gameName}</strong> turu tamamlandı. Puanlar ve sonuçlar sahnede.</p>
         {children &&
           (disableInteraction ? (
             <fieldset className="glix-result-slot" disabled aria-label="Sonuç özeti; etkileşim kapalı">

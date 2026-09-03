@@ -1066,6 +1066,7 @@ function MatchScreen({
         connection={connection}
         hud={
           <GameHUD
+            gameId={game.id}
             gameName={game.name}
             category={game.category}
             gameIndex={state.currentGameIndex}
@@ -1092,6 +1093,7 @@ function MatchScreen({
               phase={state.phase}
               isSpectator={isSpectator}
               selfPlayerId={selfPlayerId}
+              players={sortedPlayers}
               isReady={ready}
               onReady={onReady}
               onSubmitAction={onSubmit}
@@ -1119,7 +1121,7 @@ function MatchScreen({
                 remainingLabel={formatRemaining(remaining)}
               />
             )}
-            {state.phase === "results" && (
+            {state.phase === "results" && !isKpk && (
               <ResultOverlay gameName={game.name} disableInteraction>
                 {resultControls}
               </ResultOverlay>

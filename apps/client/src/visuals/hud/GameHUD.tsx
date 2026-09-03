@@ -6,6 +6,7 @@ import { PlayerAvatarStrip } from "./PlayerAvatarStrip";
 import type { VisualConnectionState, VisualPhase } from "../types";
 
 interface GameHUDProps {
+  readonly gameId?: string;
   readonly gameName: string;
   readonly category: string;
   readonly gameIndex: number;
@@ -24,16 +25,18 @@ interface GameHUDProps {
   readonly onLeave: () => void;
 }
 
-function selfState(player: MatchPlayerState | undefined, ownHasSubmitted: boolean): string {
+function selfState(player: MatchPlayerState | undefined, ownHasSubmitted: boolean, gameId?: string): string {
   if (!player) return "OTURUM ARANIYOR";
   if (player.eliminated) return "ELENDİ";
   if (!player.currentGameParticipant) return "İZLEYİCİ";
   if (!player.connected) return "KOPTU";
-  if (ownHasSubmitted) return "HAMLE GÖNDERDİ";
-  return "SENİN TURUN";
+  const isKpk = gameId === "kontrol-paneli-kaosu";
+  if (ownHasSubmitted) return isKpk ? "KABLO KESİLDİ" : "HAMLE GÖNDERDİ";
+  return isKpk ? "SENİN PANELİN" : "SENİN SIRAN";
 }
 
 export function GameHUD({
+  gameId,
   gameName,
   category,
   gameIndex,
@@ -68,9 +71,9 @@ export function GameHUD({
         />
 
         <div className="glix-hud-self-cluster">
-          <div className="glix-self-player-badge" aria-label={`Sen: ${selfPlayer?.nickname ?? "Oyuncu"}, ${selfState(selfPlayer, ownHasSubmitted)}`}>
+          <div className="glix-self-player-badge" aria-label={`Sen: ${selfPlayer?.nickname ?? "Oyuncu"}, ${selfState(selfPlayer, ownHasSubmitted, gameId)}`}>
             <span className="glix-self-player-glyph" aria-hidden="true">{selfPlayer?.nickname.slice(0, 1).toUpperCase() ?? "?"}</span>
-            <span><strong>{selfPlayer?.nickname ?? "Oyuncu"}</strong><small>{selfState(selfPlayer, ownHasSubmitted)}</small></span>
+            <span><strong>{selfPlayer?.nickname ?? "Oyuncu"}</strong><small>{selfState(selfPlayer, ownHasSubmitted, gameId)}</small></span>
             <b>{selfPlayer?.score ?? 0}</b>
           </div>
           <ConnectionStateBadge connection={connection} compact />

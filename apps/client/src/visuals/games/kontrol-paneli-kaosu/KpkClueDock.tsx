@@ -35,10 +35,10 @@ export function KpkClueDock({
       <div className={`kpk-clue-result-summary ${myResult.correct ? "is-correct" : "is-wrong"}`}>
         <strong>
           {myResult.correct
-            ? `DOĞRU KABLO KESİLDİ (+${myResult.points} PUAN)`
+            ? `DOĞRU KABLO +${myResult.points}`
             : myResult.cutColor
-            ? `YANLIŞ KABLO KESİLDİ (0 PUAN)`
-            : `KABLO KESİLMEDİ (0 PUAN)`}
+            ? "YANLIŞ KABLO"
+            : "KABLO KESİLMEDİ"}
         </strong>
         <p>
           Doğru hedef kablo: <b className="target-name">{myResult.correctColor.toLocaleUpperCase("tr-TR")}</b>

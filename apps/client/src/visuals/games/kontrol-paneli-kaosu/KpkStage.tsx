@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { JSX } from "react";
 import type { JsonValue } from "@glix/shared";
-import type { KontrolPaneliPublicState, KontrolPaneliOwnState, PanelColor } from "@glix/shared";
+import type { KontrolPaneliPublicState, KontrolPaneliOwnState, PanelColor, MatchPlayerState } from "@glix/shared";
 import type { VisualPhase } from "../../types";
 import { KpkWireCorridor } from "./KpkWireCorridor";
 import { KpkClueDock } from "./KpkClueDock";
@@ -15,6 +15,7 @@ interface KpkStageProps {
   readonly phase: VisualPhase;
   readonly isSpectator: boolean;
   readonly selfPlayerId: string | null;
+  readonly players?: readonly MatchPlayerState[];
   readonly isReady?: boolean;
   readonly onReady?: () => void;
   readonly onSubmitAction: (payload: JsonValue) => void;
@@ -26,6 +27,7 @@ export function KpkStage({
   phase,
   isSpectator,
   selfPlayerId,
+  players,
   isReady,
   onReady,
   onSubmitAction
@@ -86,9 +88,9 @@ export function KpkStage({
   let statusMessage: string | null = null;
   if (isResultsPhase && myResult) {
     statusMessage = myResult.correct
-      ? "DOĞRU KABLO KESİLDİ — KONSOL ÇÖZÜLDÜ"
+      ? "DOĞRU KABLO +1 — KONSOL ÇÖZÜLDÜ"
       : myResult.cutColor
-      ? "YANLIŞ KABLO KESİLDİ — SİSTEM KİLİTLENDİ"
+      ? "YANLIŞ KABLO — DEVRE YANDI"
       : "KABLO KESİLMEDİ — SÜRE DOLDU";
   } else if (hasCutConfirmed) {
     statusMessage = localCutColor
@@ -181,6 +183,32 @@ export function KpkStage({
               <small>{isReady ? "DİĞERLERİ BEKLENİYOR" : "KONSOLU AÇ"}</small>
             </button>
           </div>
+        )}
+
+        {/* Compact Secondary Scoreboard during results phase */}
+        {isResultsPhase && players && players.length > 0 && (
+          <aside className="kpk-results-scoreboard" aria-label="Tur sonuçları">
+            <div className="kpk-results-scoreboard-header">
+              <span>TUR SKORLARI</span>
+              <span>SONUÇ</span>
+            </div>
+            <div className="kpk-results-scoreboard-list">
+              {players.map((p) => {
+                const res = publicState.results?.find((r) => r.playerId === p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className={`kpk-results-scoreboard-row ${p.id === selfPlayerId ? "is-self" : ""}`}
+                  >
+                    <span className="row-name">{p.nickname}</span>
+                    <span className={`row-points ${res?.correct ? "is-correct" : "is-wrong"}`}>
+                      {res?.correct ? "+1" : "0"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
         )}
       </div>
     </div>
