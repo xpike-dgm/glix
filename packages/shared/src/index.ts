@@ -75,6 +75,12 @@ export interface PlayerSummary {
   readonly connected: boolean;
 }
 
+export function getConnectedPlayerCount(
+  players: readonly Pick<PlayerSummary, "connected">[]
+): number {
+  return players.reduce((count, player) => count + (player.connected ? 1 : 0), 0);
+}
+
 export interface LobbyState {
   readonly roomCode: string;
   readonly hostPlayerId: string;
@@ -99,6 +105,7 @@ export interface MatchPlayerState {
   readonly score: number;
   readonly miniGameScore: number;
   readonly connected: boolean;
+  readonly currentGameParticipant: boolean;
   readonly eliminated: boolean;
 }
 

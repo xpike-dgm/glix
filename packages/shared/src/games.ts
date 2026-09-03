@@ -526,6 +526,60 @@ class SizmaAdapter implements Stage6GameAdapter {
     this.started = true;
   }
 
+  private normalizeClueTurn(): void {
+    if (this.subPhase !== "clue") {
+      return;
+    }
+
+    if (this.playerIds.length === 0) {
+      this.subPhase = "results";
+      this.finished = true;
+      this.outsiderCaught = null;
+      this.scoreApplied = true;
+      return;
+    }
+
+    this.clueTurnsCompleted = this.playerIds.reduce((count, candidate) => {
+      const completed = this.completedClueRounds.get(candidate);
+      return count + (completed?.has(1) ? 1 : 0) + (completed?.has(2) ? 1 : 0);
+    }, 0);
+
+    this.clueTurnIndex = ((this.clueTurnIndex % this.playerIds.length) + this.playerIds.length) % this.playerIds.length;
+
+    let checked = 0;
+    while (
+      checked < this.playerIds.length &&
+      (this.completedClueRounds.get(this.playerIds[this.clueTurnIndex]!)?.has(this.clueRound) ?? false)
+    ) {
+      this.clueTurnIndex = (this.clueTurnIndex + 1) % this.playerIds.length;
+      checked += 1;
+    }
+
+    if (checked < this.playerIds.length) {
+      return;
+    }
+
+    if (this.clueRound === 1) {
+      this.clueRound = 2;
+      this.clueTurnIndex = 0;
+      return;
+    }
+
+    this.subPhase = "ready-for-vote";
+    this.clueTurnIndex = this.playerIds.length;
+  }
+
+  private normalizeReadyForVote(now: number): void {
+    if (this.subPhase !== "ready-for-vote") {
+      return;
+    }
+
+    if (this.readyPlayerIds.size >= this.playerIds.length) {
+      this.subPhase = "vote";
+      this.voteEndsAt = now + 30_000;
+    }
+  }
+
   private finishVote(): void {
     if (this.finished) {
       return;
@@ -596,16 +650,7 @@ class SizmaAdapter implements Stage6GameAdapter {
       this.completedClueRounds.set(playerId, completed);
       this.clueTurnsCompleted += 1;
       this.clueTurnIndex += 1;
-
-      if (this.clueTurnIndex >= this.playerIds.length) {
-        if (this.clueRound === 1) {
-          this.clueRound = 2;
-          this.clueTurnIndex = 0;
-        } else {
-          this.subPhase = "ready-for-vote";
-          this.clueTurnIndex = this.playerIds.length;
-        }
-      }
+      this.normalizeClueTurn();
 
       return { accepted: true };
     }
@@ -620,11 +665,7 @@ class SizmaAdapter implements Stage6GameAdapter {
       }
 
       this.readyPlayerIds.add(playerId);
-
-      if (this.readyPlayerIds.size === this.playerIds.length) {
-        this.subPhase = "vote";
-        this.voteEndsAt = now + 30_000;
-      }
+      this.normalizeReadyForVote(now);
 
       return { accepted: true };
     }
@@ -656,9 +697,31 @@ class SizmaAdapter implements Stage6GameAdapter {
   }
 
   removePlayer(playerId: string): void {
+    const removedIndex = this.playerIds.indexOf(playerId);
+
+    if (removedIndex < 0) {
+      return;
+    }
+
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.completedClueRounds.delete(playerId);
     this.readyPlayerIds.delete(playerId);
     this.votes.delete(playerId);
+    for (const [voterId, targetPlayerId] of this.votes) {
+      if (targetPlayerId === playerId) {
+        this.votes.delete(voterId);
+      }
+    }
+
+    if (this.subPhase === "clue") {
+      if (removedIndex < this.clueTurnIndex) {
+        this.clueTurnIndex -= 1;
+      }
+
+      this.normalizeClueTurn();
+    } else if (this.subPhase === "ready-for-vote") {
+      this.normalizeReadyForVote(Date.now());
+    }
   }
 
   getPublicState(_now: number): SizmaPublicState {

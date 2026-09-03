@@ -9,6 +9,7 @@ import {
   PROTOCOL_VERSION,
   ROOM_CODE_LENGTH,
   getAvailableGames,
+  getConnectedPlayerCount,
   getGameDefinition,
   type ClientMessage,
   type GameId,
@@ -464,12 +465,26 @@ function App(): JSX.Element {
   };
 
   const handleGameReady = (): void => {
+    const self = matchState?.players.find((player) => player.id === selfPlayerId);
+
+    if (!matchState || !self?.currentGameParticipant || self.eliminated) {
+      setError("Bu mini oyunda izleyicisin; hazır bildirimi gönderemezsin.");
+      return;
+    }
+
     setError(null);
     sendMessage({ type: "client:game:ready" });
   };
 
   const handleGameInput = (payload: JsonValue): void => {
-    if (!matchState || matchState.phase !== "playing") {
+    const self = matchState?.players.find((player) => player.id === selfPlayerId);
+
+    if (
+      !matchState ||
+      matchState.phase !== "playing" ||
+      !self?.currentGameParticipant ||
+      self.eliminated
+    ) {
       return;
     }
 
@@ -486,6 +501,9 @@ function App(): JSX.Element {
     setNotice("Lobiye dönülüyor.");
     sendMessage({ type: "client:match:return-lobby" });
   };
+
+  const roomMemberCount = roomState?.players.length ?? 0;
+  const connectedCount = roomState ? getConnectedPlayerCount(roomState.players) : 0;
 
   const copyRoomCode = async (): Promise<void> => {
     if (!roomState) {
@@ -527,8 +545,10 @@ function App(): JSX.Element {
 
     if (selected.has(gameId)) {
       selected.delete(gameId);
-    } else {
+    } else if (availableGameIds.has(gameId)) {
       selected.add(gameId);
+    } else {
+      return;
     }
 
     updateGameSelection("manual", [...selected], roomState.randomGameCount);
@@ -539,10 +559,9 @@ function App(): JSX.Element {
       return;
     }
 
-    const playerCount = roomState.players.length;
-    const availableGameIds = getAvailableGames(playerCount).map((game) => game.id as GameId);
+    const availableGameIds = getAvailableGames(connectedCount).map((game) => game.id as GameId);
     const selectedGameIds = selectionMode === "manual" ? availableGameIds : [];
-    const maxRandomCount = Math.max(1, getAvailableGames(playerCount).length);
+    const maxRandomCount = Math.max(1, getAvailableGames(connectedCount).length);
     const randomGameCount = Math.min(roomState.randomGameCount, maxRandomCount);
     updateGameSelection(selectionMode, selectedGameIds, randomGameCount);
   };
@@ -552,8 +571,7 @@ function App(): JSX.Element {
       return;
     }
 
-    const playerCount = roomState.players.length;
-    const maxRandomCount = Math.max(1, getAvailableGames(playerCount).length);
+    const maxRandomCount = Math.max(1, getAvailableGames(connectedCount).length);
     const parsed = Number(value);
 
     if (!Number.isInteger(parsed)) {
@@ -568,12 +586,10 @@ function App(): JSX.Element {
     [roomState?.selectedGameIds]
   );
   const availableGameIds = useMemo(
-    () => new Set(roomState ? getAvailableGames(roomState.players.length).map((game) => game.id) : []),
-    [roomState?.players.length]
+    () => new Set(getAvailableGames(connectedCount).map((game) => game.id)),
+    [connectedCount]
   );
 
-  const playerCount = roomState?.players.length ?? 0;
-  const connectedCount = roomState?.players.filter((player) => player.connected).length ?? 0;
   const currentPlayer = roomState?.players.find((player) => player.id === selfPlayerId);
   const availableGameCount = availableGameIds.size;
   const canStartMatch = Boolean(
@@ -725,7 +741,7 @@ function App(): JSX.Element {
                   <p className="eyebrow">OYUNCULAR</p>
                   <h2 id="players-title">Oda ekibi</h2>
                 </div>
-                <span className="count-badge">{connectedCount}/{MAX_PLAYERS}</span>
+                <span className="count-badge">{roomMemberCount}/{MAX_PLAYERS}</span>
               </div>
               <p className="card-description">Kodunu arkadaşlarınla paylaş. Odaya giren herkes burada görünür.</p>
               <div className="player-list">
@@ -743,10 +759,10 @@ function App(): JSX.Element {
                     </span>
                   </div>
                 ))}
-                {roomState.players.length < MAX_PLAYERS && (
+                {roomMemberCount < MAX_PLAYERS && (
                   <div className="player-row empty-player">
                     <span className="avatar avatar-empty">＋</span>
-                    <span className="player-name"><strong>Arkadaşlarını bekle</strong><small>{MAX_PLAYERS - roomState.players.length} boş yer</small></span>
+                    <span className="player-name"><strong>Arkadaşlarını bekle</strong><small>{MAX_PLAYERS - roomMemberCount} boş yer</small></span>
                   </div>
                 )}
               </div>
@@ -805,7 +821,7 @@ function App(): JSX.Element {
                       className={`game-row ${selected ? "selected" : ""} ${!available ? "unavailable" : ""} ${isRandom ? "read-only" : ""}`}
                       type="button"
                       key={game.id}
-                      disabled={!canManageGames || isRandom}
+                      disabled={!canManageGames || isRandom || (!selected && !available)}
                       onClick={() => toggleGame(game.id)}
                     >
                       <span className={`game-index index-${(index % 5) + 1}`}>{String(index + 1).padStart(2, "0")}</span>
@@ -818,7 +834,7 @@ function App(): JSX.Element {
               </div>
               <div className="games-footer">
                 <span><i className="legend-dot selected-dot" /> SEÇİLİ</span>
-                <span><i className="legend-dot warning-dot" /> {playerCount < 3 ? "3+ OYUNLAR OYUNCU BEKLİYOR" : "TÜM OYUNLAR UYGUN"}</span>
+                <span><i className="legend-dot warning-dot" /> {connectedCount < 3 ? "3+ OYUNLAR OYUNCU BEKLİYOR" : "TÜM OYUNLAR UYGUN"}</span>
               </div>
             </section>
           </div>
@@ -836,7 +852,7 @@ function App(): JSX.Element {
               onClick={handleStartMatch}
               title={canStartMatch ? "Seçtiğin gerçek oyun rotasını başlat" : "En az iki bağlı oyuncu ve uygun oyunlar gerekli"}
             >
-              OYUN ROTASINI BAŞLAT <small>24 OYUN HAZIR</small>
+              OYUN ROTASINI BAŞLAT <small>{availableGameCount} UYGUN OYUN</small>
             </button>
           </div>
         </section>
@@ -916,6 +932,18 @@ function formatRemaining(milliseconds: number | null): string {
   return Math.max(0, Math.ceil(milliseconds / 1000)) + " sn";
 }
 
+function SpectatorCallout({ eliminated }: { readonly eliminated: boolean }): JSX.Element {
+  return (
+    <div className="result-callout">
+      <span className="result-callout-mark">◌</span>
+      <div>
+        <strong>İzleyici modu</strong>
+        <small>{eliminated ? "Bu mini oyunda elendin; yalnızca sonucu izleyebilirsin." : "Bu mini oyun başladıktan sonra bağlandın; sonraki oyunda katılabilirsin."}</small>
+      </div>
+    </div>
+  );
+}
+
 function MatchScreen({
   state,
   selfPlayerId,
@@ -940,6 +968,7 @@ function MatchScreen({
   const duration = state.phaseEndsAt === null ? null : state.phaseEndsAt - state.phaseStartedAt;
   const progress = state.phase === "finished" ? 1 : duration && duration > 0 ? Math.min(1, Math.max(0, 1 - (remaining ?? 0) / duration)) : 0;
   const self = state.players.find((player) => player.id === selfPlayerId);
+  const isSpectator = !self?.currentGameParticipant || Boolean(self.eliminated);
   const ready = state.readyPlayerIds.includes(selfPlayerId ?? "");
   const sortedPlayers = [...state.players].sort(
     (left, right) => right.score - left.score || right.miniGameScore - left.miniGameScore
@@ -987,7 +1016,9 @@ function MatchScreen({
             </div>
           )}
 
-          {state.phase === "preparing" && (
+          {isSpectator && state.phase !== "finished" && <SpectatorCallout eliminated={Boolean(self?.eliminated)} />}
+
+          {state.phase === "preparing" && !isSpectator && (
             <button className="button match-action-button" type="button" disabled={ready} onClick={onReady}>
               <span className="button-icon">{ready ? "✓" : "→"}</span>
               <span>
@@ -997,7 +1028,7 @@ function MatchScreen({
             </button>
           )}
 
-          {state.phase === "playing" && (
+          {state.phase === "playing" && !isSpectator && (
             stage6GameId ? (
               <Stage6GameControls
                 gameId={stage6GameId}
@@ -1056,7 +1087,7 @@ function MatchScreen({
                 <span className="result-callout-mark">✦</span>
                 <div><strong>Oyun sonucu işleniyor</strong><small>Sunucuya ulaşan girdi: {state.inputCount}</small></div>
               </div>
-              {stage8GameId && (
+              {stage8GameId && !isSpectator && (
                 <Stage8GameControls
                   gameId={stage8GameId}
                   publicState={state.gameState}
@@ -1067,7 +1098,7 @@ function MatchScreen({
                   onSubmit={onSubmit}
                 />
               )}
-              {stage9GameId && (
+              {stage9GameId && !isSpectator && (
                 <Stage9GameControls
                   gameId={stage9GameId}
                   publicState={state.gameState}
@@ -1100,14 +1131,14 @@ function MatchScreen({
           </div>
           <div className="match-self-card">
             <span className="avatar avatar-1">{self?.nickname.slice(0, 1).toUpperCase() ?? "?"}</span>
-            <div><strong>{self?.nickname ?? "Oyuncu"}</strong><small>{self?.eliminated ? "İZLEYİCİ" : ownInputCount > 0 ? "HAMLE GÖNDERDİ" : "SEN"}</small></div>
+            <div><strong>{self?.nickname ?? "Oyuncu"}</strong><small>{isSpectator ? "İZLEYİCİ" : ownInputCount > 0 ? "HAMLE GÖNDERDİ" : "SEN"}</small></div>
             <b>{self?.score ?? 0}</b>
           </div>
           <div className="match-player-list">
             {sortedPlayers.map((player, index) => (
               <div className={"match-player-row " + (player.id === selfPlayerId ? "is-self" : "")} key={player.id}>
                 <span className={"avatar avatar-" + ((index % 8) + 1)}>{player.nickname.slice(0, 1).toUpperCase()}</span>
-                <span><strong>{player.nickname}</strong><small>{player.eliminated ? "İZLEYİCİ" : player.connected ? "BAĞLI" : "KOPTU"}</small></span>
+                <span><strong>{player.nickname}</strong><small>{player.eliminated || !player.currentGameParticipant ? "İZLEYİCİ" : player.connected ? "BAĞLI" : "KOPTU"}</small></span>
                 <b>{player.score}</b>
               </div>
             ))}

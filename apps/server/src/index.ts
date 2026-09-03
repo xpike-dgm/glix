@@ -16,6 +16,7 @@ import {
   ROOM_EMPTY_GRACE_MS,
   createMiniGameRegistry,
   getAvailableGames,
+  getConnectedPlayerCount,
   type ClientMessage,
   type GameId,
   type GameSelectionMode,
@@ -197,14 +198,16 @@ function connectedPlayerCount(): number {
   let count = 0;
 
   for (const room of rooms.values()) {
-    for (const player of room.players.values()) {
-      if (player.connected) {
-        count += 1;
-      }
-    }
+    count += getConnectedPlayerCount([...room.players.values()]);
   }
 
   return count;
+}
+
+function getConnectedPlayerIds(room: RoomRecord): string[] {
+  return [...room.players.values()]
+    .filter((player) => player.connected)
+    .map((player) => player.id);
 }
 
 function activeMatchCount(): number {
@@ -520,6 +523,7 @@ function synchronizeMatchRuntime(match: MatchRecord, now: number): boolean {
 function getMatchSnapshot(room: RoomRecord, match: MatchRecord, now: number) {
   synchronizeMatchRuntime(match, now);
   const snapshot = match.engine.snapshot(now);
+  const currentParticipantIds = new Set(match.engine.playerIds);
   const players = [...room.players.values()]
     .sort((left, right) => left.joinedAt - right.joinedAt)
     .map((player) => ({
@@ -528,6 +532,7 @@ function getMatchSnapshot(room: RoomRecord, match: MatchRecord, now: number) {
       score: player.score,
       miniGameScore: match.miniGameScores.get(player.id) ?? 0,
       connected: player.connected,
+      currentGameParticipant: currentParticipantIds.has(player.id),
       eliminated: snapshot.eliminatedPlayerIds.includes(player.id)
     }));
 
@@ -568,8 +573,13 @@ function sendMatchStateToPlayer(
   }
 
   const { state } = getMatchSnapshot(room, match, now);
-  const ownInputCount = match.engine.getVisibleInputs(player.id).length;
-  const ownGameState = match.adapter?.getOwnState(player.id, now) ?? null;
+  const currentGameParticipant = match.engine.playerIds.includes(player.id);
+  const ownInputCount = currentGameParticipant
+    ? match.engine.getVisibleInputs(player.id).length
+    : 0;
+  const ownGameState = currentGameParticipant
+    ? match.adapter?.getOwnState(player.id, now) ?? null
+    : null;
 
   sendJson(player.socket, {
     type: "server:match-state",
@@ -806,9 +816,10 @@ function validateAndApplyGameSelection(
     return false;
   }
 
+  const connectedPlayerIds = getConnectedPlayerIds(room);
   const maximumGameCount =
     message.selectionMode === "random"
-      ? getAvailableGames(room.players.size).length
+      ? getAvailableGames(connectedPlayerIds.length).length
       : GAME_CATALOG.length;
 
   if (message.randomGameCount < 1 || message.randomGameCount > maximumGameCount) {
@@ -970,10 +981,10 @@ type MatchSelectionResult =
   | { readonly code: "invalid_game_selection" | "not_enough_players"; readonly message: string };
 
 function resolveMatchGameIds(room: RoomRecord): MatchSelectionResult {
-  const connectedPlayers = [...room.players.values()].filter((player) => player.connected);
-  const availableGames = getAvailableGames(connectedPlayers.length);
+  const connectedPlayerIds = getConnectedPlayerIds(room);
+  const availableGames = getAvailableGames(connectedPlayerIds.length);
 
-  if (connectedPlayers.length < MIN_PLAYERS) {
+  if (connectedPlayerIds.length < MIN_PLAYERS) {
     return {
       code: "not_enough_players",
       message: "Maçı başlatmak için en az " + MIN_PLAYERS + " bağlı oyuncu gerekli."
@@ -1020,10 +1031,23 @@ function resolveMatchGameIds(room: RoomRecord): MatchSelectionResult {
   return { gameIds };
 }
 
+function createGameAdapter(
+  gameId: GameId,
+  playerIds: readonly string[]
+): MatchRecord["adapter"] {
+  return isStage6Game(gameId)
+    ? createStage6GameAdapter(gameId, playerIds)
+    : isStage7Game(gameId)
+      ? createStage7GameAdapter(gameId, playerIds)
+      : isStage8Game(gameId)
+        ? createStage8GameAdapter(gameId, playerIds)
+        : isStage9Game(gameId)
+          ? createStage9GameAdapter(gameId, playerIds)
+          : null;
+}
+
 function createMatch(room: RoomRecord, gameIds: readonly GameId[]): MatchRecord {
-  const playerIds = [...room.players.values()]
-    .filter((player) => player.connected)
-    .map((player) => player.id);
+  const playerIds = getConnectedPlayerIds(room);
   const firstDefinition = miniGameRegistry.get(gameIds[0]!);
 
   if (!firstDefinition) {
@@ -1031,16 +1055,7 @@ function createMatch(room: RoomRecord, gameIds: readonly GameId[]): MatchRecord 
   }
 
   const firstGameId = gameIds[0]!;
-
-  const adapter = isStage6Game(firstGameId)
-    ? createStage6GameAdapter(firstGameId, playerIds)
-    : isStage7Game(firstGameId)
-      ? createStage7GameAdapter(firstGameId, playerIds)
-      : isStage8Game(firstGameId)
-        ? createStage8GameAdapter(firstGameId, playerIds)
-        : isStage9Game(firstGameId)
-          ? createStage9GameAdapter(firstGameId, playerIds)
-          : null;
+  const adapter = createGameAdapter(firstGameId, playerIds);
 
   return {
     id: randomUUID(),
@@ -1112,31 +1127,38 @@ function startNextGame(room: RoomRecord, match: MatchRecord, now: number): boole
     return false;
   }
 
-  match.currentGameIndex += 1;
-  const definition = miniGameRegistry.get(match.gameIds[match.currentGameIndex]!);
+  const playerIds = getConnectedPlayerIds(room);
+  let nextGameIndex = match.currentGameIndex + 1;
 
-  if (!definition) {
-    throw new Error("Sıradaki mini oyun tanımı bulunamadı.");
+  while (nextGameIndex < match.gameIds.length) {
+    const nextGameId = match.gameIds[nextGameIndex]!;
+    const definition = miniGameRegistry.get(nextGameId);
+
+    if (!definition) {
+      throw new Error("Sıradaki mini oyun tanımı bulunamadı.");
+    }
+
+    if (
+      playerIds.length < definition.game.minPlayers ||
+      playerIds.length > definition.game.maxPlayers
+    ) {
+      nextGameIndex += 1;
+      continue;
+    }
+
+    match.currentGameIndex = nextGameIndex;
+    match.engine = new MiniGameEngine(definition, playerIds, now);
+    match.adapter = createGameAdapter(nextGameId, playerIds);
+    match.miniGameScores.clear();
+    match.resultsApplied = false;
+    match.stateVersion += 1;
+    return true;
   }
 
-  match.engine = new MiniGameEngine(
-    definition,
-    [...room.players.values()].map((player) => player.id),
-    now
-  );
-  const nextGameId = match.gameIds[match.currentGameIndex]!;
-  const playerIds = [...room.players.values()].map((player) => player.id);
-  match.adapter = isStage6Game(nextGameId)
-    ? createStage6GameAdapter(nextGameId, playerIds)
-    : isStage7Game(nextGameId)
-      ? createStage7GameAdapter(nextGameId, playerIds)
-      : isStage8Game(nextGameId)
-        ? createStage8GameAdapter(nextGameId, playerIds)
-        : isStage9Game(nextGameId)
-          ? createStage9GameAdapter(nextGameId, playerIds)
-          : null;
-  match.miniGameScores.clear();
-  match.resultsApplied = false;
+  // The current engine is already finished. Trim the unplayable tail so the
+  // route stays on the last valid game without constructing an invalid one or
+  // retrying the same transition on every ticker pass.
+  match.gameIds.splice(match.currentGameIndex + 1);
   match.stateVersion += 1;
   return true;
 }
@@ -1218,6 +1240,14 @@ function handleGameReady(socket: WebSocket): void {
 
   if (!room || !match) {
     sendError(socket, "match_not_started", "Henüz aktif bir mini oyun yok.");
+    return;
+  }
+
+  if (
+    !match.engine.playerIds.includes(context.playerId) ||
+    match.engine.isEliminated(context.playerId)
+  ) {
+    sendError(socket, "spectator", "Bu oyunda izleyicisin; hazır bildirimi gönderemezsin.");
     return;
   }
 
@@ -1342,6 +1372,19 @@ function handleGameSubmit(
       reason: "invalid_game_input"
     });
     sendError(socket, "match_not_started", "Henüz aktif bir mini oyun yok.");
+    return;
+  }
+
+  if (
+    !match.engine.playerIds.includes(context.playerId) ||
+    match.engine.isEliminated(context.playerId)
+  ) {
+    sendJson(socket, {
+      type: "server:game-input-ack",
+      accepted: false,
+      serverTime: now,
+      reason: "spectator"
+    });
     return;
   }
 

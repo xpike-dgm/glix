@@ -1515,3 +1515,29 @@ dokunulmadı.
   `game.lynrax.com` ve mevcut Compose stack'i değiştirilmedi.
 - Public `glix.lynrax.com` DNS kaydı bulunmadığı için host Caddy/TLS public route
   eklenmedi. Bu, staging'i değil yalnızca internetten erişim son adımını bekletiyor.
+
+### 2026-09-03 — Aşama 11.1 multiplayer participant/disconnect stabilizasyonu tamamlandı
+
+- A0 karar kaydı `docs/ASAMA-11-1-A0-DECISION-RECORD.md` içine yazıldı.
+- Yeni mini oyun başlatılırken engine ve adapter participant listesi yalnızca o
+  anda bağlı oyunculardan oluşturuluyor. Reconnect grace içindeki kopuk oda
+  üyeleri roster'da kalıyor fakat sonraki oyuna aktif participant olarak
+  alınmıyor.
+- Mevcut oyun sırasında kopan oyuncu aynı oyunun participant'ı olarak state'ini
+  koruyarak yeniden bağlanabiliyor. Sonraki oyun başladıktan sonra bağlanan üye
+  o oyun boyunca spectator; özel oyun state'i alamıyor, ready/input gönderemiyor
+  ve sonraki oyun sınırında bağlıysa yeniden participant olabiliyor.
+- Lobi oyun uygunluğu, manuel seçim, rastgele oyun üst sınırı ve maç başlatma
+  connected oyuncu sayısını kullanıyor; oda roster'ı ve kapasitesi room member
+  sayısını koruyor.
+- Host migration, duplicate socket fencing, reconnect identity/score ve
+  uyumsuz next-game route davranışları korunarak integration regression testleri
+  eklendi. Sızma oyununda clue sırası ve ready-for-vote bariyerindeki oyuncu
+  çıkışı stall oluşturmayacak şekilde normalize edildi.
+- A7 bağımsız QA kararı **APPROVE** verdi.
+- Final doğrulama: `npm test` 47/47 (42 shared + 5 server integration),
+  `npm run typecheck`, `npm run build` ve build edilmiş lokal server ile
+  `npm run smoke:realtime` başarılı.
+- Bu aşamada görsel/CSS/asset, yeni oyun kuralı, protocol bump, dependency,
+  deployment veya VDS değişikliği yapılmadı. Stage 11.2 ve visual redesign
+  başlatılmadı.
