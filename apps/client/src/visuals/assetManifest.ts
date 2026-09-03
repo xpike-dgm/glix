@@ -1,3 +1,5 @@
+import { PREMIUM_ASSET_PATHS } from "./visualAssetManifest";
+
 export type VisualAssetKind = "background" | "roster-reference" | "game-prop";
 
 export interface VisualAsset {
@@ -10,41 +12,23 @@ export interface VisualAsset {
 
 export const NEON_TOYBOX_ASSETS = {
   stageBackdrop: {
-    src: "/assets/stage/neon-toybox-arcade-deck-v1.png",
+    src: PREMIUM_ASSET_PATHS.stage.portrait,
     kind: "background",
     critical: true,
     loading: "eager",
     maxTextureEdge: 2048
   },
   characterRosterReference: {
-    src: "/assets/characters/neon-toybox-roster-v1.png",
+    src: PREMIUM_ASSET_PATHS.avatars.full[0],
     kind: "roster-reference",
     critical: false,
     loading: "lazy",
     maxTextureEdge: 2048
   },
   gameProps: {
-    butonaBas: {
-      src: "/assets/games/butona-bas-neon-toybox-v1.png",
-      kind: "game-prop",
-      critical: false,
-      loading: "eager",
-      maxTextureEdge: 2048
-    },
-    sizma: {
-      src: "/assets/games/sizma-neon-toybox-v1.png",
-      kind: "game-prop",
-      critical: false,
-      loading: "eager",
-      maxTextureEdge: 2048
-    },
-    memory: {
-      src: "/assets/games/zaman-bombasi-hafizasi-neon-toybox-v1.png",
-      kind: "game-prop",
-      critical: false,
-      loading: "eager",
-      maxTextureEdge: 2048
-    }
+    butonaBas: null,
+    sizma: null,
+    memory: null
   }
 } as const;
 

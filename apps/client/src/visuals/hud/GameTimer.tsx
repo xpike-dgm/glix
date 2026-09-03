@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { PREMIUM_VISUAL_ASSETS } from "../visualAssetManifest";
 
 export interface GameTimerProps {
   readonly deadline: number | null;
@@ -33,6 +34,7 @@ export function GameTimer({
       role="timer"
       aria-label={remainingSeconds === null ? "Süresiz faz" : `Kalan süre ${remainingSeconds} saniye`}
     >
+      <img className="glix-timer-bezel" src={PREMIUM_VISUAL_ASSETS.common.timerBezel.src} alt="" aria-hidden="true" decoding="async" loading="eager" />
       <svg viewBox="0 0 52 52" aria-hidden="true">
         <circle className="glix-timer-track" cx="26" cy="26" r={radius} />
         <circle

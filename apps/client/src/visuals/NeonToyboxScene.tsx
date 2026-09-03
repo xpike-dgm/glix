@@ -6,6 +6,7 @@ import {
   NEON_TOYBOX_CHARACTER_STYLES,
   preloadCriticalVisualAssets
 } from "./assetManifest";
+import type { VisualAsset } from "./assetManifest";
 
 interface NeonToyboxSceneProps {
   readonly state: MatchState;
@@ -43,6 +44,13 @@ function phaseMotionClass(phase: MatchState["phase"]): string {
   return "is-idle";
 }
 
+function gamePropFor(gameId: string): VisualAsset | null {
+  if (gameId === "butona-bas") return NEON_TOYBOX_ASSETS.gameProps.butonaBas;
+  if (gameId === "sizma") return NEON_TOYBOX_ASSETS.gameProps.sizma;
+  if (gameId === "zaman-bombasi-hafizasi") return NEON_TOYBOX_ASSETS.gameProps.memory;
+  return null;
+}
+
 export function NeonToyboxScene({
   state,
   game,
@@ -57,13 +65,7 @@ export function NeonToyboxScene({
   }, []);
 
   const players = state.players.slice(0, NEON_TOYBOX_CHARACTER_STYLES.length);
-  const gameProp = game.id === "butona-bas"
-    ? NEON_TOYBOX_ASSETS.gameProps.butonaBas
-    : game.id === "sizma"
-      ? NEON_TOYBOX_ASSETS.gameProps.sizma
-      : game.id === "zaman-bombasi-hafizasi"
-        ? NEON_TOYBOX_ASSETS.gameProps.memory
-        : null;
+  const gameProp = gamePropFor(game.id);
 
   return (
     <div
@@ -101,7 +103,6 @@ export function NeonToyboxScene({
       <div className="toybox-parallax-grid" aria-hidden="true" />
       <div className="toybox-scene-hud">
         <span className="toybox-hud-label">NEON TOYBOX / LIVE STAGE</span>
-        <span className="toybox-hud-count">{String(state.inputCount).padStart(2, "0")} EVENT</span>
       </div>
 
       <div className="toybox-beam beam-left" aria-hidden="true" />

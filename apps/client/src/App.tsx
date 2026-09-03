@@ -135,7 +135,6 @@ function App(): JSX.Element {
   const [matchState, setMatchState] = useState<MatchState | null>(null);
   const [selfPlayerId, setSelfPlayerId] = useState<string | null>(null);
   const [canManageGames, setCanManageGames] = useState(false);
-  const [ownInputCount, setOwnInputCount] = useState(0);
   const [ownHasSubmitted, setOwnHasSubmitted] = useState(false);
   const [ownGameState, setOwnGameState] = useState<JsonValue | null>(null);
   const [clockOffset, setClockOffset] = useState(0);
@@ -253,7 +252,6 @@ function App(): JSX.Element {
             setMatchState(null);
             setSelfPlayerId(value.selfPlayerId);
             setCanManageGames(value.canManageGames);
-            setOwnInputCount(0);
             setOwnHasSubmitted(false);
             setOwnGameState(null);
             setRoomCodeInput(value.state.roomCode);
@@ -268,7 +266,6 @@ function App(): JSX.Element {
             setRoomState(null);
             setSelfPlayerId(value.selfPlayerId);
             setCanManageGames(value.canManageMatch);
-            setOwnInputCount(value.ownInputCount);
             setOwnHasSubmitted(value.ownHasSubmitted);
             setOwnGameState(value.ownGameState);
             setClockOffset(value.state.serverNow - Date.now());
@@ -280,7 +277,7 @@ function App(): JSX.Element {
 
           if (value.type === "server:game-input-ack") {
             if (value.accepted) {
-              setNotice("Neon Toybox sahne hamleni aldı." + (value.inputSequence ? " #" + value.inputSequence : ""));
+              setNotice("GLIX sahne hamleni kaydetti." + (value.inputSequence ? " #" + value.inputSequence : ""));
               return;
             }
 
@@ -302,7 +299,6 @@ function App(): JSX.Element {
             setMatchState(null);
             setSelfPlayerId(null);
             setCanManageGames(false);
-            setOwnInputCount(0);
             setOwnHasSubmitted(false);
             setOwnGameState(null);
             setScreen("home");
@@ -461,7 +457,6 @@ function App(): JSX.Element {
     setMatchState(null);
     setSelfPlayerId(null);
     setCanManageGames(false);
-    setOwnInputCount(0);
     setOwnHasSubmitted(false);
     setOwnGameState(null);
     setScreen("home");
@@ -1008,6 +1003,28 @@ function MatchScreen({
 
   const resultControls = state.phase === "results" && !isSpectator ? (
     <>
+      {stage6GameId && (
+        <Stage6GameControls
+          gameId={stage6GameId}
+          publicState={state.gameState}
+          ownState={ownGameState}
+          selfPlayerId={selfPlayerId}
+          players={state.players}
+          now={now}
+          onSubmit={onSubmit}
+        />
+      )}
+      {stage7GameId && (
+        <Stage7GameControls
+          gameId={stage7GameId}
+          publicState={state.gameState}
+          ownState={ownGameState}
+          selfPlayerId={selfPlayerId}
+          players={state.players}
+          now={now}
+          onSubmit={onSubmit}
+        />
+      )}
       {stage8GameId && (
         <Stage8GameControls
           gameId={stage8GameId}
@@ -1082,7 +1099,9 @@ function MatchScreen({
               />
             )}
             {state.phase === "results" && (
-              <ResultOverlay gameName={game.name}>{resultControls}</ResultOverlay>
+              <ResultOverlay gameName={game.name} disableInteraction>
+                {resultControls}
+              </ResultOverlay>
             )}
             {state.phase === "finished" && (
               <ResultOverlay gameName="GLIX rotası" final>

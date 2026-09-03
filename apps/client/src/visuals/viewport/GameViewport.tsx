@@ -34,7 +34,7 @@ export function GameViewport({
       data-game-id={gameId}
       aria-label={`${gameName} oyun sahnesi`}
     >
-      <StageBackdrop />
+      <StageBackdrop requiresLandscape={requiresLandscape} />
       <OrientationGate
         requiresLandscape={requiresLandscape}
         gameName={gameName}

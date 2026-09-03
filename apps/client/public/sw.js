@@ -4,11 +4,19 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/favicon.svg",
   "/icon.svg",
-  "/assets/stage/neon-toybox-arcade-deck-v1.png",
-  "/assets/characters/neon-toybox-roster-v1.png",
-  "/assets/games/butona-bas-neon-toybox-v1.png",
-  "/assets/games/sizma-neon-toybox-v1.png",
-  "/assets/games/zaman-bombasi-hafizasi-neon-toybox-v1.png"
+  "/assets/stage/portrait-arena-deck-v1.webp",
+  "/assets/stage/landscape-arena-deck-v1.webp",
+  "/assets/common/hud/timer-bezel-v1.svg",
+  "/assets/common/icons/connection-radar-v1.svg",
+  "/assets/common/overlays/rotate-phone-icon-v1.svg",
+  "/assets/avatars/hud-pips/p1-cyan-arrow.svg",
+  "/assets/avatars/hud-pips/p2-magenta-heart.svg",
+  "/assets/avatars/hud-pips/p3-amber-bolt.svg",
+  "/assets/avatars/hud-pips/p4-lime-bars.svg",
+  "/assets/avatars/hud-pips/p5-violet-wave.svg",
+  "/assets/avatars/hud-pips/p6-orange-hazard.svg",
+  "/assets/avatars/hud-pips/p7-emerald-gem.svg",
+  "/assets/avatars/hud-pips/p8-cobalt-cross.svg"
 ];
 
 self.addEventListener("install", (event) => {

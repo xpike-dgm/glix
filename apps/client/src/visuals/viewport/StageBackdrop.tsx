@@ -1,8 +1,18 @@
 import type { JSX } from "react";
+import { PREMIUM_VISUAL_ASSETS } from "../visualAssetManifest";
 
-export function StageBackdrop(): JSX.Element {
+interface StageBackdropProps {
+  readonly requiresLandscape: boolean;
+}
+
+export function StageBackdrop({ requiresLandscape }: StageBackdropProps): JSX.Element {
+  const asset = requiresLandscape
+    ? PREMIUM_VISUAL_ASSETS.sharedStage[1]
+    : PREMIUM_VISUAL_ASSETS.sharedStage[0];
+
   return (
     <div className="glix-stage-backdrop" aria-hidden="true">
+      <img className="glix-backdrop-raster" src={asset.src} alt="" decoding="async" loading={asset.loading} />
       <div className="glix-backdrop-noise" />
       <div className="glix-backdrop-beam beam-cyan" />
       <div className="glix-backdrop-beam beam-magenta" />

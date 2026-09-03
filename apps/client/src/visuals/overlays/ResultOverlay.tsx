@@ -4,9 +4,15 @@ interface ResultOverlayProps {
   readonly gameName: string;
   readonly final?: boolean;
   readonly children?: ReactNode;
+  readonly disableInteraction?: boolean;
 }
 
-export function ResultOverlay({ gameName, final = false, children }: ResultOverlayProps): JSX.Element {
+export function ResultOverlay({
+  gameName,
+  final = false,
+  children,
+  disableInteraction = false,
+}: ResultOverlayProps): JSX.Element {
   return (
     <div className={`glix-result-overlay ${final ? "is-final" : ""}`} aria-live="polite">
       <div className="glix-result-panel">
@@ -14,7 +20,14 @@ export function ResultOverlay({ gameName, final = false, children }: ResultOverl
         <div className="glix-overlay-kicker"><span /> {final ? "ROTA SONU" : "ROUND RESOLVED"}</div>
         <h2>{final ? "Rota tamamlandı." : "Sonuç sahnede."}</h2>
         <p><strong>{gameName}</strong> hamleleri kilitlendi. Skor ve açılım sunucudan geliyor.</p>
-        {children && <div className="glix-result-slot">{children}</div>}
+        {children &&
+          (disableInteraction ? (
+            <fieldset className="glix-result-slot" disabled aria-label="Sonuç özeti; etkileşim kapalı">
+              {children}
+            </fieldset>
+          ) : (
+            <div className="glix-result-slot">{children}</div>
+          ))}
       </div>
     </div>
   );
