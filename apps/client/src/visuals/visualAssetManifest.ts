@@ -48,7 +48,8 @@ export const PREMIUM_ASSET_PATHS = {
   common: {
     timerBezel: "/assets/common/hud/timer-bezel-v1.svg",
     connectionRadar: "/assets/common/icons/connection-radar-v1.svg",
-    rotatePhoneIcon: "/assets/common/overlays/rotate-phone-icon-v1.svg"
+    rotatePhoneIcon: "/assets/common/overlays/rotate-phone-icon-v1.svg",
+    snipsReticle: "/assets/common/icons/snips-reticle-v1.svg"
   },
   games: {
     kontrolPaneliKaosu: {
@@ -83,7 +84,8 @@ export const PREMIUM_VISUAL_ASSETS = {
   common: {
     timerBezel: { id: "timer-bezel", kind: "shared-ui", loading: "eager", src: PREMIUM_ASSET_PATHS.common.timerBezel, maxTextureEdge: 64 },
     connectionRadar: { id: "connection-radar", kind: "shared-ui", loading: "eager", src: PREMIUM_ASSET_PATHS.common.connectionRadar, maxTextureEdge: 32 },
-    rotatePhoneIcon: { id: "rotate-phone-icon", kind: "shared-ui", loading: "eager", src: PREMIUM_ASSET_PATHS.common.rotatePhoneIcon, maxTextureEdge: 64 }
+    rotatePhoneIcon: { id: "rotate-phone-icon", kind: "shared-ui", loading: "eager", src: PREMIUM_ASSET_PATHS.common.rotatePhoneIcon, maxTextureEdge: 64 },
+    snipsReticle: { id: "snips-reticle", kind: "shared-ui", loading: "lazy", src: PREMIUM_ASSET_PATHS.common.snipsReticle, maxTextureEdge: 64 }
   },
   avatarPips: [
     { id: "avatar-pip-1", kind: "avatar", loading: "eager", src: PREMIUM_ASSET_PATHS.avatars.hudPips[0], maxTextureEdge: 48, accent: "#72f4ff", glyph: "▲" },

@@ -21,7 +21,9 @@ import {
   type Stage6GameId,
   type Stage7GameId,
   type Stage8GameId,
-  type Stage9GameId
+  type Stage9GameId,
+  type KontrolPaneliPublicState,
+  type KontrolPaneliOwnState
 } from "@glix/shared";
 import { Stage6GameControls } from "./games/Stage6GameControls";
 import { Stage7GameControls } from "./games/Stage7GameControls";
@@ -34,6 +36,7 @@ import { SpectatorOverlay } from "./visuals/overlays/SpectatorOverlay";
 import { TutorialOverlay } from "./visuals/overlays/TutorialOverlay";
 import { GameViewport } from "./visuals/viewport/GameViewport";
 import { PremiumStageHero } from "./visuals/stage/PremiumStageHero";
+import { KpkStage } from "./visuals/games/kontrol-paneli-kaosu/KpkStage";
 import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/visualAssetManifest";
 
 type ConnectionState = "connecting" | "connected" | "offline";
@@ -393,6 +396,10 @@ function App(): JSX.Element {
     socket.send(JSON.stringify(message));
     return true;
   };
+
+  if (typeof window !== "undefined") {
+    (window as unknown as { __glixSend?: typeof sendMessage }).__glixSend = sendMessage;
+  }
 
   const clearFormError = (): void => {
     setError(null);
@@ -1050,6 +1057,8 @@ function MatchScreen({
     </>
   ) : null;
 
+  const isKpk = game.id === "kontrol-paneli-kaosu";
+
   return (
     <section className="glix-match-screen" aria-labelledby="match-title">
       <GameViewport
@@ -1079,14 +1088,30 @@ function MatchScreen({
             onLeave={onLeave}
           />
         }
+        stage={
+          isKpk ? (
+            <KpkStage
+              publicState={state.gameState as unknown as KontrolPaneliPublicState}
+              ownState={ownGameState as unknown as KontrolPaneliOwnState | null | undefined}
+              phase={state.phase}
+              isSpectator={isSpectator}
+              selfPlayerId={selfPlayerId}
+              isReady={ready}
+              onReady={onReady}
+              onSubmitAction={onSubmit}
+            />
+          ) : undefined
+        }
         hero={
-          <PremiumStageHero
-            game={game}
-            phase={state.phase}
-            progress={progress}
-            isSpectator={isSpectator}
-            ownHasSubmitted={ownHasSubmitted}
-          />
+          isKpk ? undefined : (
+            <PremiumStageHero
+              game={game}
+              phase={state.phase}
+              progress={progress}
+              isSpectator={isSpectator}
+              ownHasSubmitted={ownHasSubmitted}
+            />
+          )
         }
         overlays={
           <>
@@ -1130,34 +1155,38 @@ function MatchScreen({
           </>
         }
       >
-        <div className="glix-stage-context">
-          <div>
-            <span className="glix-stage-context-kicker">{matchPhaseLabel(state.phase)}</span>
-            <h1 id="match-title">{game.name}</h1>
-          </div>
-          <p>{matchPhaseDescription(state.phase)}</p>
-        </div>
+        {!isKpk && (
+          <>
+            <div className="glix-stage-context">
+              <div>
+                <span className="glix-stage-context-kicker">{matchPhaseLabel(state.phase)}</span>
+                <h1 id="match-title">{game.name}</h1>
+              </div>
+              <p>{matchPhaseDescription(state.phase)}</p>
+            </div>
 
-        {state.phase === "preparing" && !isSpectator && (
-          <button className="glix-ready-button" type="button" disabled={ready} onClick={onReady}>
-            <span aria-hidden="true">{ready ? "✓" : "→"}</span>
-            <strong>{ready ? "HAZIRSIN" : "HAZIRIM"}</strong>
-            <small>{ready ? "DİĞERLERİ BEKLENİYOR" : "PROVAYA GEÇ"}</small>
-          </button>
-        )}
+            {state.phase === "preparing" && !isSpectator && (
+              <button className="glix-ready-button" type="button" disabled={ready} onClick={onReady}>
+                <span aria-hidden="true">{ready ? "✓" : "→"}</span>
+                <strong>{ready ? "HAZIRSIN" : "HAZIRIM"}</strong>
+                <small>{ready ? "DİĞERLERİ BEKLENİYOR" : "PROVAYA GEÇ"}</small>
+              </button>
+            )}
 
-        {state.phase === "playing" && !isSpectator && (
-          <div className="glix-control-slot" aria-label={`${game.name} hamle alanı`}>
-            {stageControls}
-          </div>
-        )}
+            {state.phase === "playing" && !isSpectator && (
+              <div className="glix-control-slot" aria-label={`${game.name} hamle alanı`}>
+                {stageControls}
+              </div>
+            )}
 
-        {state.phase === "transition" && (
-          <div className="glix-transition-callout" role="status"><span /> Sıradaki oyun yükleniyor</div>
-        )}
+            {state.phase === "transition" && (
+              <div className="glix-transition-callout" role="status"><span /> Sıradaki oyun yükleniyor</div>
+            )}
 
-        {state.phase === "finished" && (
-          <p className="glix-finished-note">Skorlar kaydedildi. Yeni bir rota başlatmak için lobiye dön.</p>
+            {state.phase === "finished" && (
+              <p className="glix-finished-note">Skorlar kaydedildi. Yeni bir rota başlatmak için lobiye dön.</p>
+            )}
+          </>
         )}
 
         {error && <div className="glix-match-message is-error" role="alert">{error}</div>}

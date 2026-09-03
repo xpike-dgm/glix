@@ -11,8 +11,9 @@ interface GameViewportProps {
   readonly roomCode?: string;
   readonly connection: VisualConnectionState;
   readonly hud: ReactNode;
-  readonly hero: ReactNode;
-  readonly children: ReactNode;
+  readonly hero?: ReactNode;
+  readonly stage?: ReactNode;
+  readonly children?: ReactNode;
   readonly overlays?: ReactNode;
 }
 
@@ -25,6 +26,7 @@ export function GameViewport({
   connection,
   hud,
   hero,
+  stage,
   children,
   overlays
 }: GameViewportProps): JSX.Element {
@@ -42,10 +44,14 @@ export function GameViewport({
       >
         <div className="glix-viewport-safe-area">
           {hud}
-          <div className="glix-game-content">
-            <div className="glix-stage-hero-slot">{hero}</div>
-            <div className="glix-interaction-slot">{children}</div>
-          </div>
+          {stage ? (
+            <div className="glix-game-stage-slot">{stage}</div>
+          ) : (
+            <div className="glix-game-content">
+              <div className="glix-stage-hero-slot">{hero}</div>
+              <div className="glix-interaction-slot">{children}</div>
+            </div>
+          )}
           {overlays}
           <span className="glix-viewport-connection-note" aria-hidden="true">
             {connection === "connected" ? "SYNC" : connection === "connecting" ? "RECONNECT" : "OFFLINE"}

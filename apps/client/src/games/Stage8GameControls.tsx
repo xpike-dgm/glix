@@ -100,7 +100,7 @@ export function Stage8GameControls({ gameId, publicState, ownState, selfPlayerId
     case "ittifak":
       return <IttifakControls publicState={publicState as IttifakPublicState} ownState={ownState as IttifakOwnState} players={players} selfPlayerId={selfPlayerId} now={now} onSubmit={onSubmit} />;
     case "kontrol-paneli-kaosu":
-      return <PanelControls publicState={publicState as KontrolPaneliPublicState} ownState={ownState as KontrolPaneliOwnState} now={now} onSubmit={onSubmit} />;
+      return <PanelControls publicState={publicState as KontrolPaneliPublicState} ownState={ownState as KontrolPaneliOwnState} players={players} now={now} onSubmit={onSubmit} />;
     case "zehirli-kadeh":
       return <GlassControls publicState={publicState as ZehirliKadehPublicState} ownState={ownState as ZehirliKadehOwnState} players={players} selfPlayerId={selfPlayerId} now={now} onSubmit={onSubmit} />;
   }
@@ -210,12 +210,13 @@ function IttifakControls({ publicState, ownState, players, selfPlayerId, now, on
   </div>;
 }
 
-function PanelControls({ publicState, ownState, now, onSubmit }: { readonly publicState: KontrolPaneliPublicState; readonly ownState: KontrolPaneliOwnState; readonly now: number; readonly onSubmit: (payload: JsonValue) => void }): JSX.Element {
-  const colorClass = (color: string): string => color === "mavi" ? "blue" : color === "yeşil" ? "green" : color === "kırmızı" ? "red" : "yellow";
+function PanelControls({ publicState, players }: { readonly publicState: KontrolPaneliPublicState; readonly ownState: KontrolPaneliOwnState; readonly players: readonly MatchPlayerState[]; readonly now: number; readonly onSubmit: (payload: JsonValue) => void }): JSX.Element | null {
+  if (!publicState.finished) {
+    return null;
+  }
   return <div className="stage8-controls stage8-panel-controls" aria-live="polite">
-    <GameHeading label="KONTROL PANELİ KAOSU" title="Kendi panelini çöz" deadline={publicState.phaseEndsAt} now={now} />
-    {!publicState.finished && <><div className="stage8-wire-panel"><div className="stage8-wire-stack">{ownState.panelColors.map((color, index) => <div className={`stage8-wire-row wire-${colorClass(color)}`} key={`${color}-${index}`}><span>{index + 1}</span><i /><strong>{color.toLocaleUpperCase("tr-TR")}</strong></div>)}</div><div className="stage8-clue-note"><small>GİZLİ İPUCU</small><p>{ownState.clueText}</p></div></div><div className="stage8-panel-cut-grid">{ownState.panelColors.map((color) => <button className={`stage8-cut-button cut-${colorClass(color)}`} type="button" key={color} disabled={ownState.hasCut} onClick={() => onSubmit({ kind: "panel-cut", color })}>KES<br /><b>{color.toLocaleUpperCase("tr-TR")}</b></button>)}</div><p className="stage8-rule-note">İpucu başka bir oyuncunun panelini tarif eder. Hedefi konuşarak çöz; kendi panelinden yalnızca bir kablo kesebilirsin.</p></>}
-    {publicState.finished && <><div className="stage8-result-list">{(publicState.results ?? []).map((result) => <div className="stage8-result-row" key={result.playerId}><strong>{result.playerId.slice(0, 4).toUpperCase()}</strong><span>{result.correct ? `${result.correctColor.toLocaleUpperCase("tr-TR")} ✓` : "YANLIŞ / BOŞ"}</span><b>{scoreText(result.points)}</b></div>)}</div><ResultPills points={publicState.resultPoints ?? []} /></>}
+    <div className="stage8-result-list">{(publicState.results ?? []).map((result) => <div className="stage8-result-row" key={result.playerId}><strong>{playerName(players, result.playerId)}</strong><span>{result.correct ? `${result.correctColor.toLocaleUpperCase("tr-TR")} (DOĞRU)` : result.cutColor ? `${result.cutColor.toLocaleUpperCase("tr-TR")} (YANLIŞ)` : "KESMEDİ"}</span><b>{scoreText(result.points)}</b></div>)}</div>
+    <ResultPills points={publicState.resultPoints ?? []} />
   </div>;
 }
 
