@@ -1,4 +1,4 @@
-﻿# Stage 11.5 — Kontrol Paneli Kaosu (KPK) Visual Calibration Report
+# Stage 11.5 — Kontrol Paneli Kaosu (KPK) Visual Calibration Report
 
 ## 1. Executive Summary & Calibration Standard
 
@@ -6,6 +6,7 @@
 - **Repository:** `xpike-dgm/glix`
 - **Branch:** `stage-11-5-kpk-calibration`
 - **Base Head:** `754b9335b76e656a9c42a2e9d43dd55f79786e79` (`origin/stage-11-4-integration`)
+- **Current Branch SHA:** `274499085abd8ad449fd6e27f9305be8a9aedd0f`
 - **Status:** Pre-art-gate blockers resolved, fully calibrated in real headless Chrome, zero server/engine contract alterations.
 
 This sprint establishes the visual and runtime benchmark for GLIX 2D arcade mini-games. **Kontrol Paneli Kaosu** has been rebuilt from a web-style form and card layout into a fullscreen, landscape **2D social arcade game stage** powered by the production assets integrated in Stage 11.4.
