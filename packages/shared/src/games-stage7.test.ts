@@ -7,7 +7,8 @@ import {
   type KorBombaOwnState,
   type KorBombaPublicState,
   type OrtalamaninYarisiPublicState,
-  type Stage7GameAdapter
+  type Stage7GameAdapter,
+  KOR_BOMBA_HARD_CAP_MS
 } from "./games-stage7.js";
 
 function submit(
@@ -52,10 +53,38 @@ test("Kör Bomba pasla süreyi uzatır ve son taşıyıcıyı eksiye düşürür
   const carrierState = adapter.getOwnState("b", 5_000) as KorBombaOwnState;
   const observerState = adapter.getOwnState("a", 5_000) as KorBombaOwnState;
   assert.equal(carrierState.visibleRemainingMs, null);
-  assert.equal(observerState.visibleRemainingMs, 11_000);
+  assert.equal(observerState.visibleRemainingMs, null);
   adapter.advance(16_000);
   assert.equal(score(adapter, "b"), -1);
   assert.equal(adapter.isFinished, true);
+});
+
+test("Kör Bomba tekrar tekrar paslansa bile 45 saniyelik hard cap'te çözülür", () => {
+  const adapter = createStage7GameAdapter("kor-bomba", ["a", "b"], () => 0.999999);
+  adapter.start(0);
+
+  for (let pass = 0; pass < 10; pass += 1) {
+    const holder = (adapter.getPublicState(1_000 + pass * 1_000) as KorBombaPublicState).bombHolderId!;
+    const target = holder === "a" ? "b" : "a";
+    assert.deepEqual(adapter.submit(holder, { kind: "bomb-pass", targetPlayerId: target }, 1_000 + pass * 1_000), { accepted: true });
+  }
+
+  const previousHolder = (adapter.getPublicState(11_000) as KorBombaPublicState).bombHolderId!;
+  const replacementHolder = previousHolder === "a" ? "b" : "a";
+  adapter.setConnectedPlayerIds?.([replacementHolder]);
+  assert.equal((adapter.getPublicState(11_000) as KorBombaPublicState).bombHolderId, replacementHolder);
+  assert.equal((adapter.getPublicState(KOR_BOMBA_HARD_CAP_MS - 1) as KorBombaPublicState).finished, false);
+  assert.equal(adapter.advance(KOR_BOMBA_HARD_CAP_MS), true);
+  assert.equal(adapter.isFinished, true);
+  assert.equal((adapter.getOwnState("a", KOR_BOMBA_HARD_CAP_MS) as KorBombaOwnState).visibleRemainingMs, 0);
+});
+
+test("Kör Bomba bağlı olmayan oyuncuyu hedef havuzundan çıkarır", () => {
+  const adapter = createStage7GameAdapter("kor-bomba", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.(["a", "b"]);
+  assert.deepEqual((adapter.getOwnState("a", 1) as KorBombaOwnState).targetPlayerIds, ["b"]);
+  assert.deepEqual(adapter.submit("a", { kind: "bomb-pass", targetPlayerId: "c" }, 1_000), { accepted: false, reason: "invalid" });
 });
 
 test("Açgözlülük Limiti toplam limit altında kalan seçimleri doğrudan puanlar", () => {
@@ -66,6 +95,18 @@ test("Açgözlülük Limiti toplam limit altında kalan seçimleri doğrudan pua
   submit(adapter, "c", { kind: "limit-value", value: 2 }, 1_000);
   adapter.advance(20_000);
   assert.deepEqual([score(adapter, "a"), score(adapter, "b"), score(adapter, "c")], [2, 2, 2]);
+});
+
+test("Açgözlülük Limiti ilk geçerli seçimi korur ve tekrarı reddeder", () => {
+  const adapter = createStage7GameAdapter("acgozluluk-limiti", ["a", "b", "c"]);
+  adapter.start(0);
+  submit(adapter, "a", { kind: "limit-value", value: 1 }, 1_000);
+  assert.deepEqual(adapter.submit("a", { kind: "limit-value", value: 3 }, 1_001), { accepted: false, reason: "duplicate" });
+  submit(adapter, "b", { kind: "limit-value", value: 2 }, 1_000);
+  submit(adapter, "c", { kind: "limit-value", value: 2 }, 1_000);
+  assert.equal((adapter.getOwnState("a", 1_001) as { selectedValue: number }).selectedValue, 1);
+  adapter.advance(20_000);
+  assert.deepEqual([score(adapter, "a"), score(adapter, "b"), score(adapter, "c")], [1, 2, 2]);
 });
 
 test("Ortalamaya En Yakın eksik cevabı üretir ve yarım ortalamaya göre sıralar", () => {
@@ -79,6 +120,21 @@ test("Ortalamaya En Yakın eksik cevabı üretir ve yarım ortalamaya göre sır
   assert.equal(score(adapter, "b"), 1);
   const publicState = adapter.getPublicState(20_000) as OrtalamaninYarisiPublicState;
   assert.equal(publicState.results?.find((entry) => entry.playerId === "c")?.generatedForMissingInput, true);
+});
+
+test("Ortalamaya En Yakın ilk geçerli sayıyı korur ve tekrarı reddeder", () => {
+  const adapter = createStage7GameAdapter("ortalamanin-yarisi", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  submit(adapter, "a", { kind: "average-value", value: 25 }, 1_000);
+  assert.deepEqual(adapter.submit("a", { kind: "average-value", value: 80 }, 1_001), { accepted: false, reason: "duplicate" });
+  submit(adapter, "b", { kind: "average-value", value: 0 }, 1_000);
+  submit(adapter, "c", { kind: "average-value", value: 100 }, 1_000);
+  adapter.advance(20_000);
+  const results = (adapter.getPublicState(20_000) as OrtalamaninYarisiPublicState).results!;
+  assert.equal(results.find((entry) => entry.playerId === "a")?.value, 25);
+  assert.equal(score(adapter, "a"), 2);
+  assert.equal(score(adapter, "b"), 1);
+  assert.equal(score(adapter, "c"), 0);
 });
 
 test("Gizli Kareler çakışanları eler ve tek kalana ikinci raunt bonusu verir", () => {
@@ -143,4 +199,12 @@ test("Çapraz Ateş karşılıklı hedefleri sıfırlar, diğer hedeflenmeyen sa
   assert.equal(score(adapter, "a"), 0);
   assert.equal(score(adapter, "b"), 0);
   assert.equal(score(adapter, "c"), 1);
+});
+
+test("Çapraz Ateş bağlı olmayan hedefi hem listeden hem sunucu adapter'ından reddeder", () => {
+  const adapter = createStage7GameAdapter("capraz-ates", ["a", "b", "c"]);
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.(["a", "b"]);
+  assert.deepEqual((adapter.getOwnState("a", 1) as { availableTargetIds: readonly string[] }).availableTargetIds, ["b"]);
+  assert.deepEqual(adapter.submit("a", { kind: "crossfire-target", targetPlayerId: "c" }, 1_000), { accepted: false, reason: "invalid" });
 });

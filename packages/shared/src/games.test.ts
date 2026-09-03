@@ -56,6 +56,10 @@ test("Sızma iki ipucu turunu ve hazır bariyerini tamamlamadan oylamayı açmaz
   submit(adapter, "c", { kind: "vote-ready" }, 202);
   assert.equal((adapter.getPublicState(202) as SizmaPublicState).subPhase, "vote");
 
+  adapter.setConnectedPlayerIds?.(["a", "b"]);
+  assert.deepEqual(adapter.submit("a", { kind: "vote", targetPlayerId: "c" }, 202), { accepted: false, reason: "invalid" });
+  adapter.setConnectedPlayerIds?.(["a", "b", "c"]);
+
   submit(adapter, "a", { kind: "vote", targetPlayerId: "a" }, 203);
   submit(adapter, "b", { kind: "vote", targetPlayerId: "a" }, 204);
   submit(adapter, "c", { kind: "vote", targetPlayerId: "a" }, 205);
@@ -82,7 +86,9 @@ test("Zaman Bombası Hafızası diziyi uzatır, yanlışta puan dağıtır ve e�
 
   assert.equal((adapter.getPublicState(0) as MemoryPublicState).sequenceLength, 2);
   adapter.advance(1_500);
-  assert.equal((adapter.getPublicState(1_500) as MemoryPublicState).subPhase, "input");
+  const inputState = adapter.getPublicState(1_500) as MemoryPublicState;
+  assert.equal(inputState.subPhase, "input");
+  assert.deepEqual(inputState.sequence, []);
 
   submit(adapter, "a", { kind: "memory-color", color: "cyan" }, 1_501);
   submit(adapter, "a", { kind: "memory-color", color: "cyan" }, 1_502);

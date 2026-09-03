@@ -221,7 +221,7 @@ function SizmaControls({
           <div className="phase-panel-heading"><span className="phase-panel-index">{secondsLeft(publicState.voteEndsAt, now)}</span><div><small>30 SANİYELİK OYLAMA</small><strong>Sence kim sızma?</strong></div></div>
           <p>Bir kişiye oy ver. Kendi adına oy vermek de serbest.</p>
           <div className="vote-grid">
-            {players.map((player) => (
+            {players.filter((player) => player.connected && player.currentGameParticipant && !player.eliminated).map((player) => (
               <button className={`vote-player-button ${ownState.hasVoted ? "is-locked" : ""}`} type="button" key={player.id} disabled={ownState.hasVoted} onClick={() => onSubmit({ kind: "vote", targetPlayerId: player.id })}>
                 <span className="vote-avatar">{player.nickname.slice(0, 1).toUpperCase()}</span>
                 <strong>{player.nickname}</strong>
@@ -262,7 +262,8 @@ function MemoryControls({
 }): JSX.Element {
   const activeName = playerName(players, publicState.activePlayerId);
   const isOwnTurn = publicState.activePlayerId === selfPlayerId && ownState.isActive;
-  const progress = publicState.sequenceLength === 0 ? 0 : Math.round((publicState.sequenceIndex / publicState.sequenceLength) * 100);
+  const visibleInputIndex = isOwnTurn ? ownState.inputIndex : 0;
+  const progress = publicState.sequenceLength === 0 ? 0 : Math.round((visibleInputIndex / publicState.sequenceLength) * 100);
 
   return (
     <div className={`stage6-controls stage6-memory-controls memory-${publicState.subPhase}`} aria-live="polite">
@@ -290,7 +291,7 @@ function MemoryControls({
             <b className="memory-countdown">{secondsLeft(ownState.inputDeadline ?? publicState.inputDeadline, now)}<small>sn</small></b>
           </div>
           <div className="memory-masked-sequence" aria-label="Hatırlanacak dizi">
-            {publicState.sequence.map((_, index) => <span className={index < publicState.sequenceIndex ? "is-done" : index === publicState.sequenceIndex && isOwnTurn ? "is-current" : ""} key={index}>{index < publicState.sequenceIndex ? "✓" : "•"}</span>)}
+            {Array.from({ length: publicState.sequenceLength }, (_, index) => <span className={index < visibleInputIndex ? "is-done" : index === visibleInputIndex && isOwnTurn ? "is-current" : ""} key={index}>{index < visibleInputIndex ? "✓" : "•"}</span>)}
           </div>
           <div className="memory-pad-grid">
             {MEMORY_COLORS.map((color) => (

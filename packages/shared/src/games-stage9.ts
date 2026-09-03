@@ -17,7 +17,6 @@ export interface RusRuletiShotView {
   readonly shooterId: string;
   readonly targetPlayerId: string;
   readonly exploded: boolean;
-  readonly riskPercent: number;
 }
 
 export interface RusRuletiResultView {
@@ -109,6 +108,8 @@ export interface Stage9GameAdapter {
   start(now: number): void;
   advance(now: number): boolean;
   submit(playerId: string, payload: JsonValue | null, now: number): Stage9SubmitResult;
+  /** Updates live targets without removing reconnectable room members. */
+  setConnectedPlayerIds?(playerIds: readonly string[]): void;
   removePlayer(playerId: string): void;
   getPublicState(now: number): Stage9PublicState;
   getOwnState(playerId: string, now: number): Stage9OwnState;
@@ -171,6 +172,7 @@ abstract class Stage9AdapterBase implements Stage9GameAdapter {
   playerIds: readonly string[];
   protected readonly miniScores: Map<string, number>;
   protected readonly deltas: ScoreDelta[] = [];
+  protected connectedPlayerIds: Set<string>;
   protected startedAt: number | null = null;
   protected finished = false;
 
@@ -178,11 +180,20 @@ abstract class Stage9AdapterBase implements Stage9GameAdapter {
     this.initialPlayerIds = uniquePlayerIds(playerIds);
     this.playerIds = [...this.initialPlayerIds];
     this.miniScores = copyScores(this.initialPlayerIds);
+    this.connectedPlayerIds = new Set(this.initialPlayerIds);
   }
 
   get isStarted(): boolean { return this.startedAt !== null; }
   get isFinished(): boolean { return this.finished; }
   get eliminatedPlayerIds(): readonly string[] { return []; }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((candidate) => playerIds.includes(candidate)));
+  }
+
+  protected isConnected(playerId: string): boolean {
+    return this.connectedPlayerIds.has(playerId);
+  }
 
   abstract advance(now: number): boolean;
   abstract submit(playerId: string, payload: JsonValue | null, now: number): Stage9SubmitResult;
@@ -210,6 +221,7 @@ abstract class Stage9AdapterBase implements Stage9GameAdapter {
 
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     this.miniScores.delete(playerId);
   }
 
@@ -222,7 +234,7 @@ class RusRuletiAdapter extends Stage9AdapterBase {
   private readonly random: Stage9RandomSource;
   private readonly alive = new Set<string>();
   private readonly eliminated = new Set<string>();
-  private readonly shots: RusRuletiShotView[] = [];
+  private readonly shots: { readonly shooterId: string; readonly targetPlayerId: string; readonly exploded: boolean; readonly riskPercent: number }[] = [];
   private readonly resultsCache: RusRuletiResultView[] = [];
   private currentHolderId: string | null;
   private riskPercent = RUSSIAN_INITIAL_RISK;
@@ -246,6 +258,20 @@ class RusRuletiAdapter extends Stage9AdapterBase {
 
   private aliveIds(): string[] {
     return this.initialPlayerIds.filter((playerId) => this.alive.has(playerId));
+  }
+
+  private liveAliveIds(): string[] {
+    return this.aliveIds().filter((playerId) => this.isConnected(playerId));
+  }
+
+  override setConnectedPlayerIds(playerIds: readonly string[]): void {
+    super.setConnectedPlayerIds(playerIds);
+    if (this.finished) {
+      this.currentHolderId = null;
+      return;
+    }
+    if (this.currentHolderId !== null && this.isConnected(this.currentHolderId) && this.alive.has(this.currentHolderId)) return;
+    this.currentHolderId = randomFrom(this.liveAliveIds(), this.random);
   }
 
   private eliminationThreshold(): number {
@@ -273,14 +299,14 @@ class RusRuletiAdapter extends Stage9AdapterBase {
     const riskBeforeShot = this.riskPercent;
     const roll = this.random();
     const exploded = Number.isFinite(roll) && roll * 100 < riskBeforeShot;
-    const shot: RusRuletiShotView = {
+    const publicShot: RusRuletiShotView = {
       shooterId,
       targetPlayerId,
-      exploded,
-      riskPercent: riskBeforeShot
+      exploded
     };
+    const shot = { ...publicShot, riskPercent: riskBeforeShot };
 
-    this.lastShot = shot;
+    this.lastShot = publicShot;
     this.shots.push(shot);
 
     if (exploded) {
@@ -293,7 +319,7 @@ class RusRuletiAdapter extends Stage9AdapterBase {
         return;
       }
 
-      this.currentHolderId = randomFrom(this.aliveIds(), this.random);
+      this.currentHolderId = randomFrom(this.liveAliveIds(), this.random);
       this.phaseEndsAt = shotAt + RUSSIAN_DECISION_MS;
       return;
     }
@@ -310,8 +336,8 @@ class RusRuletiAdapter extends Stage9AdapterBase {
     let changed = false;
     while (!this.finished && this.phaseEndsAt !== null && now >= this.phaseEndsAt) {
       const shooterId = this.currentHolderId;
-      if (!shooterId || !this.alive.has(shooterId)) {
-        this.currentHolderId = randomFrom(this.aliveIds(), this.random);
+      if (!shooterId || !this.alive.has(shooterId) || !this.isConnected(shooterId)) {
+        this.currentHolderId = randomFrom(this.liveAliveIds(), this.random);
       }
 
       const activeShooterId = this.currentHolderId;
@@ -320,8 +346,9 @@ class RusRuletiAdapter extends Stage9AdapterBase {
         return true;
       }
 
-      const targets = this.aliveIds().filter((playerId) => playerId !== activeShooterId);
-      const targetPlayerId = randomFrom(targets.length > 0 ? targets : this.aliveIds(), this.random);
+      const targets = this.liveAliveIds().filter((playerId) => playerId !== activeShooterId);
+      const liveAliveIds = this.liveAliveIds();
+      const targetPlayerId = randomFrom(targets.length > 0 ? targets : liveAliveIds, this.random);
       if (!targetPlayerId) {
         this.finishGame();
         return true;
@@ -337,7 +364,7 @@ class RusRuletiAdapter extends Stage9AdapterBase {
 
   submit(playerId: string, payload: JsonValue | null, now: number): Stage9SubmitResult {
     assertNow(now);
-    if (!this.initialPlayerIds.includes(playerId)) return { accepted: false, reason: "invalid" };
+    if (!this.initialPlayerIds.includes(playerId) || !this.isConnected(playerId)) return { accepted: false, reason: "invalid" };
     if (this.eliminated.has(playerId)) return { accepted: false, reason: "spectator" };
     if (!this.isStarted || this.finished || this.subPhase !== "shot") return { accepted: false, reason: "phase-locked" };
     if (this.phaseEndsAt !== null && now >= this.phaseEndsAt) {
@@ -348,7 +375,7 @@ class RusRuletiAdapter extends Stage9AdapterBase {
     if (inputKind(payload) !== "russian-shot") return { accepted: false, reason: "invalid" };
 
     const targetPlayerId = inputString(payload, "targetPlayerId");
-    if (targetPlayerId === null || !this.alive.has(targetPlayerId)) {
+    if (targetPlayerId === null || !this.alive.has(targetPlayerId) || !this.isConnected(targetPlayerId)) {
       return { accepted: false, reason: "invalid" };
     }
 
@@ -369,8 +396,7 @@ class RusRuletiAdapter extends Stage9AdapterBase {
     }
 
     if (this.currentHolderId === playerId) {
-      this.currentHolderId = randomFrom(this.aliveIds(), this.random);
-      this.phaseEndsAt = Date.now() + RUSSIAN_DECISION_MS;
+      this.currentHolderId = randomFrom(this.liveAliveIds(), this.random);
     }
   }
 

@@ -92,7 +92,7 @@ export interface KorBombaOwnState {
   readonly gameId: "kor-bomba";
   readonly kind: "kor-bomba";
   readonly hasBomb: boolean;
-  /** Bomb carrier intentionally receives null; other players see the real remaining time. */
+  /** The fuse is never exposed to any client; only the server tracks it. */
   readonly visibleRemainingMs: number | null;
   readonly targetPlayerIds: readonly string[];
   readonly canPass: boolean;
@@ -328,6 +328,8 @@ export interface Stage7GameAdapter {
   start(now: number): void;
   advance(now: number): boolean;
   submit(playerId: string, payload: JsonValue | null, now: number): Stage7SubmitResult;
+  /** Updates live targets without removing reconnectable room members. */
+  setConnectedPlayerIds?(playerIds: readonly string[]): void;
   removePlayer(playerId: string): void;
   getPublicState(now: number): Stage7PublicState;
   getOwnState(playerId: string, now: number): Stage7OwnState;
@@ -340,6 +342,7 @@ const THIRTY_SECONDS = 30_000;
 const TWENTY_SECONDS = 20_000;
 const EIGHTEEN_SECONDS = 18_000;
 const TWENTY_FIVE_SECONDS = 25_000;
+export const KOR_BOMBA_HARD_CAP_MS = 45_000;
 
 const LIMIT_BY_PLAYER_COUNT: Readonly<Record<number, number>> = {
   3: 6,
@@ -670,6 +673,7 @@ class KorBombaAdapter implements Stage7GameAdapter {
   private readonly random: Stage7RandomSource;
   private readonly miniScores: Map<string, number>;
   private readonly deltas: ScoreDelta[] = [];
+  private connectedPlayerIds: Set<string>;
   private startedAt: number | null = null;
   private explosionAt: number | null = null;
   private bombHolderId: string | null = null;
@@ -681,11 +685,17 @@ class KorBombaAdapter implements Stage7GameAdapter {
     this.playerIds = uniquePlayerIds(playerIds);
     this.random = random;
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
   }
 
   get isStarted(): boolean { return this.startedAt !== null; }
   get isFinished(): boolean { return this.finished; }
   get eliminatedPlayerIds(): readonly string[] { return []; }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((candidate) => playerIds.includes(candidate)));
+    this.ensureHolderAvailable();
+  }
 
   start(now: number): void {
     assertNow(now);
@@ -693,6 +703,24 @@ class KorBombaAdapter implements Stage7GameAdapter {
     this.startedAt = now;
     this.bombHolderId = this.playerIds[randomIndex(this.playerIds.length, this.random)] ?? null;
     this.explosionAt = now + randomInteger(15_000, 20_000, this.random);
+  }
+
+  private livePlayerIds(): string[] {
+    return this.playerIds.filter((playerId) => this.connectedPlayerIds.has(playerId));
+  }
+
+  private ensureHolderAvailable(): boolean {
+    if (this.bombHolderId !== null && this.connectedPlayerIds.has(this.bombHolderId)) {
+      return false;
+    }
+
+    const nextHolder = this.livePlayerIds()[0] ?? null;
+    if (nextHolder === this.bombHolderId) {
+      return false;
+    }
+
+    this.bombHolderId = nextHolder;
+    return true;
   }
 
   private resolve(): void {
@@ -706,7 +734,15 @@ class KorBombaAdapter implements Stage7GameAdapter {
 
   advance(now: number): boolean {
     assertNow(now);
-    if (!this.isStarted || this.finished || this.explosionAt === null || now < this.explosionAt) return false;
+    if (!this.isStarted || this.finished || this.explosionAt === null) return false;
+    let changed = this.ensureHolderAvailable();
+    const hardCapAt = this.startedAt! + KOR_BOMBA_HARD_CAP_MS;
+    if (now >= hardCapAt) {
+      this.explosionAt = Math.min(this.explosionAt, hardCapAt);
+      this.resolve();
+      return true;
+    }
+    if (now < this.explosionAt) return changed;
     this.resolve();
     return true;
   }
@@ -719,23 +755,29 @@ class KorBombaAdapter implements Stage7GameAdapter {
       this.advance(now);
       return { accepted: false, reason: "late" };
     }
+    this.ensureHolderAvailable();
     if (this.bombHolderId !== playerId || inputKind(payload) !== "bomb-pass") {
       return { accepted: false, reason: "phase-locked" };
     }
     const targetId = inputString(payload, "targetPlayerId");
-    if (targetId === null || targetId === playerId || !this.playerIds.includes(targetId)) {
+    if (targetId === null || targetId === playerId || !this.playerIds.includes(targetId) || !this.connectedPlayerIds.has(targetId)) {
       return { accepted: false, reason: "invalid" };
     }
     this.bombHolderId = targetId;
     this.passCount += 1;
-    this.explosionAt = (this.explosionAt ?? now) + randomInteger(1_000, 4_000, this.random);
+    this.explosionAt = Math.min(
+      this.startedAt! + KOR_BOMBA_HARD_CAP_MS,
+      (this.explosionAt ?? now) + randomInteger(1_000, 4_000, this.random)
+    );
     return { accepted: true };
   }
 
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
+    this.miniScores.delete(playerId);
     if (this.bombHolderId === playerId) {
-      this.bombHolderId = this.playerIds[0] ?? null;
+      this.bombHolderId = this.livePlayerIds()[0] ?? null;
     }
     if (this.playerIds.length === 0 && !this.finished) this.resolve();
   }
@@ -753,15 +795,15 @@ class KorBombaAdapter implements Stage7GameAdapter {
     };
   }
 
-  getOwnState(playerId: string, now: number): KorBombaOwnState {
+  getOwnState(playerId: string, _now: number): KorBombaOwnState {
     const hasBomb = this.bombHolderId === playerId && !this.finished;
     return {
       gameId: this.gameId,
       kind: this.gameId,
       hasBomb,
-      visibleRemainingMs: this.finished ? 0 : hasBomb ? null : this.explosionAt === null ? null : Math.max(0, this.explosionAt - now),
-      targetPlayerIds: hasBomb ? this.playerIds.filter((candidate) => candidate !== playerId) : [],
-      canPass: hasBomb,
+      visibleRemainingMs: this.finished ? 0 : null,
+      targetPlayerIds: hasBomb ? this.livePlayerIds().filter((candidate) => candidate !== playerId) : [],
+      canPass: hasBomb && this.livePlayerIds().some((candidate) => candidate !== playerId),
       finished: this.finished
     };
   }
@@ -823,6 +865,7 @@ class AcgozlulukAdapter implements Stage7GameAdapter {
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (now >= this.startedAt! + TWENTY_SECONDS) { this.advance(now); return { accepted: false, reason: "late" }; }
     if (inputKind(payload) !== "limit-value") return { accepted: false, reason: "invalid" };
+    if (this.choices.has(playerId)) return { accepted: false, reason: "duplicate" };
     const value = inputInteger(payload, "value");
     if (value === null || value < 0 || value > this.playerIds.length) return { accepted: false, reason: "invalid" };
     this.choices.set(playerId, value);
@@ -928,6 +971,7 @@ class OrtalamaninYarisiAdapter implements Stage7GameAdapter {
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (now >= this.startedAt! + TWENTY_SECONDS) { this.advance(now); return { accepted: false, reason: "late" }; }
     if (inputKind(payload) !== "average-value") return { accepted: false, reason: "invalid" };
+    if (this.choices.has(playerId)) return { accepted: false, reason: "duplicate" };
     const value = inputInteger(payload, "value");
     if (value === null || value < 0 || value > 100) return { accepted: false, reason: "invalid" };
     this.choices.set(playerId, value);
@@ -1450,6 +1494,7 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
   playerIds: readonly string[];
   private readonly miniScores: Map<string, number>;
   private readonly deltas: ScoreDelta[] = [];
+  private connectedPlayerIds: Set<string>;
   private readonly targets = new Map<string, string | null>();
   private startedAt: number | null = null;
   private finished = false;
@@ -1458,11 +1503,16 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
   constructor(playerIds: readonly string[]) {
     this.playerIds = uniquePlayerIds(playerIds);
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
   }
 
   get isStarted(): boolean { return this.startedAt !== null; }
   get isFinished(): boolean { return this.finished; }
   get eliminatedPlayerIds(): readonly string[] { return []; }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((candidate) => playerIds.includes(candidate)));
+  }
 
   start(now: number): void { assertNow(now); if (this.startedAt === null) this.startedAt = now; }
 
@@ -1499,13 +1549,14 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
     }
     if (kind !== "crossfire-target") return { accepted: false, reason: "invalid" };
     const target = inputString(payload, "targetPlayerId");
-    if (target === null || target === playerId || !this.playerIds.includes(target)) return { accepted: false, reason: "invalid" };
+    if (target === null || target === playerId || !this.playerIds.includes(target) || !this.connectedPlayerIds.has(target)) return { accepted: false, reason: "invalid" };
     this.targets.set(playerId, target);
     return { accepted: true };
   }
 
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     this.targets.delete(playerId);
     this.targets.forEach((target, shooter) => { if (target === playerId) this.targets.set(shooter, null); });
   }
@@ -1527,7 +1578,7 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
       gameId: this.gameId,
       kind: this.gameId,
       selectedTargetId: this.targets.get(playerId) ?? null,
-      availableTargetIds: this.playerIds.filter((candidate) => candidate !== playerId),
+      availableTargetIds: this.playerIds.filter((candidate) => candidate !== playerId && this.connectedPlayerIds.has(candidate)),
       hasSubmitted: this.targets.has(playerId),
       finished: this.finished
     };

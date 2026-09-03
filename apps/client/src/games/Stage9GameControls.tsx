@@ -72,7 +72,7 @@ export function Stage9GameControls({ gameId, publicState, ownState, selfPlayerId
 
 function RusRuletiControls({ publicState, ownState, players, selfPlayerId, now, onSubmit }: { readonly publicState: RusRuletiPublicState; readonly ownState: RusRuletiOwnState; readonly players: readonly MatchPlayerState[]; readonly selfPlayerId: string | null; readonly now: number; readonly onSubmit: (payload: JsonValue) => void }): JSX.Element {
   const [targetPlayerId, setTargetPlayerId] = useState<string | null>(null);
-  const alivePlayers = players.filter((player) => publicState.alivePlayerIds.includes(player.id) && !player.eliminated);
+  const alivePlayers = players.filter((player) => publicState.alivePlayerIds.includes(player.id) && player.connected && player.currentGameParticipant && !player.eliminated);
   const currentHolderName = playerName(players, publicState.currentHolderId);
   const selectedTarget = alivePlayers.some((player) => player.id === targetPlayerId) ? targetPlayerId : null;
 
@@ -93,7 +93,7 @@ function RusRuletiControls({ publicState, ownState, players, selfPlayerId, now, 
     {!publicState.finished && !ownState.isHolder && !ownState.eliminated && <div className="stage9-wait-card"><span className="stage9-wait-orbit">◉</span><strong>{currentHolderName} ateş edecek</strong><small>Silah sana geçerse hedef seçebileceksin.</small></div>}
     {ownState.eliminated && !publicState.finished && <div className="stage9-spectator-card"><strong>ELENDİN</strong><small>Bu turu izliyorsun. Sonuçları bekle.</small></div>}
 
-    {publicState.lastShot && !publicState.finished && <div className={`stage9-shot-feed ${publicState.lastShot.exploded ? "is-exploded" : "is-safe"}`}><strong>{publicState.lastShot.exploded ? "PATLAMA" : "GÜVENLİ ATIŞ"}</strong><span>{playerName(players, publicState.lastShot.targetPlayerId)} hedeflendi · risk %{publicState.lastShot.riskPercent}</span></div>}
+    {publicState.lastShot && !publicState.finished && <div className={`stage9-shot-feed ${publicState.lastShot.exploded ? "is-exploded" : "is-safe"}`}><strong>{publicState.lastShot.exploded ? "PATLAMA" : "GÜVENLİ ATIŞ"}</strong><span>{playerName(players, publicState.lastShot.targetPlayerId)} hedeflendi</span></div>}
 
     {publicState.finished && <div className="stage9-result-list">{(publicState.results ?? []).map((result) => <div className={`stage9-result-row ${result.survived ? "is-survivor" : "is-eliminated"}`} key={result.playerId}><strong>{playerName(players, result.playerId)}</strong><span>{result.survived ? "HAYATTA" : "ELENDİ"}</span><b>{scoreText(result.points)}</b></div>)}</div>}
     {publicState.finished && <ResultPills points={publicState.resultPoints ?? []} />}

@@ -1,6 +1,6 @@
 import type { RuntimePhaseId } from "./engine.js";
 
-export const PROTOCOL_VERSION = 1 as const;
+export const PROTOCOL_VERSION = 2 as const;
 export const DEFAULT_SERVER_PORT = 8787 as const;
 export const DEFAULT_WS_PATH = "/ws" as const;
 export const MAX_PLAYERS = 8 as const;
