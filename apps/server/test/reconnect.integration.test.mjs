@@ -561,6 +561,87 @@ test("R3 — random oyun üst sınırı room member değil connected oyuncu say�
   }
 });
 
+test("Stage 11.3A — grace-disconnected oyuncu hedef olarak kabul edilmez", { timeout: 60_000 }, async () => {
+  const room = await createRoomWithPlayers(3);
+  const host = room.host;
+  const disconnected = room.players[2].client;
+  const disconnectedId = room.players[2].playerId;
+
+  try {
+    await configureManualRoute(host, ["rusvet-darbe"]);
+    await startAndEnterPlaying(room.players);
+
+    await disconnected.close();
+    const roster = await waitMatch(
+      host,
+      (message) => playerById(message.state, disconnectedId)?.connected === false,
+      "target disconnect state"
+    );
+    assert.equal(playerById(roster.state, disconnectedId)?.currentGameParticipant, true);
+
+    host.send({
+      type: "client:game:submit",
+      payload: { kind: "president-vote", targetPlayerId: disconnectedId },
+      clientTime: Date.now()
+    });
+    const rejected = await host.waitFor(
+      (message) => message.type === "server:game-input-ack" && message.accepted === false,
+      "disconnected target rejection"
+    );
+    assert.deepEqual(
+      { accepted: rejected.accepted, reason: rejected.reason },
+      { accepted: false, reason: "invalid_game_input" }
+    );
+  } finally {
+    await closeAll(room.players.map(({ client }) => client));
+  }
+});
+
+test("Stage 11.3A — sayısal mini oyunlarda ilk kabul edilen seçim kazanır", { timeout: 60_000 }, async () => {
+  const room = await createRoomWithPlayers(3);
+  const host = room.host;
+
+  try {
+    await configureManualRoute(host, ["acgozluluk-limiti"]);
+    await startAndEnterPlaying(room.players);
+
+    host.send({
+      type: "client:game:submit",
+      payload: { kind: "limit-value", value: 1 },
+      clientTime: Date.now()
+    });
+    const firstAck = await host.waitFor(
+      (message) => message.type === "server:game-input-ack" && message.accepted === true,
+      "first numeric input ack"
+    );
+    assert.equal(firstAck.accepted, true);
+
+    host.send({
+      type: "client:game:submit",
+      payload: { kind: "limit-value", value: 3 },
+      clientTime: Date.now()
+    });
+    const duplicateAck = await host.waitFor(
+      (message) => message.type === "server:game-input-ack" && message.accepted === false,
+      "numeric duplicate ack"
+    );
+    assert.deepEqual(
+      { accepted: duplicateAck.accepted, reason: duplicateAck.reason },
+      { accepted: false, reason: "input_duplicate" }
+    );
+
+    const results = await waitMatch(
+      host,
+      (message) => message.state.phase === "results" && message.state.gameState.choices?.some((choice) => choice.playerId === room.players[0].playerId && choice.value === 1),
+      "first numeric value in results",
+      25_000
+    );
+    assert.equal(results.state.gameState.choices.find((choice) => choice.playerId === room.players[0].playerId)?.value, 1);
+  } finally {
+    await closeAll(room.players.map(({ client }) => client));
+  }
+});
+
 test("R6 — host migration eski host reconnect edince ownership'i geri almaz", async () => {
   const room = await createRoomWithPlayers(3);
   const hostId = room.players[0].playerId;

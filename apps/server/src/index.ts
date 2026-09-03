@@ -171,6 +171,61 @@ function isGameId(value: unknown): value is GameId {
   return typeof value === "string" && GAME_CATALOG.some((game) => game.id === value);
 }
 
+/**
+ * Returns target ids carried by a game input, or null for inputs with no
+ * target semantics. The adapter remains the final rule authority (for
+ * self-targeting, role-specific and phase-specific constraints); this gate
+ * only enforces the shared live-roster invariant at the server boundary.
+ */
+function submittedTargetPlayerIds(payload: JsonValue | null): readonly string[] | null {
+  if (!isRecord(payload) || typeof payload.kind !== "string") {
+    return null;
+  }
+
+  const targetKinds = new Set([
+    "vote",
+    "russian-shot",
+    "bomb-pass",
+    "crossfire-target",
+    "president-vote",
+    "drawing-vote",
+    "alliance-vote",
+    "glass-trade",
+    "yazi-guess"
+  ]);
+
+  if (targetKinds.has(payload.kind)) {
+    const key = payload.kind === "yazi-guess" ? "targetWriterId" : "targetPlayerId";
+    return typeof payload[key] === "string" ? [payload[key]] : [""];
+  }
+
+  if (payload.kind === "kendim-matches" || payload.kind === "president-distribution") {
+    const rawEntries = payload.kind === "kendim-matches" ? payload.matches : payload.allocations;
+    if (!Array.isArray(rawEntries)) {
+      return [""];
+    }
+
+    return rawEntries.map((entry) => (
+      isRecord(entry) && typeof entry.targetPlayerId === "string" ? entry.targetPlayerId : ""
+    ));
+  }
+
+  return null;
+}
+
+function submittedTargetsAreLive(room: RoomRecord, match: MatchRecord, payload: JsonValue | null): boolean {
+  const targetIds = submittedTargetPlayerIds(payload);
+  if (targetIds === null) {
+    return true;
+  }
+
+  const currentParticipants = new Set(match.engine.playerIds);
+  return targetIds.every((targetId) => {
+    const player = room.players.get(targetId);
+    return currentParticipants.has(targetId) && player?.connected === true && !match.engine.isEliminated(targetId);
+  });
+}
+
 function sendJson(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === WebSocket.OPEN) {
     try {
@@ -471,9 +526,11 @@ function broadcastRoomState(room: RoomRecord): void {
  * server clock. The adapter owns game rules inside `playing`; the phase motor
  * still owns tutorial, preparation, results and transition.
  */
-function synchronizeMatchRuntime(match: MatchRecord, now: number): boolean {
+function synchronizeMatchRuntime(room: RoomRecord, match: MatchRecord, now: number): boolean {
   let changed = false;
   const adapter = match.adapter;
+
+  adapter?.setConnectedPlayerIds?.(getConnectedPlayerIds(room));
 
   const phaseBefore = match.engine.snapshot(now);
 
@@ -521,7 +578,7 @@ function synchronizeMatchRuntime(match: MatchRecord, now: number): boolean {
 }
 
 function getMatchSnapshot(room: RoomRecord, match: MatchRecord, now: number) {
-  synchronizeMatchRuntime(match, now);
+  synchronizeMatchRuntime(room, match, now);
   const snapshot = match.engine.snapshot(now);
   const currentParticipantIds = new Set(match.engine.playerIds);
   const players = [...room.players.values()]
@@ -1174,7 +1231,7 @@ function advanceMatches(): void {
     }
 
     const before = match.engine.snapshot(now);
-    let changed = synchronizeMatchRuntime(match, now);
+    let changed = synchronizeMatchRuntime(room, match, now);
     const after = match.engine.snapshot(now);
     changed ||= before.phaseIndex !== after.phaseIndex;
     const scoreApplied = applyMatchResult(room, match);
@@ -1388,7 +1445,17 @@ function handleGameSubmit(
     return;
   }
 
-  synchronizeMatchRuntime(match, now);
+  synchronizeMatchRuntime(room, match, now);
+
+  if (!submittedTargetsAreLive(room, match, message.payload)) {
+    sendJson(socket, {
+      type: "server:game-input-ack",
+      accepted: false,
+      serverTime: now,
+      reason: "invalid_game_input"
+    });
+    return;
+  }
 
   if (match.adapter) {
     const adapterResult = match.adapter.submit(context.playerId, message.payload, now);
@@ -1428,7 +1495,7 @@ function handleGameSubmit(
   }
 
   match.stateVersion += 1;
-  synchronizeMatchRuntime(match, now);
+  synchronizeMatchRuntime(room, match, now);
   applyMatchResult(room, match);
   sendJson(socket, {
     type: "server:game-input-ack",

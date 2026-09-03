@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { PROTOCOL_VERSION } from "./index.js";
 import {
   createStage9GameAdapter,
   type RusRuletiOwnState,
@@ -40,9 +41,16 @@ test("Rus Ruleti güvenli atışta hedefe geçer ve riski 76 ile sınırlar", ()
   submit(adapter, "a", { kind: "russian-shot", targetPlayerId: "b" }, 1_000);
 
   const holderState = adapter.getOwnState("b", 1_000) as RusRuletiOwnState;
+  const publicState = adapter.getPublicState(1_000) as RusRuletiPublicState;
   assert.equal(holderState.isHolder, true);
   assert.equal(holderState.riskPercent, 26);
+  assert.equal("riskPercent" in (publicState.lastShot ?? {}), false);
+  assert.doesNotMatch(JSON.stringify(publicState.lastShot), /riskPercent/);
   assert.equal(adapter.isFinished, false);
+});
+
+test("Stage 11.3A wire sözleşmesi gizlilik redaksiyonu için protocol v2'yi ilan eder", () => {
+  assert.equal(PROTOCOL_VERSION, 2);
 });
 
 test("Rus Ruleti yalnızca silah sahibinin ve hayatta olan hedefin atışını kabul eder", () => {
@@ -51,6 +59,30 @@ test("Rus Ruleti yalnızca silah sahibinin ve hayatta olan hedefin atışını k
 
   assert.deepEqual(adapter.submit("b", { kind: "russian-shot", targetPlayerId: "a" }, 1_000), { accepted: false, reason: "phase-locked" });
   assert.deepEqual(adapter.submit("a", { kind: "russian-shot", targetPlayerId: "missing" }, 1_000), { accepted: false, reason: "invalid" });
+});
+
+test("Rus Ruleti bağlı olmayan hayatta hedefi kabul etmez ve rastgele atışa katmaz", () => {
+  const adapter = createStage9GameAdapter("rus-ruleti", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.(["a", "b"]);
+  assert.deepEqual(adapter.submit("a", { kind: "russian-shot", targetPlayerId: "c" }, 1_000), { accepted: false, reason: "invalid" });
+});
+
+test("Rus Ruleti patlama sonrası taşıyıcıyı yalnızca bağlı hayatta kalanlardan seçer", () => {
+  const rolls = [0, 0, 0.999999];
+  let rollIndex = 0;
+  const adapter = createStage9GameAdapter(
+    "rus-ruleti",
+    ["a", "b", "c"],
+    () => rolls[Math.min(rollIndex++, rolls.length - 1)] ?? 0
+  );
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.(["a", "b"]);
+
+  submit(adapter, "a", { kind: "russian-shot", targetPlayerId: "b" }, 1_000);
+
+  const state = adapter.getPublicState(1_000) as RusRuletiPublicState;
+  assert.equal(state.currentHolderId, "a");
 });
 
 test("Son Kişi gizli bitişten önceki son kaçanı ödüllendirir", () => {

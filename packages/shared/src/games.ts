@@ -88,6 +88,7 @@ export interface MemoryPublicState {
   readonly kind: "zaman-bombasi-hafizasi";
   readonly started: boolean;
   readonly subPhase: MemorySubPhase;
+  /** The recall answer is public only while the sequence is being displayed. */
   readonly sequence: readonly MemoryColor[];
   readonly sequenceIndex: number;
   readonly sequenceLength: number;
@@ -143,6 +144,8 @@ export interface Stage6GameAdapter {
   start(now: number): void;
   advance(now: number): boolean;
   submit(playerId: string, payload: JsonValue | null, now: number): Stage6SubmitResult;
+  /** Updates live targets without removing reconnectable room members. */
+  setConnectedPlayerIds?(playerIds: readonly string[]): void;
   removePlayer(playerId: string): void;
   getPublicState(now: number): Stage6PublicState;
   getOwnState(playerId: string, now: number): Stage6OwnState;
@@ -475,6 +478,7 @@ class SizmaAdapter implements Stage6GameAdapter {
   private readonly readyPlayerIds = new Set<string>();
   private readonly votes = new Map<string, string>();
   private readonly miniScores: Map<string, number>;
+  private connectedPlayerIds: Set<string>;
   private readonly deltas: ScoreDelta[] = [];
   private started = false;
   private subPhase: SizmaSubPhase = "clue";
@@ -491,6 +495,7 @@ class SizmaAdapter implements Stage6GameAdapter {
     this.playerIds = [...new Set(playerIds)];
     this.random = random;
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
     const outsiderIndex = randomIndex(this.playerIds.length, this.random);
     this.outsiderPlayerId = this.playerIds[outsiderIndex] ?? this.playerIds[0] ?? "";
     const pair = SIZMA_WORD_PAIRS[randomIndex(SIZMA_WORD_PAIRS.length, this.random)]!;
@@ -524,6 +529,10 @@ class SizmaAdapter implements Stage6GameAdapter {
   start(now: number): void {
     assertNow(now);
     this.started = true;
+  }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((playerId) => playerIds.includes(playerId)));
   }
 
   private normalizeClueTurn(): void {
@@ -685,7 +694,7 @@ class SizmaAdapter implements Stage6GameAdapter {
       }
 
       const targetPlayerId = readInputString(payload, "targetPlayerId");
-      if (!targetPlayerId || !this.playerIds.includes(targetPlayerId)) {
+      if (!targetPlayerId || !this.playerIds.includes(targetPlayerId) || !this.connectedPlayerIds.has(targetPlayerId)) {
         return { accepted: false, reason: "invalid" };
       }
 
@@ -704,6 +713,7 @@ class SizmaAdapter implements Stage6GameAdapter {
     }
 
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     this.completedClueRounds.delete(playerId);
     this.readyPlayerIds.delete(playerId);
     this.votes.delete(playerId);
@@ -990,7 +1000,7 @@ class MemoryAdapter implements Stage6GameAdapter {
       kind: this.gameId,
       started: this.started,
       subPhase: this.subPhase,
-      sequence: [...this.sequence],
+      sequence: this.subPhase === "display" ? [...this.sequence] : [],
       sequenceIndex: this.sequenceIndex,
       sequenceLength: this.sequence.length,
       activePlayerId: this.activePlayerId,

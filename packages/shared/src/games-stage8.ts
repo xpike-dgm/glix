@@ -195,6 +195,7 @@ export interface RusvetDarbeOwnState {
   readonly rpsCandidateIds: readonly string[];
   readonly remainingDistributionPoints: number;
   readonly submittedAllocations: readonly RusvetAllocationView[];
+  readonly hasSubmittedDistribution: boolean;
   readonly finished: boolean;
 }
 
@@ -359,6 +360,8 @@ export interface Stage8GameAdapter {
   start(now: number): void;
   advance(now: number): boolean;
   submit(playerId: string, payload: JsonValue | null, now: number): Stage8SubmitResult;
+  /** Updates live targets without removing reconnectable room members. */
+  setConnectedPlayerIds?(playerIds: readonly string[]): void;
   removePlayer(playerId: string): void;
   getPublicState(now: number): Stage8PublicState;
   getOwnState(playerId: string, now: number): Stage8OwnState;
@@ -548,17 +551,31 @@ abstract class Stage8AdapterBase implements Stage8GameAdapter {
   playerIds: readonly string[];
   protected readonly miniScores: Map<string, number>;
   protected readonly deltas: ScoreDelta[] = [];
+  protected connectedPlayerIds: Set<string>;
   protected startedAt: number | null = null;
   protected finished = false;
 
   constructor(playerIds: readonly string[]) {
     this.playerIds = uniquePlayerIds(playerIds);
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
   }
 
   get isStarted(): boolean { return this.startedAt !== null; }
   get isFinished(): boolean { return this.finished; }
   get eliminatedPlayerIds(): readonly string[] { return []; }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((candidate) => playerIds.includes(candidate)));
+  }
+
+  protected livePlayerIds(): string[] {
+    return this.playerIds.filter((playerId) => this.connectedPlayerIds.has(playerId));
+  }
+
+  protected isConnected(playerId: string): boolean {
+    return this.connectedPlayerIds.has(playerId);
+  }
 
   abstract advance(now: number): boolean;
   abstract submit(playerId: string, payload: JsonValue | null, now: number): Stage8SubmitResult;
@@ -571,7 +588,7 @@ abstract class Stage8AdapterBase implements Stage8GameAdapter {
   }
 
   protected addMini(playerId: string, points: number): void {
-    if (points !== 0) addGroupScore(this.miniScores, playerId, points);
+    if (points !== 0 && this.miniScores.has(playerId)) addGroupScore(this.miniScores, playerId, points);
   }
 
   protected addDirect(playerId: string, points: number, reason: string): void {
@@ -588,6 +605,7 @@ abstract class Stage8AdapterBase implements Stage8GameAdapter {
 
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     this.miniScores.delete(playerId);
   }
 
@@ -691,7 +709,7 @@ class YaziYazAdapter extends Stage8AdapterBase {
     if (inputKind(payload) !== "yazi-guess") return { accepted: false, reason: "invalid" };
     const targetWriterId = inputString(payload, "targetWriterId");
     const targetWord = inputString(payload, "targetWord");
-    if (targetWriterId === null || targetWord === null || !this.writerIds.includes(targetWriterId) || targetWriterId === playerId || normalizeText(targetWord).length === 0) return { accepted: false, reason: "invalid" };
+    if (targetWriterId === null || targetWord === null || !this.writerIds.includes(targetWriterId) || !this.isConnected(targetWriterId) || targetWriterId === playerId || normalizeText(targetWord).length === 0) return { accepted: false, reason: "invalid" };
     this.guesses.set(playerId, { targetWriterId, targetWord: normalizeText(targetWord) });
     return { accepted: true };
   }
@@ -727,7 +745,7 @@ class YaziYazAdapter extends Stage8AdapterBase {
       hasWritten: this.written.has(playerId),
       hasGuessed: this.guesses.has(playerId),
       canGuess: this.subPhase === "guess" && !this.guesses.has(playerId) && !this.finished,
-      guessTargetPlayerIds: this.writerIds.filter((candidate) => candidate !== playerId),
+      guessTargetPlayerIds: allOtherPlayers(this.livePlayerIds(), playerId),
       finished: this.finished
     };
   }
@@ -821,7 +839,7 @@ class KendimAdapter extends Stage8AdapterBase {
     for (const raw of rawMatches) {
       if (!isJsonObject(raw) || typeof raw.cardId !== "string" || typeof raw.targetPlayerId !== "string" || seenCards.has(raw.cardId) || !this.cards.has(raw.cardId) || !this.playerIds.includes(raw.targetPlayerId)) return { accepted: false, reason: "invalid" };
       const card = this.cards.get(raw.cardId)!;
-      if (card.ownerId === playerId && raw.targetPlayerId === playerId) return { accepted: false, reason: "invalid" };
+      if (!this.isConnected(raw.targetPlayerId) || card.ownerId === playerId && raw.targetPlayerId === playerId) return { accepted: false, reason: "invalid" };
       seenCards.add(raw.cardId);
       guesses.push({ cardId: raw.cardId, targetPlayerId: raw.targetPlayerId });
     }
@@ -857,6 +875,7 @@ class SozlukBlofuAdapter extends Stage8AdapterBase {
   private readonly entry: { readonly word: string; readonly definition: string };
   private readonly bluffs = new Map<string, string>();
   private readonly choices = new Map<string, string>();
+  private readonly definitions = new Map<string, { readonly text: string; readonly ownerId: string | null; readonly isReal: boolean }>();
   private readonly definitionOrder: string[] = [];
   private subPhase: SozlukBlofuSubPhase = "write";
   private phaseEndsAt: number | null = null;
@@ -867,23 +886,31 @@ class SozlukBlofuAdapter extends Stage8AdapterBase {
   override start(now: number): void { super.start(now); if (this.phaseEndsAt === null) this.phaseEndsAt = now + BLUFF_FIFTY_SECONDS; }
 
   private createDefinitions(): void {
-    const definitions = [{ id: "real", text: this.entry.definition, ownerId: null as string | null }, ...this.playerIds.filter((playerId) => this.bluffs.has(playerId)).map((playerId) => ({ id: `bluff-${playerId}`, text: this.bluffs.get(playerId)!, ownerId: playerId }))];
-    this.definitionOrder.push(...shuffled(definitions, this.random).map((definition) => definition.id));
+    const definitions = [
+      { text: this.entry.definition, ownerId: null as string | null, isReal: true },
+      ...this.playerIds
+        .filter((playerId) => this.bluffs.has(playerId))
+        .map((playerId) => ({ text: this.bluffs.get(playerId)!, ownerId: playerId, isReal: false }))
+    ];
+    shuffled(definitions, this.random).forEach((definition, index) => {
+      const id = `definition-${index + 1}`;
+      this.definitions.set(id, definition);
+      this.definitionOrder.push(id);
+    });
   }
 
   private resolve(): void {
     if (this.finished) return;
     for (const playerId of this.choices.keys()) {
       const chosenId = this.choices.get(playerId)!;
-      if (chosenId === "real") this.addDirect(playerId, 1, "sozluk-blofu:gercek-tanim");
-      else {
-        const owner = chosenId.slice(6);
-        if (this.playerIds.includes(owner)) this.addDirect(owner, 1, "sozluk-blofu:blof-secildi");
-      }
+      const definition = this.definitions.get(chosenId);
+      if (!definition) continue;
+      if (definition.isReal) this.addDirect(playerId, 1, "sozluk-blofu:gercek-tanim");
+      else if (definition.ownerId !== null && this.playerIds.includes(definition.ownerId)) this.addDirect(definition.ownerId, 1, "sozluk-blofu:blof-secildi");
     }
     this.results = this.definitionOrder.map((id) => {
-      const ownerId = id === "real" ? null : id.slice(6);
-      return { id, text: id === "real" ? this.entry.definition : this.bluffs.get(ownerId ?? "") ?? "", ownerId, isReal: id === "real", selectedByPlayerIds: [...this.choices.entries()].filter(([, choice]) => choice === id).map(([playerId]) => playerId) };
+      const definition = this.definitions.get(id)!;
+      return { id, text: definition.text, ownerId: definition.ownerId, isReal: definition.isReal, selectedByPlayerIds: [...this.choices.entries()].filter(([, choice]) => choice === id).map(([playerId]) => playerId) };
     });
     this.subPhase = "results";
     this.phaseEndsAt = null;
@@ -914,7 +941,8 @@ class SozlukBlofuAdapter extends Stage8AdapterBase {
     if (this.subPhase !== "choose" || this.choices.has(playerId)) return { accepted: false, reason: this.choices.has(playerId) ? "duplicate" : "phase-locked" };
     if (inputKind(payload) !== "dictionary-choice") return { accepted: false, reason: "invalid" };
     const definitionId = inputString(payload, "definitionId");
-    if (definitionId === null || !this.definitionOrder.includes(definitionId) || definitionId === `bluff-${playerId}`) return { accepted: false, reason: "invalid" };
+    const definition = definitionId === null ? null : this.definitions.get(definitionId);
+    if (definitionId === null || !definition || definition.ownerId === playerId || definition.ownerId !== null && !this.isConnected(definition.ownerId)) return { accepted: false, reason: "invalid" };
     this.choices.set(playerId, definitionId);
     return { accepted: true };
   }
@@ -922,7 +950,11 @@ class SozlukBlofuAdapter extends Stage8AdapterBase {
   override removePlayer(playerId: string): void { super.removePlayer(playerId); this.bluffs.delete(playerId); this.choices.delete(playerId); }
 
   getPublicState(_now: number): SozlukBlofuPublicState {
-    const definitions = this.subPhase === "write" ? null : this.definitionOrder.map((id) => ({ id, text: id === "real" ? this.entry.definition : this.bluffs.get(id.slice(6)) ?? "", ownerId: this.finished ? id === "real" ? null : id.slice(6) : null, isReal: this.finished ? id === "real" : null, selectedByPlayerIds: this.finished ? this.results?.find((result) => result.id === id)?.selectedByPlayerIds ?? [] : [] }));
+    const definitions = this.subPhase === "write" ? null : this.definitionOrder.map((id) => {
+      const definition = this.definitions.get(id)!;
+      const result = this.finished ? this.results?.find((entry) => entry.id === id) : null;
+      return { id, text: definition.text, ownerId: this.finished ? definition.ownerId : null, isReal: this.finished ? definition.isReal : null, selectedByPlayerIds: result?.selectedByPlayerIds ?? [] };
+    });
     return { gameId: this.gameId, kind: this.gameId, subPhase: this.subPhase, phaseEndsAt: this.phaseEndsAt, finished: this.finished, word: this.entry.word, definitions, resultPoints: this.finished ? pointsView(this.miniScores) : null };
   }
 
@@ -978,6 +1010,7 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
   private readonly votes = new Map<string, string>();
   private readonly rpsChoices = new Map<string, RpsChoice>();
   private readonly allocations = new Map<string, number>();
+  private distributionSubmitted = false;
   private subPhase: RusvetSubPhase = "election";
   private phaseEndsAt: number | null = null;
   private presidentId: string | null = null;
@@ -990,7 +1023,7 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
   constructor(playerIds: readonly string[], random: Stage8RandomSource) { super(playerIds); this.random = random; }
   override start(now: number): void { super.start(now); if (this.phaseEndsAt === null) this.phaseEndsAt = now + ELECTION_TWENTY_SECONDS; }
 
-  private randomOpponent(playerId: string): string | null { return randomFrom(allOtherPlayers(this.playerIds, playerId), this.random) ?? null; }
+  private randomOpponent(playerId: string): string | null { return randomFrom(allOtherPlayers(this.livePlayerIds(), playerId), this.random) ?? null; }
 
   private beginDistribution(now: number): void {
     this.subPhase = "distribution";
@@ -998,10 +1031,16 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
   }
 
   private resolveElection(now: number): void {
-    for (const playerId of this.playerIds) if (!this.votes.has(playerId)) { const target = this.randomOpponent(playerId); if (target) this.votes.set(playerId, target); }
+    for (const [voterId, targetId] of this.votes) {
+      if (!this.isConnected(voterId) || !this.isConnected(targetId) || !this.playerIds.includes(voterId) || !this.playerIds.includes(targetId) || voterId === targetId) {
+        this.votes.delete(voterId);
+      }
+    }
+    for (const playerId of this.livePlayerIds()) if (!this.votes.has(playerId)) { const target = this.randomOpponent(playerId); if (target) this.votes.set(playerId, target); }
     const counts = voteCounts(this.playerIds, this.votes);
     const top = Math.max(...counts.map((entry) => entry.votes), 0);
-    this.rpsCandidates = counts.filter((entry) => entry.votes === top).map((entry) => entry.playerId);
+    const liveIds = new Set(this.livePlayerIds());
+    this.rpsCandidates = counts.filter((entry) => entry.votes === top && liveIds.has(entry.playerId)).map((entry) => entry.playerId);
     this.voteResults = counts;
     if (this.rpsCandidates.length === 1) {
       this.presidentId = this.rpsCandidates[0]!;
@@ -1016,6 +1055,22 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
   }
 
   private evaluateRps(now: number): void {
+    this.rpsCandidates = this.rpsCandidates.filter((playerId) => this.isConnected(playerId) && this.playerIds.includes(playerId));
+    for (const playerId of this.rpsChoices.keys()) {
+      if (!this.rpsCandidates.includes(playerId)) this.rpsChoices.delete(playerId);
+    }
+    if (this.rpsCandidates.length === 0) {
+      this.presidentId = null;
+      this.presidentVoteCount = 0;
+      this.beginDistribution(now);
+      return;
+    }
+    if (this.rpsCandidates.length === 1) {
+      this.presidentId = this.rpsCandidates[0]!;
+      this.presidentVoteCount = this.voteResults?.find((entry) => entry.playerId === this.presidentId)?.votes ?? 0;
+      this.beginDistribution(now);
+      return;
+    }
     const choices = new Map(this.rpsChoices);
     if (choices.size < this.rpsCandidates.length && this.phaseEndsAt !== null && now < this.phaseEndsAt) return;
     for (const playerId of this.rpsCandidates) if (!choices.has(playerId)) choices.set(playerId, randomFrom(["rock", "paper", "scissors"] as const, this.random));
@@ -1042,8 +1097,12 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
 
   private fillRandomAllocations(): void {
     if (!this.presidentId) return;
-    let remaining = this.presidentVoteCount;
-    const targets = shuffled(allOtherPlayers(this.playerIds, this.presidentId), this.random);
+    for (const [targetId] of this.allocations) {
+      if (!this.isConnected(targetId) || !this.playerIds.includes(targetId) || targetId === this.presidentId) this.allocations.delete(targetId);
+    }
+    const allocated = [...this.allocations.values()].reduce((sum, points) => sum + points, 0);
+    let remaining = Math.max(0, this.presidentVoteCount - allocated);
+    const targets = shuffled(allOtherPlayers(this.livePlayerIds(), this.presidentId), this.random);
     while (remaining > 0 && targets.length > 0) {
       const available = targets.filter((target) => (this.allocations.get(target) ?? 0) < 2);
       if (available.length === 0) break;
@@ -1055,6 +1114,11 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
 
   private resolveDistribution(): void {
     if (this.finished) return;
+    if (this.presidentId !== null && !this.isConnected(this.presidentId)) {
+      this.presidentId = null;
+      this.presidentVoteCount = 0;
+      this.allocations.clear();
+    }
     this.fillRandomAllocations();
     if (this.presidentId) this.addDirect(this.presidentId, 1, "rusvet-darbe:baskan");
     this.allocations.forEach((points, playerId) => this.addDirect(playerId, points, "rusvet-darbe:rüsvet"));
@@ -1075,13 +1139,13 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
 
   submit(playerId: string, payload: JsonValue | null, now: number): Stage8SubmitResult {
     assertNow(now);
-    if (!this.playerIds.includes(playerId)) return { accepted: false, reason: "invalid" };
+    if (!this.playerIds.includes(playerId) || !this.isConnected(playerId)) return { accepted: false, reason: "invalid" };
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (this.phaseEndsAt !== null && now >= this.phaseEndsAt) { this.advance(now); if (this.finished || this.subPhase !== "distribution" && this.subPhase !== "rps") return { accepted: false, reason: "late" }; }
     if (this.subPhase === "election") {
       if (this.votes.has(playerId) || inputKind(payload) !== "president-vote") return { accepted: false, reason: this.votes.has(playerId) ? "duplicate" : "invalid" };
       const target = inputString(payload, "targetPlayerId");
-      if (target === null || target === playerId || !this.playerIds.includes(target)) return { accepted: false, reason: "invalid" };
+      if (target === null || target === playerId || !this.playerIds.includes(target) || !this.isConnected(target)) return { accepted: false, reason: "invalid" };
       this.votes.set(playerId, target);
       return { accepted: true };
     }
@@ -1094,7 +1158,7 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
       return { accepted: true };
     }
     if (this.subPhase !== "distribution" || playerId !== this.presidentId) return { accepted: false, reason: "phase-locked" };
-    if (this.allocations.size > 0 || inputKind(payload) !== "president-distribution") return { accepted: false, reason: this.allocations.size > 0 ? "duplicate" : "invalid" };
+    if (this.distributionSubmitted || inputKind(payload) !== "president-distribution") return { accepted: false, reason: this.distributionSubmitted ? "duplicate" : "invalid" };
     const rawAllocations = inputArray(payload, "allocations");
     if (!rawAllocations) return { accepted: false, reason: "invalid" };
     let total = 0;
@@ -1102,19 +1166,32 @@ class RusvetDarbeAdapter extends Stage8AdapterBase {
     for (const raw of rawAllocations) {
       if (!isJsonObject(raw) || typeof raw.targetPlayerId !== "string") return { accepted: false, reason: "invalid" };
       const points = inputInteger(raw.points ?? null);
-      if (points === null || points < 1 || points > 2 || raw.targetPlayerId === playerId || !this.playerIds.includes(raw.targetPlayerId) || next.has(raw.targetPlayerId)) return { accepted: false, reason: "invalid" };
+      if (points === null || points < 1 || points > 2 || raw.targetPlayerId === playerId || !this.playerIds.includes(raw.targetPlayerId) || !this.isConnected(raw.targetPlayerId) || next.has(raw.targetPlayerId)) return { accepted: false, reason: "invalid" };
       total += points;
       next.set(raw.targetPlayerId, points);
     }
     if (total > this.presidentVoteCount) return { accepted: false, reason: "invalid" };
     next.forEach((points, target) => this.allocations.set(target, points));
+    this.distributionSubmitted = true;
     return { accepted: true };
   }
 
-  override removePlayer(playerId: string): void { super.removePlayer(playerId); this.votes.delete(playerId); this.rpsChoices.delete(playerId); this.allocations.delete(playerId); this.rpsCandidates = this.rpsCandidates.filter((candidate) => candidate !== playerId); }
+  override removePlayer(playerId: string): void {
+    super.removePlayer(playerId);
+    this.votes.delete(playerId);
+    for (const [voterId, targetId] of this.votes) if (targetId === playerId) this.votes.delete(voterId);
+    this.rpsChoices.delete(playerId);
+    this.allocations.delete(playerId);
+    this.rpsCandidates = this.rpsCandidates.filter((candidate) => candidate !== playerId);
+    if (this.presidentId === playerId) {
+      this.presidentId = null;
+      this.presidentVoteCount = 0;
+      this.allocations.clear();
+    }
+  }
 
   getPublicState(_now: number): RusvetDarbePublicState { return { gameId: this.gameId, kind: this.gameId, subPhase: this.subPhase, phaseEndsAt: this.phaseEndsAt, finished: this.finished, presidentId: this.presidentId, presidentVoteCount: this.finished ? this.presidentVoteCount : null, rpsCandidateIds: [...this.rpsCandidates], rpsRound: this.rpsRound, voteCounts: this.finished ? this.voteResults : null, allocations: this.finished ? this.allocationResults : null, resultPoints: this.finished ? pointsView(this.miniScores) : null }; }
-  getOwnState(playerId: string, _now: number): RusvetDarbeOwnState { return { gameId: this.gameId, kind: this.gameId, hasVoted: this.votes.has(playerId), isPresident: this.presidentId === playerId, canChooseRps: this.subPhase === "rps" && this.rpsCandidates.includes(playerId), hasChosenRps: this.rpsChoices.has(playerId), rpsCandidateIds: [...this.rpsCandidates], remainingDistributionPoints: this.presidentId === playerId ? Math.max(0, this.presidentVoteCount - [...this.allocations.values()].reduce((sum, points) => sum + points, 0)) : 0, submittedAllocations: this.presidentId === playerId ? mapToAllocations(this.allocations) : [], finished: this.finished }; }
+  getOwnState(playerId: string, _now: number): RusvetDarbeOwnState { return { gameId: this.gameId, kind: this.gameId, hasVoted: this.votes.has(playerId), isPresident: this.presidentId === playerId, canChooseRps: this.subPhase === "rps" && this.rpsCandidates.includes(playerId), hasChosenRps: this.rpsChoices.has(playerId), rpsCandidateIds: [...this.rpsCandidates], remainingDistributionPoints: this.presidentId === playerId ? Math.max(0, this.presidentVoteCount - [...this.allocations.values()].reduce((sum, points) => sum + points, 0)) : 0, submittedAllocations: this.presidentId === playerId ? mapToAllocations(this.allocations) : [], hasSubmittedDistribution: this.distributionSubmitted, finished: this.finished }; }
 }
 
 class KaralamaDefteriAdapter extends Stage8AdapterBase {
@@ -1170,7 +1247,7 @@ class KaralamaDefteriAdapter extends Stage8AdapterBase {
     if (this.subPhase !== "vote" || this.votes.has(playerId)) return { accepted: false, reason: this.votes.has(playerId) ? "duplicate" : "phase-locked" };
     if (inputKind(payload) !== "drawing-vote") return { accepted: false, reason: "invalid" };
     const target = inputString(payload, "targetPlayerId");
-    if (target === null || target === playerId || !this.playerIds.includes(target)) return { accepted: false, reason: "invalid" };
+    if (target === null || target === playerId || !this.playerIds.includes(target) || !this.isConnected(target)) return { accepted: false, reason: "invalid" };
     this.votes.set(playerId, target);
     return { accepted: true };
   }
@@ -1196,7 +1273,7 @@ class IttifakAdapter extends Stage8AdapterBase {
   override start(now: number): void { super.start(now); if (this.phaseEndsAt === null) this.phaseEndsAt = now + BARGAIN_SIXTY_SECONDS; }
 
   private resolve(): void {
-    for (const playerId of this.playerIds) if (!this.votes.has(playerId)) { const target = randomFrom(allOtherPlayers(this.playerIds, playerId), this.random); if (target) this.votes.set(playerId, target); }
+    for (const playerId of this.livePlayerIds()) if (!this.votes.has(playerId)) { const target = randomFrom(allOtherPlayers(this.livePlayerIds(), playerId), this.random); if (target) this.votes.set(playerId, target); }
     this.results = voteCounts(this.playerIds, this.votes);
     this.results.forEach((entry) => { if (entry.votes > 0) this.addDirect(entry.playerId, entry.votes, "ittifak:oy"); });
     this.subPhase = "results";
@@ -1214,7 +1291,7 @@ class IttifakAdapter extends Stage8AdapterBase {
     if (this.subPhase !== "vote" || this.votes.has(playerId)) return { accepted: false, reason: this.votes.has(playerId) ? "duplicate" : "phase-locked" };
     if (inputKind(payload) !== "alliance-vote") return { accepted: false, reason: "invalid" };
     const target = inputString(payload, "targetPlayerId");
-    if (target === null || target === playerId || !this.playerIds.includes(target)) return { accepted: false, reason: "invalid" };
+    if (target === null || target === playerId || !this.playerIds.includes(target) || !this.isConnected(target)) return { accepted: false, reason: "invalid" };
     this.votes.set(playerId, target);
     return { accepted: true };
   }
@@ -1265,7 +1342,7 @@ class KontrolPaneliAdapter extends Stage8AdapterBase {
       if (correct) {
         this.addDirect(playerId, 1, "kontrol-paneli-kaosu:dogru-kablo");
         const clueHolder = this.clueHolderByTarget.get(playerId);
-        if (clueHolder) this.addDirect(clueHolder, 1, "kontrol-paneli-kaosu:ipucu-bonusu");
+        if (clueHolder && this.playerIds.includes(clueHolder)) this.addDirect(clueHolder, 1, "kontrol-paneli-kaosu:ipucu-bonusu");
         points = 1;
       }
       return { playerId, panelColors: this.panels.get(playerId) ?? [], clueHolderId: this.clueHolderByTarget.get(playerId) ?? "", cutColor, correctColor, correct, points };
@@ -1288,7 +1365,19 @@ class KontrolPaneliAdapter extends Stage8AdapterBase {
     return { accepted: true };
   }
 
-  override removePlayer(playerId: string): void { super.removePlayer(playerId); this.panels.delete(playerId); this.clueHolderByTarget.delete(playerId); this.clueTexts.delete(playerId); this.cuts.delete(playerId); this.correctColors.delete(playerId); }
+  override removePlayer(playerId: string): void {
+    super.removePlayer(playerId);
+    this.panels.delete(playerId);
+    for (const [targetId, holderId] of this.clueHolderByTarget) {
+      if (targetId === playerId || holderId === playerId) {
+        this.clueHolderByTarget.delete(targetId);
+        this.clueTexts.delete(holderId);
+      }
+    }
+    this.clueTexts.delete(playerId);
+    this.cuts.delete(playerId);
+    this.correctColors.delete(playerId);
+  }
   getPublicState(_now: number): KontrolPaneliPublicState { return { gameId: this.gameId, kind: this.gameId, phaseEndsAt: this.phaseEndsAt, finished: this.finished, results: this.results, resultPoints: this.finished ? pointsView(this.miniScores) : null }; }
   getOwnState(playerId: string, _now: number): KontrolPaneliOwnState { return { gameId: this.gameId, kind: this.gameId, panelColors: this.panels.get(playerId) ?? [], clueText: this.clueTexts.get(playerId) ?? "", hasCut: this.cuts.has(playerId), finished: this.finished }; }
 }
@@ -1328,7 +1417,7 @@ class ZehirliKadehAdapter extends Stage8AdapterBase {
     if (this.traded.has(playerId)) return { accepted: false, reason: "duplicate" };
     if (inputKind(payload) !== "glass-trade") return { accepted: false, reason: "invalid" };
     const target = inputString(payload, "targetPlayerId");
-    if (target === null || target === playerId || !this.playerIds.includes(target)) return { accepted: false, reason: "invalid" };
+    if (target === null || target === playerId || !this.playerIds.includes(target) || !this.isConnected(target)) return { accepted: false, reason: "invalid" };
     const sourcePoisoned = this.poisoned.has(playerId);
     const targetPoisoned = this.poisoned.has(target);
     if (sourcePoisoned !== targetPoisoned) {

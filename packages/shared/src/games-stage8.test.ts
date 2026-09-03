@@ -5,6 +5,8 @@ import {
   type DrawingStroke,
   type KendimPublicState,
   type KontrolPaneliPublicState,
+  type RusvetDarbePublicState,
+  type SozlukBlofuPublicState,
   type Stage8GameAdapter,
   type YaziYazOwnState,
   type YaziYazPublicState,
@@ -23,12 +25,14 @@ test("Yazı Yaz iki yazanı gizli tutar ve doğru kişi/kelime tahminini ayrı p
   const adapter = createStage8GameAdapter("yazi-yaz", ["a", "b", "c"], () => 0);
   adapter.start(0);
   const roles = ["a", "b", "c"].map((playerId) => [playerId, adapter.getOwnState(playerId, 1) as YaziYazOwnState] as const);
+  const writerIds = roles.filter(([, own]) => own.role === "writer").map(([playerId]) => playerId);
   assert.equal((adapter.getPublicState(1) as YaziYazPublicState).writerPlayerIds, null);
+  roles.forEach(([playerId, own]) => assert.deepEqual(own.guessTargetPlayerIds, ["a", "b", "c"].filter((candidate) => candidate !== playerId)));
   roles.forEach(([playerId, own]) => submit(adapter, playerId, own.role === "writer" ? { kind: "yazi-word", word: playerId === "b" ? "MAVİ" : "KIRMIZI" } : { kind: "yazi-masum" }, 1_000));
   adapter.advance(30_000);
   adapter.advance(90_000);
   roles.forEach(([playerId, own]) => {
-    const otherWriter = own.guessTargetPlayerIds[0]!;
+    const otherWriter = writerIds.find((candidate) => candidate !== playerId) ?? writerIds[0]!;
     submit(adapter, playerId, { kind: "yazi-guess", targetWriterId: otherWriter, targetWord: otherWriter === "b" ? "MAVİ" : "KIRMIZI" }, 90_001);
   });
   adapter.advance(120_000);
@@ -60,11 +64,23 @@ test("Sözlük Blöfü gerçek tanımı ve seçilen blöf sahibini doğrudan pua
   adapter.start(0);
   ["a", "b", "c"].forEach((playerId) => submit(adapter, playerId, { kind: "dictionary-bluff", text: `${playerId} sahte tanım` }, 1_000));
   adapter.advance(50_000);
-  submit(adapter, "a", { kind: "dictionary-choice", definitionId: "real" }, 50_001);
-  submit(adapter, "b", { kind: "dictionary-choice", definitionId: "bluff-a" }, 50_001);
-  submit(adapter, "c", { kind: "dictionary-choice", definitionId: "bluff-a" }, 50_001);
+  const chooseState = adapter.getPublicState(50_001) as SozlukBlofuPublicState;
+  const definitions = chooseState.definitions!;
+  definitions.forEach((definition) => {
+    assert.doesNotMatch(definition.id, /^bluff-/);
+    assert.notEqual(definition.id, "real");
+    assert.equal(definition.ownerId, null);
+    assert.equal(definition.isReal, null);
+  });
+  const aDefinition = definitions.find((definition) => definition.text === "a sahte tanım")!;
+  const realDefinition = definitions.find((definition) => definition.text !== "a sahte tanım" && !definition.text.includes(" sahte tanım"))!;
+  assert.deepEqual(adapter.submit("a", { kind: "dictionary-choice", definitionId: aDefinition.id }, 50_001), { accepted: false, reason: "invalid" });
+  submit(adapter, "a", { kind: "dictionary-choice", definitionId: realDefinition.id }, 50_001);
+  submit(adapter, "b", { kind: "dictionary-choice", definitionId: aDefinition.id }, 50_001);
+  submit(adapter, "c", { kind: "dictionary-choice", definitionId: aDefinition.id }, 50_001);
   adapter.advance(80_000);
   assert.equal(score(adapter, "a"), 3);
+  assert.equal((adapter.getPublicState(80_000) as SozlukBlofuPublicState).definitions?.find((definition) => definition.id === aDefinition.id)?.ownerId, "a");
   assert.equal(adapter.isFinished, true);
 });
 
@@ -90,6 +106,58 @@ test("Rüşvet ve Darbe başkanı seçer, başkan jetonlarını dağıtır ve ek
   assert.equal(score(adapter, "a"), 1);
   assert.equal(score(adapter, "b"), 2);
   assert.equal((adapter.getPublicState(45_001) as { presidentId: string | null }).presidentId, "a");
+  const allocations = (adapter.getPublicState(45_001) as RusvetDarbePublicState).allocations!;
+  assert.equal(allocations.reduce((sum, allocation) => sum + allocation.points, 0), 2);
+});
+
+test("Rüşvet ve Darbe manuel dağıtım bütçesini ikinci kez doldurmaz", () => {
+  const adapter = createStage8GameAdapter("rusvet-darbe", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  submit(adapter, "a", { kind: "president-vote", targetPlayerId: "b" }, 1_000);
+  submit(adapter, "b", { kind: "president-vote", targetPlayerId: "a" }, 1_000);
+  submit(adapter, "c", { kind: "president-vote", targetPlayerId: "a" }, 1_000);
+  adapter.advance(20_000);
+  submit(adapter, "a", { kind: "president-distribution", allocations: [{ targetPlayerId: "b", points: 1 }] }, 20_001);
+  assert.deepEqual(adapter.submit("a", { kind: "president-distribution", allocations: [{ targetPlayerId: "c", points: 2 }] }, 20_002), { accepted: false, reason: "duplicate" });
+  adapter.advance(45_001);
+  const state = adapter.getPublicState(45_001) as RusvetDarbePublicState;
+  assert.equal(state.allocations!.reduce((sum, allocation) => sum + allocation.points, 0), 2);
+  assert.equal(state.allocations!.every((allocation) => Number.isInteger(allocation.points) && allocation.points >= 1 && allocation.points <= 2), true);
+});
+
+test("Rüşvet ve Darbe bağlantısı kesilen adayın eski RPS seçimini yeni havuza taşımaz", () => {
+  const adapter = createStage8GameAdapter("rusvet-darbe", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  submit(adapter, "a", { kind: "president-vote", targetPlayerId: "b" }, 1_000);
+  submit(adapter, "b", { kind: "president-vote", targetPlayerId: "c" }, 1_000);
+  submit(adapter, "c", { kind: "president-vote", targetPlayerId: "a" }, 1_000);
+  adapter.advance(20_000);
+
+  submit(adapter, "c", { kind: "rps-choice", choice: "paper" }, 20_001);
+  adapter.setConnectedPlayerIds?.(["a", "b"]);
+  submit(adapter, "a", { kind: "rps-choice", choice: "rock" }, 20_001);
+  submit(adapter, "b", { kind: "rps-choice", choice: "scissors" }, 20_001);
+  adapter.advance(40_000);
+
+  const state = adapter.getPublicState(40_000) as RusvetDarbePublicState;
+  assert.equal(state.subPhase, "distribution");
+  assert.equal(state.presidentId, "a");
+});
+
+test("Kontrol Paneli Kaosu ayrılan ipucu sahibine hayalet bonus yazmaz", () => {
+  const adapter = createStage8GameAdapter("kontrol-paneli-kaosu", ["a", "b"], () => 0);
+  adapter.start(0);
+  assert.equal((adapter.getOwnState("a", 1) as { clueText: string }).clueText.length > 0, true);
+  adapter.removePlayer("a");
+  assert.equal((adapter.getOwnState("b", 1) as { clueText: string }).clueText, "");
+  const bPanel = (adapter.getOwnState("b", 1) as { panelColors: readonly string[] }).panelColors;
+  submit(adapter, "b", { kind: "panel-cut", color: bPanel[0]! }, 1_000);
+  adapter.advance(60_000);
+  const state = adapter.getPublicState(60_000) as KontrolPaneliPublicState;
+  assert.deepEqual(state.results?.map((result) => result.playerId), ["b"]);
+  assert.equal(state.results?.some((result) => result.clueHolderId === "a"), false);
+  assert.equal(state.resultPoints?.some((points) => points.playerId === "a"), false);
+  assert.equal(adapter.getScoreDeltas().some((delta) => delta.playerId === "a"), false);
 });
 
 test("Karalama Defteri bilgisiz oyuncu benzersiz şekilde en çok oy alırsa bilenleri puanlar", () => {
@@ -142,4 +210,11 @@ test("Zehirli Kadeh kendi zehrini gizler, takası anında uygular ve süreyi uza
   assert.equal(publicState.poisonedPlayerIds?.includes("a"), true);
   assert.equal(score(adapter, "b"), 1);
   assert.equal(score(adapter, "c"), 1);
+});
+
+test("Zehirli Kadeh bağlı olmayan hedefe takası reddeder", () => {
+  const adapter = createStage8GameAdapter("zehirli-kadeh", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.(["a", "b"]);
+  assert.deepEqual(adapter.submit("a", { kind: "glass-trade", targetPlayerId: "c" }, 1_000), { accepted: false, reason: "invalid" });
 });
