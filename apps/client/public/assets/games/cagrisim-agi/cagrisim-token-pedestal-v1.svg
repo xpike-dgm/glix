@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80" fill="none">
+  <defs>
+    <linearGradient id="ped-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="rim-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00F5FF"/>
+      <stop offset="50%" stop-color="#9D00FF"/>
+      <stop offset="100%" stop-color="#FF007F"/>
+    </linearGradient>
+  </defs>
+  <!-- Pedestal base platform -->
+  <path d="M20 60 L45 25 L275 25 L300 60 L280 72 L40 72 Z" fill="url(#ped-grad)" stroke="#334155" stroke-width="1.5"/>
+  <!-- Glowing top rim -->
+  <line x1="45" y1="25" x2="275" y2="25" stroke="url(#rim-grad)" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Sub-bevel glow -->
+  <line x1="50" y1="28" x2="270" y2="28" stroke="#00F5FF" stroke-width="0.75" opacity="0.6"/>
+  <!-- 4 Terminal node contact sockets -->
+  <ellipse cx="80" cy="45" rx="18" ry="8" fill="#0C101D" stroke="#00F5FF" stroke-width="1.5"/>
+  <circle cx="80" cy="45" r="3" fill="#00F5FF"/>
+  <ellipse cx="133" cy="45" rx="18" ry="8" fill="#0C101D" stroke="#00E676" stroke-width="1.5"/>
+  <circle cx="133" cy="45" r="3" fill="#00E676"/>
+  <ellipse cx="187" cy="45" rx="18" ry="8" fill="#0C101D" stroke="#FF007F" stroke-width="1.5"/>
+  <circle cx="187" cy="45" r="3" fill="#FF007F"/>
+  <ellipse cx="240" cy="45" rx="18" ry="8" fill="#0C101D" stroke="#FFB300" stroke-width="1.5"/>
+  <circle cx="240" cy="45" r="3" fill="#FFB300"/>
+  <!-- Front lip rivets -->
+  <circle cx="45" cy="65" r="2" fill="#64748B"/>
+  <circle cx="160" cy="67" r="2" fill="#64748B"/>
+  <circle cx="275" cy="65" r="2" fill="#64748B"/>
+</svg>
