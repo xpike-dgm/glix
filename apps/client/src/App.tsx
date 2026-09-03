@@ -13,6 +13,7 @@ import {
   getGameDefinition,
   type ClientMessage,
   type GameId,
+  type GameDefinition,
   type JsonValue,
   type LobbyState,
   type MatchState,
@@ -26,7 +27,14 @@ import { Stage6GameControls } from "./games/Stage6GameControls";
 import { Stage7GameControls } from "./games/Stage7GameControls";
 import { Stage8GameControls } from "./games/Stage8GameControls";
 import { Stage9GameControls } from "./games/Stage9GameControls";
-import { NeonToyboxScene } from "./visuals/NeonToyboxScene";
+import { GameHUD } from "./visuals/hud/GameHUD";
+import { HomeScreen } from "./visuals/home/HomeScreen";
+import { ResultOverlay } from "./visuals/overlays/ResultOverlay";
+import { SpectatorOverlay } from "./visuals/overlays/SpectatorOverlay";
+import { TutorialOverlay } from "./visuals/overlays/TutorialOverlay";
+import { GameViewport } from "./visuals/viewport/GameViewport";
+import { PremiumStageHero } from "./visuals/stage/PremiumStageHero";
+import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/visualAssetManifest";
 
 type ConnectionState = "connecting" | "connected" | "offline";
 type Screen = "home" | "create" | "join" | "lobby" | "match";
@@ -140,6 +148,16 @@ function App(): JSX.Element {
   const nicknameRef = useRef(nickname);
   const roomCodeRef = useRef(roomCodeInput);
   const resumeTokenRef = useRef(readStoredValue(STORAGE_KEYS.resumeToken));
+
+  useEffect(() => {
+    void preloadPremiumBrandAssets();
+  }, []);
+
+  useEffect(() => {
+    if (matchState?.currentGameId) {
+      void preloadPremiumGamePack(matchState.currentGameId);
+    }
+  }, [matchState?.currentGameId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 100);
@@ -609,7 +627,7 @@ function App(): JSX.Element {
       <div className="ambient ambient-one" aria-hidden="true" />
       <div className="ambient ambient-two" aria-hidden="true" />
 
-      {screen !== "lobby" && screen !== "match" && (
+      {screen !== "lobby" && screen !== "match" && screen !== "home" && (
         <header className="site-header">
           <button className="wordmark" type="button" onClick={() => { clearFormError(); setScreen("home"); }}>
             GLIX
@@ -622,64 +640,12 @@ function App(): JSX.Element {
       )}
 
       {screen === "home" && (
-        <section className="home-layout" aria-labelledby="app-title">
-          <div className="home-copy">
-            <p className="eyebrow">ARKADAŞ GRUBU / NEON ARCADE</p>
-            <h1 id="app-title">
-              Aynı odada,
-              <span> farklı hamleler.</span>
-            </h1>
-            <p className="hero-description">
-              Herkes kendi telefonundan katılır. Odayı kur, mini oyunları sırala
-              ve kaosun kimin lehine döneceğini gör.
-            </p>
-
-            <div className="home-actions">
-              <button className="button button-primary" type="button" onClick={() => { clearFormError(); setScreen("create"); }}>
-                <span className="button-icon">＋</span>
-                <span>
-                  <strong>ODA KUR</strong>
-                  <small>YENİ BİR MAÇ BAŞLAT</small>
-                </span>
-              </button>
-              <button className="button button-secondary" type="button" onClick={() => { clearFormError(); setScreen("join"); }}>
-                <span className="button-icon">↗</span>
-                <span>
-                  <strong>ODAYA KATIL</strong>
-                  <small>KATILIM KODUNU GİR</small>
-                </span>
-              </button>
-            </div>
-
-            <div className="home-footnote">
-              <span>2–8 OYUNCU</span>
-              <i />
-              <span>YALNIZCA TAKMA AD</span>
-              <i />
-              <span>V0.7 / 24 OYUN KATALOĞU</span>
-            </div>
-          </div>
-
-          <div className="home-visual" aria-hidden="true">
-            <div className="visual-orbit orbit-large" />
-            <div className="visual-orbit orbit-small" />
-            <div className="core-platform">
-              <div className="core-glass">
-                <span className="core-mark">✦</span>
-                <span className="core-line" />
-                <span className="core-label">GLIX / PARTY CORE</span>
-              </div>
-              <div className="core-buttons">
-                <span />
-                <span />
-                <span />
-              </div>
-            </div>
-            <div className="orbit-badge badge-one">01</div>
-            <div className="orbit-badge badge-two">08</div>
-            <div className="orbit-badge badge-three">24</div>
-          </div>
-        </section>
+        <HomeScreen
+          connection={connection}
+          onCreateRoom={() => { clearFormError(); setScreen("create"); }}
+          onJoinRoom={() => { clearFormError(); setScreen("join"); }}
+          onHowToPlay={() => setNotice("Odayı kur veya kodla katıl; her oyuncu hamlesini kendi telefonundan yapar.")}
+        />
       )}
 
       {screen === "create" && (
@@ -711,7 +677,7 @@ function App(): JSX.Element {
       )}
 
       {screen === "lobby" && roomState && (
-        <section className="lobby-layout" aria-labelledby="lobby-title">
+        <section className="lobby-layout glix-lobby-screen" aria-labelledby="lobby-title">
           <header className="lobby-header">
             <div>
               <p className="eyebrow">GLIX / ODA LOBİSİ</p>
@@ -862,13 +828,14 @@ function App(): JSX.Element {
         <MatchScreen
           state={matchState}
           selfPlayerId={selfPlayerId}
-          ownInputCount={ownInputCount}
           ownHasSubmitted={ownHasSubmitted}
           ownGameState={ownGameState}
           now={matchNow}
           error={error}
           notice={notice}
           canManageMatch={canManageGames}
+          connection={connection}
+          roomCode={roomCodeRef.current || "—"}
           onReady={handleGameReady}
           onSubmit={handleGameInput}
           onReturnLobby={handleReturnLobby}
@@ -885,13 +852,14 @@ function App(): JSX.Element {
 interface MatchScreenProps {
   readonly state: MatchState;
   readonly selfPlayerId: string | null;
-  readonly ownInputCount: number;
   readonly ownHasSubmitted: boolean;
   readonly ownGameState: JsonValue | null;
   readonly now: number;
   readonly error: string | null;
   readonly notice: string | null;
   readonly canManageMatch: boolean;
+  readonly connection: ConnectionState;
+  readonly roomCode: string;
   readonly onReady: () => void;
   readonly onSubmit: (payload: JsonValue) => void;
   readonly onReturnLobby: () => void;
@@ -932,28 +900,35 @@ function formatRemaining(milliseconds: number | null): string {
   return Math.max(0, Math.ceil(milliseconds / 1000)) + " sn";
 }
 
-function SpectatorCallout({ eliminated }: { readonly eliminated: boolean }): JSX.Element {
-  return (
-    <div className="result-callout">
-      <span className="result-callout-mark">◌</span>
-      <div>
-        <strong>İzleyici modu</strong>
-        <small>{eliminated ? "Bu mini oyunda elendin; yalnızca sonucu izleyebilirsin." : "Bu mini oyun başladıktan sonra bağlandın; sonraki oyunda katılabilirsin."}</small>
-      </div>
-    </div>
-  );
+function tutorialStepsForGame(game: GameDefinition): readonly string[] {
+  const action = game.category === "sayi"
+    ? "sayıyı seç ve kilitle"
+    : game.category === "risk"
+      ? "riski oku ve hedefini seç"
+      : game.category === "hafiza"
+        ? "deseni gör ve sırayla tekrar et"
+        : game.category === "zaman"
+          ? "süreyi oku ve doğru anda dokun"
+          : "sahnedeki nesneye hamle yap";
+
+  return [
+    `${game.name} nesnesini ve hedefini oku.`,
+    "Hazır olduğunda kendi telefonunda onay ver.",
+    `Sıra geldiğinde ${action}.`
+  ];
 }
 
 function MatchScreen({
   state,
   selfPlayerId,
-  ownInputCount,
   ownHasSubmitted,
   ownGameState,
   now,
   error,
   notice,
   canManageMatch,
+  connection,
+  roomCode,
   onReady,
   onSubmit,
   onReturnLobby,
@@ -965,216 +940,219 @@ function MatchScreen({
   const stage8GameId = isStage8GameId(state.currentGameId) ? state.currentGameId : null;
   const stage9GameId = isStage9GameId(state.currentGameId) ? state.currentGameId : null;
   const remaining = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - now);
-  const duration = state.phaseEndsAt === null ? null : state.phaseEndsAt - state.phaseStartedAt;
-  const progress = state.phase === "finished" ? 1 : duration && duration > 0 ? Math.min(1, Math.max(0, 1 - (remaining ?? 0) / duration)) : 0;
+  const duration = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - state.phaseStartedAt);
+  const progress = state.phase === "finished"
+    ? 1
+    : duration && duration > 0
+      ? Math.min(1, Math.max(0, 1 - (remaining ?? 0) / duration))
+      : 0;
+  const totalDurationSeconds = duration && duration > 0 ? duration / 1000 : 0;
   const self = state.players.find((player) => player.id === selfPlayerId);
   const isSpectator = !self?.currentGameParticipant || Boolean(self.eliminated);
   const ready = state.readyPlayerIds.includes(selfPlayerId ?? "");
   const sortedPlayers = [...state.players].sort(
     (left, right) => right.score - left.score || right.miniGameScore - left.miniGameScore
   );
+  const tutorialSteps = tutorialStepsForGame(game);
+
+  const stageControls = stage6GameId ? (
+    <Stage6GameControls
+      gameId={stage6GameId}
+      publicState={state.gameState}
+      ownState={ownGameState}
+      selfPlayerId={selfPlayerId}
+      players={state.players}
+      now={now}
+      onSubmit={onSubmit}
+    />
+  ) : stage7GameId ? (
+    <Stage7GameControls
+      gameId={stage7GameId}
+      publicState={state.gameState}
+      ownState={ownGameState}
+      selfPlayerId={selfPlayerId}
+      players={state.players}
+      now={now}
+      onSubmit={onSubmit}
+    />
+  ) : stage8GameId ? (
+    <Stage8GameControls
+      gameId={stage8GameId}
+      publicState={state.gameState}
+      ownState={ownGameState}
+      selfPlayerId={selfPlayerId}
+      players={state.players}
+      now={now}
+      onSubmit={onSubmit}
+    />
+  ) : stage9GameId ? (
+    <Stage9GameControls
+      gameId={stage9GameId}
+      publicState={state.gameState}
+      ownState={ownGameState}
+      selfPlayerId={selfPlayerId}
+      players={state.players}
+      now={now}
+      onSubmit={onSubmit}
+    />
+  ) : (
+    <div className="glix-default-action">
+      <button className="glix-default-action-button" type="button" disabled={ownHasSubmitted} onClick={() => onSubmit({ action: "motor-provasi" })}>
+        <span aria-hidden="true">✦</span>
+        <strong>{ownHasSubmitted ? "HAMLE ALINDI" : "HAMLE GÖNDER"}</strong>
+        <small>{ownHasSubmitted ? "SONUCU BEKLE" : "TEK DOKUNUŞ"}</small>
+      </button>
+      <p>Hamleni sahnedeki ana nesne üzerinden gönder. Skoru sunucu hesaplar.</p>
+    </div>
+  );
+
+  const resultControls = state.phase === "results" && !isSpectator ? (
+    <>
+      {stage8GameId && (
+        <Stage8GameControls
+          gameId={stage8GameId}
+          publicState={state.gameState}
+          ownState={ownGameState}
+          selfPlayerId={selfPlayerId}
+          players={state.players}
+          now={now}
+          onSubmit={onSubmit}
+        />
+      )}
+      {stage9GameId && (
+        <Stage9GameControls
+          gameId={stage9GameId}
+          publicState={state.gameState}
+          ownState={ownGameState}
+          selfPlayerId={selfPlayerId}
+          players={state.players}
+          now={now}
+          onSubmit={onSubmit}
+        />
+      )}
+    </>
+  ) : null;
 
   return (
-    <section className="match-layout" aria-labelledby="match-title">
-      <header className="match-header">
-        <div>
-          <p className="eyebrow">GLIX / GERÇEK OYUN SAHNESİ</p>
-          <h1 id="match-title">Oyun sahnede<span>.</span></h1>
-        </div>
-        <button className="text-button danger-button" type="button" onClick={onLeave}>ODADAN ÇIK</button>
-      </header>
-
-      <div className="match-route-bar">
-        <span>OYUN {state.currentGameIndex + 1} / {state.gameIds.length}</span>
-        <strong>{game.name}</strong>
-        <span className="live-tag">SUNUCU SAATİ</span>
-      </div>
-
-      <div className="match-grid">
-        <section className="match-stage-card" aria-live="polite">
-          <NeonToyboxScene
-            state={state}
-            game={game}
+    <section className="glix-match-screen" aria-labelledby="match-title">
+      <GameViewport
+        gameId={game.id}
+        gameName={game.name}
+        phase={state.phase}
+        requiresLandscape={!game.supportsPortrait}
+        roomCode={roomCode}
+        connection={connection}
+        hud={
+          <GameHUD
+            gameName={game.name}
+            category={game.category}
+            gameIndex={state.currentGameIndex}
+            gameTotal={state.gameIds.length}
+            phase={state.phase}
+            phaseLabel={matchPhaseLabel(state.phase)}
+            deadline={state.phaseEndsAt}
+            now={now}
+            totalDurationSeconds={totalDurationSeconds}
+            players={state.players}
+            selfPlayer={self}
             selfPlayerId={selfPlayerId}
+            readyPlayerIds={state.readyPlayerIds}
             ownHasSubmitted={ownHasSubmitted}
-            progress={progress}
+            connection={connection}
+            onLeave={onLeave}
           />
-          <div className="match-stage-topline">
-            <span className="phase-chip">{matchPhaseLabel(state.phase)}</span>
-            <strong>{formatRemaining(remaining)}</strong>
-          </div>
-          <div className="match-progress"><span style={{ width: Math.round(progress * 100) + "%" }} /></div>
-          <p className="stage-kicker">{game.category.toUpperCase()} / {game.supportsPortrait ? "DİKEY UYUMLU" : "YATAY SAHNE"}</p>
-          <h2>{game.name}</h2>
-          <p className="match-description">{matchPhaseDescription(state.phase)}</p>
-
-          {state.phase === "tutorial" && (
-            <div className="tutorial-steps">
-              <span><b>01</b> Kuralı görsel olarak öğren</span>
-              <span><b>02</b> Hazır olduğunu bildir</span>
-              <span><b>03</b> Oyuna özel hamleni yap</span>
-            </div>
-          )}
-
-          {isSpectator && state.phase !== "finished" && <SpectatorCallout eliminated={Boolean(self?.eliminated)} />}
-
-          {state.phase === "preparing" && !isSpectator && (
-            <button className="button match-action-button" type="button" disabled={ready} onClick={onReady}>
-              <span className="button-icon">{ready ? "✓" : "→"}</span>
-              <span>
-                <strong>{ready ? "HAZIRSIN" : "HAZIRIM"}</strong>
-                <small>{ready ? "DİĞERLERİ BEKLENİYOR" : "PROVAYA GEÇ"}</small>
-              </span>
-            </button>
-          )}
-
-          {state.phase === "playing" && !isSpectator && (
-            stage6GameId ? (
-              <Stage6GameControls
-                gameId={stage6GameId}
-                publicState={state.gameState}
-                ownState={ownGameState}
-                selfPlayerId={selfPlayerId}
-                players={state.players}
-                now={now}
-                onSubmit={onSubmit}
+        }
+        hero={
+          <PremiumStageHero
+            game={game}
+            phase={state.phase}
+            progress={progress}
+            isSpectator={isSpectator}
+            ownHasSubmitted={ownHasSubmitted}
+          />
+        }
+        overlays={
+          <>
+            {state.phase === "tutorial" && (
+              <TutorialOverlay
+                gameName={game.name}
+                steps={tutorialSteps}
+                progress={progress}
+                remainingLabel={formatRemaining(remaining)}
               />
-            ) : stage7GameId ? (
-              <Stage7GameControls
-                gameId={stage7GameId}
-                publicState={state.gameState}
-                ownState={ownGameState}
-                selfPlayerId={selfPlayerId}
-                players={state.players}
-                now={now}
-                onSubmit={onSubmit}
+            )}
+            {state.phase === "results" && (
+              <ResultOverlay gameName={game.name}>{resultControls}</ResultOverlay>
+            )}
+            {state.phase === "finished" && (
+              <ResultOverlay gameName="GLIX rotası" final>
+                <div className="glix-final-score-rail">
+                  {sortedPlayers.slice(0, 8).map((player, index) => (
+                    <div className="glix-final-score-row" key={player.id}>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <strong>{player.nickname}</strong>
+                      <small>+{player.miniGameScore}</small>
+                      <b>{player.score}</b>
+                    </div>
+                  ))}
+                </div>
+                {canManageMatch && (
+                  <button className="glix-return-lobby" type="button" onClick={onReturnLobby}>LOBİYE DÖN</button>
+                )}
+              </ResultOverlay>
+            )}
+            {isSpectator && state.phase !== "finished" && (
+              <SpectatorOverlay
+                roomCode={roomCode}
+                connected={Boolean(self?.connected)}
+                eliminated={Boolean(self?.eliminated)}
               />
-            ) : stage8GameId ? (
-              <Stage8GameControls
-                gameId={stage8GameId}
-                publicState={state.gameState}
-                ownState={ownGameState}
-                selfPlayerId={selfPlayerId}
-                players={state.players}
-                now={now}
-                onSubmit={onSubmit}
-              />
-            ) : stage9GameId ? (
-              <Stage9GameControls
-                gameId={stage9GameId}
-                publicState={state.gameState}
-                ownState={ownGameState}
-                selfPlayerId={selfPlayerId}
-                players={state.players}
-                now={now}
-                onSubmit={onSubmit}
-              />
-            ) : (
-              <div className="match-play-area">
-                <button className="demo-action-button" type="button" disabled={ownHasSubmitted} onClick={() => onSubmit({ action: "motor-provasi" })}>
-                  <span className="demo-action-core">✦</span>
-                  <strong>{ownHasSubmitted ? "HAMLE ALINDI" : "HAMLE GÖNDER"}</strong>
-                  <small>{ownHasSubmitted ? "SONUCU BEKLE" : "TEK DOKUNUŞ"}</small>
-                </button>
-                <p className="private-input-note">Bu oyun henüz gerçek adaptöre bağlanmadı; motor provası çalışıyor.</p>
-              </div>
-            )
-          )}
-
-          {state.phase === "results" && (
-            <>
-              <div className="result-callout">
-                <span className="result-callout-mark">✦</span>
-                <div><strong>Oyun sonucu işleniyor</strong><small>Sunucuya ulaşan girdi: {state.inputCount}</small></div>
-              </div>
-              {stage8GameId && !isSpectator && (
-                <Stage8GameControls
-                  gameId={stage8GameId}
-                  publicState={state.gameState}
-                  ownState={ownGameState}
-                  selfPlayerId={selfPlayerId}
-                  players={state.players}
-                  now={now}
-                  onSubmit={onSubmit}
-                />
-              )}
-              {stage9GameId && !isSpectator && (
-                <Stage9GameControls
-                  gameId={stage9GameId}
-                  publicState={state.gameState}
-                  ownState={ownGameState}
-                  selfPlayerId={selfPlayerId}
-                  players={state.players}
-                  now={now}
-                  onSubmit={onSubmit}
-                />
-              )}
-            </>
-          )}
-
-          {state.phase === "transition" && (
-            <div className="transition-callout"><span />Sıradaki oyun yükleniyor</div>
-          )}
-
-          {state.phase === "finished" && (
-            <div className="result-callout final-callout">
-              <span className="result-callout-mark">★</span>
-              <div><strong>Neon Toybox rotası tamamlandı</strong><small>Genel skorlar güncellendi.</small></div>
-            </div>
-          )}
-        </section>
-
-        <aside className="match-side-card" aria-label="Maç oyuncuları">
-          <div className="card-heading">
-            <div><p className="eyebrow">CANLI DURUM</p><h2>Oyuncular</h2></div>
-            <span className="selection-count">{state.inputCount} GİRDİ</span>
+            )}
+          </>
+        }
+      >
+        <div className="glix-stage-context">
+          <div>
+            <span className="glix-stage-context-kicker">{matchPhaseLabel(state.phase)}</span>
+            <h1 id="match-title">{game.name}</h1>
           </div>
-          <div className="match-self-card">
-            <span className="avatar avatar-1">{self?.nickname.slice(0, 1).toUpperCase() ?? "?"}</span>
-            <div><strong>{self?.nickname ?? "Oyuncu"}</strong><small>{isSpectator ? "İZLEYİCİ" : ownInputCount > 0 ? "HAMLE GÖNDERDİ" : "SEN"}</small></div>
-            <b>{self?.score ?? 0}</b>
-          </div>
-          <div className="match-player-list">
-            {sortedPlayers.map((player, index) => (
-              <div className={"match-player-row " + (player.id === selfPlayerId ? "is-self" : "")} key={player.id}>
-                <span className={"avatar avatar-" + ((index % 8) + 1)}>{player.nickname.slice(0, 1).toUpperCase()}</span>
-                <span><strong>{player.nickname}</strong><small>{player.eliminated || !player.currentGameParticipant ? "İZLEYİCİ" : player.connected ? "BAĞLI" : "KOPTU"}</small></span>
-                <b>{player.score}</b>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </div>
+          <p>{matchPhaseDescription(state.phase)}</p>
+        </div>
 
-      {state.phase === "finished" && (
-        <section className="final-score-card" aria-labelledby="final-score-title">
-          <div className="card-heading">
-            <div><p className="eyebrow">GENEL SKOR</p><h2 id="final-score-title">Rota sonucu</h2></div>
-            {canManageMatch && <button className="button button-secondary compact-button" type="button" onClick={onReturnLobby}>LOBİYE DÖN</button>}
-          </div>
-          <div className="final-score-list">
-            {sortedPlayers.map((player, index) => (
-              <div className="final-score-row" key={player.id}>
-                <span className="final-rank">{String(index + 1).padStart(2, "0")}</span>
-                <strong>{player.nickname}</strong>
-                <small>OYUN +{player.miniGameScore}</small>
-                <b>{player.score}</b>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+        {state.phase === "preparing" && !isSpectator && (
+          <button className="glix-ready-button" type="button" disabled={ready} onClick={onReady}>
+            <span aria-hidden="true">{ready ? "✓" : "→"}</span>
+            <strong>{ready ? "HAZIRSIN" : "HAZIRIM"}</strong>
+            <small>{ready ? "DİĞERLERİ BEKLENİYOR" : "PROVAYA GEÇ"}</small>
+          </button>
+        )}
 
-      {error && <div className="inline-message error-message" role="alert">{error}</div>}
-      {notice && <div className="inline-message notice-message" role="status">{notice}</div>}
+        {state.phase === "playing" && !isSpectator && (
+          <div className="glix-control-slot" aria-label={`${game.name} hamle alanı`}>
+            {stageControls}
+          </div>
+        )}
 
-      <footer className="match-footer">
-        <span>OTURUM RAM'DE / KALICI KAYIT YOK</span>
-        <span>FAZ {state.phaseIndex + 1} / MOTOR v{state.stateVersion}</span>
-      </footer>
+        {state.phase === "transition" && (
+          <div className="glix-transition-callout" role="status"><span /> Sıradaki oyun yükleniyor</div>
+        )}
+
+        {state.phase === "finished" && (
+          <p className="glix-finished-note">Skorlar kaydedildi. Yeni bir rota başlatmak için lobiye dön.</p>
+        )}
+
+        {error && <div className="glix-match-message is-error" role="alert">{error}</div>}
+        {notice && <div className="glix-match-message is-notice" role="status">{notice}</div>}
+
+        <footer className="glix-match-footer">
+          <span>ODA {roomCode}</span>
+          <span>{connection === "connected" ? "SYNC AKTİF" : "BAĞLANTI BEKLENİYOR"}</span>
+        </footer>
+      </GameViewport>
     </section>
   );
 }
+
 
 function ConnectionPill({ connection }: { connection: ConnectionState }): JSX.Element {
   return (
