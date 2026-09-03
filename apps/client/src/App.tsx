@@ -397,10 +397,6 @@ function App(): JSX.Element {
     return true;
   };
 
-  if (typeof window !== "undefined") {
-    (window as unknown as { __glixSend?: typeof sendMessage }).__glixSend = sendMessage;
-  }
-
   const clearFormError = (): void => {
     setError(null);
     setNotice(null);
