@@ -7150,7 +7150,8 @@ body {
   .glix-connection-badge.is-connecting .glix-connection-beacon i,
   .glix-game-timer.is-critical,
   .rotate-phone,
-  .rotate-phone-screen {
+  .rotate-phone-screen,
+  .glix-rotating-phone {
     animation: none !important;
   }
 

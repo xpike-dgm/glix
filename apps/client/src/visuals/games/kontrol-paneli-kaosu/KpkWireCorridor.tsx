@@ -102,28 +102,42 @@ export function KpkWireCorridor({
     <div className={`kpk-wire-sprite ${isSevered ? "is-severed" : "is-intact"}`}>
       <svg
         className="kpk-wire-svg"
-        viewBox={isSevered ? "68 0 92 720" : "0 0 54 720"}
+        viewBox="0 0 54 720"
         preserveAspectRatio="xMidYMid meet"
         aria-hidden="true"
       >
         <defs>
           <clipPath id={clipId}>
             <rect
-              x={isSevered ? 68 : 0}
+              x={0}
               y={0}
-              width={isSevered ? 92 : 54}
+              width={54}
               height={720}
             />
           </clipPath>
         </defs>
-        <image
-          href={wireSrc}
-          width="160"
-          height="720"
-          x="0"
-          y="0"
-          clipPath={`url(#${clipId})`}
-        />
+        {isSevered ? (
+          <g clipPath={`url(#${clipId})`}>
+            <g transform={`scale(${54 / 92}, 1) translate(-68, 0)`}>
+              <image
+                href={wireSrc}
+                width="160"
+                height="720"
+                x="0"
+                y="0"
+              />
+            </g>
+          </g>
+        ) : (
+          <image
+            href={wireSrc}
+            width="160"
+            height="720"
+            x="0"
+            y="0"
+            clipPath={`url(#${clipId})`}
+          />
+        )}
       </svg>
     </div>
   );
@@ -179,19 +193,25 @@ export function KpkWireCorridor({
             <span className="kpk-wire-num">{index + 1}</span>
             <span className="kpk-wire-name">{config.label}</span>
           </div>
-
-          {/* Result outcome marker badge */}
-          {isResultCut && (
-            <div className={`kpk-wire-result-badge ${isResultTarget ? "is-correct" : "is-wrong"}`}>
-              {isResultTarget ? "DOĞRU KABLO +1" : "YANLIŞ KABLO"}
-            </div>
-          )}
-          {!isResultCut && isResultTarget && (
-            <div className="kpk-wire-result-badge is-target-missed">
-              HEDEF KABLO
-            </div>
-          )}
         </button>
+      )}
+
+      {/* Result outcome mechanical circular marker */}
+      {isResultCut && (
+        <div
+          className={`kpk-wire-result-marker ${isResultTarget ? "is-correct" : "is-wrong"}`}
+          aria-label={isResultTarget ? "Doğru Kablo (+1)" : "Yanlış Kablo"}
+        >
+          <span className="marker-icon">{isResultTarget ? "✓" : "✕"}</span>
+        </div>
+      )}
+      {!isResultCut && isResultTarget && (
+        <div
+          className="kpk-wire-result-marker is-target-missed"
+          aria-label="Hedef Kablo"
+        >
+          <span className="marker-icon">★</span>
+        </div>
       )}
     </div>
   );

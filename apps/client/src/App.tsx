@@ -1143,7 +1143,7 @@ function MatchScreen({
                 )}
               </ResultOverlay>
             )}
-            {isSpectator && state.phase !== "finished" && (
+            {isSpectator && state.phase !== "finished" && !isKpk && (
               <SpectatorOverlay
                 roomCode={roomCode}
                 connected={Boolean(self?.connected)}

@@ -88,10 +88,10 @@ export function KpkStage({
   let statusMessage: string | null = null;
   if (isResultsPhase && myResult) {
     statusMessage = myResult.correct
-      ? "DOĞRU KABLO +1 — KONSOL ÇÖZÜLDÜ"
+      ? "DOĞRU KABLO +1"
       : myResult.cutColor
-      ? "YANLIŞ KABLO — DEVRE YANDI"
-      : "KABLO KESİLMEDİ — SÜRE DOLDU";
+      ? "YANLIŞ KABLO"
+      : "KABLO KESİLMEDİ";
   } else if (hasCutConfirmed) {
     statusMessage = localCutColor
       ? `${localCutColor.toLocaleUpperCase("tr-TR")} KESİLDİ — DİĞER OYUNCULAR BEKLENİYOR`

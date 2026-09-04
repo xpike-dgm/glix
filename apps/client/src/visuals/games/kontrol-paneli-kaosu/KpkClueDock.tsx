@@ -30,7 +30,7 @@ export function KpkClueDock({
   let mainContent: JSX.Element;
 
   if (isResultPhase && myResult) {
-    kicker = "TUR SONUCU // SUNUCU DOĞRULAMASI";
+    kicker = "TUR SONUCU";
     mainContent = (
       <div className={`kpk-clue-result-summary ${myResult.correct ? "is-correct" : "is-wrong"}`}>
         <strong>
@@ -46,11 +46,10 @@ export function KpkClueDock({
       </div>
     );
   } else if (isSpectator) {
-    kicker = "GÖZLEMCİ TERMİNALİ // CANLI AKIŞ";
+    kicker = "İZLEYİCİ TERMİNALİ";
     mainContent = (
       <p className="kpk-clue-spectator-note">
-        Oyuncular sözlü iletişimle panellerindeki kabloları tarif ediyor.
-        Gizli ipuçları sadece ilgili oyuncunun ekranında görünür.
+        Sonraki turda katılabilirsin. Oyuncular panellerini çözüyor.
       </p>
     );
   } else {
@@ -87,7 +86,7 @@ export function KpkClueDock({
         <span className="status-indicator-text">
           {statusMessage ||
             (isSpectator
-              ? "İZLEYİCİ MODU · ETKİLEŞİM KAPALI"
+              ? "CANLI AKIŞ"
               : isLocked
               ? "KABLO KİLİTLENDİ · SUNUCU SENKRONU BEKLENİYOR"
               : "BİR KABLO SEÇİP KESİN · TEK HAKKINIZ VAR")}
