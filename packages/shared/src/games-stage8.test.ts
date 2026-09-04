@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   createStage8GameAdapter,
   type DrawingStroke,
+  type KendimOwnState,
   type KendimPublicState,
   type KontrolPaneliPublicState,
   type RusvetDarbePublicState,
@@ -70,6 +71,38 @@ test("Kendim write fazında ikinci kelime gönderimini duplicate olarak reddeder
   assert.ok(cardForA, "İlk kelime korunmalı");
   const wrongCardForA = publicCards.find((card) => card.word === "İKİNCİ KELİME");
   assert.equal(wrongCardForA, undefined, "İkinci kelime kaydedilmemeli");
+});
+
+test("Kendim match fazında kopan hedef oyuncuya yapılan eşleştirmeyi reddeder ve geçerli hedefle tekrar denemeye izin verir", () => {
+  const adapter = createStage8GameAdapter("kendim", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  adapter.submit("a", { kind: "kendim-word", word: "ALFA" }, 1_000);
+  adapter.submit("b", { kind: "kendim-word", word: "BETA" }, 1_000);
+  adapter.submit("c", { kind: "kendim-word", word: "GAMA" }, 1_000);
+  adapter.advance(30_000);
+
+  const cards = (adapter.getPublicState(30_000) as KendimPublicState).cards!;
+  const betaCard = cards.find((card) => card.word === "BETA")!;
+  const gamaCard = cards.find((card) => card.word === "GAMA")!;
+
+  // Hedef 'b' oyuncusunun bağlantısı kopar (bağlı oyuncular: a, c)
+  adapter.setConnectedPlayerIds?.(["a", "c"]);
+
+  // 'a' oyuncusu bağlantısı kopmuş 'b' oyuncusunu eşleştirmeye çalışır -> adaptör reddeder
+  const rejected = adapter.submit("a", { kind: "kendim-matches", matches: [{ cardId: betaCard.cardId, targetPlayerId: "b" }] }, 30_001);
+  assert.deepEqual(rejected, { accepted: false, reason: "invalid" });
+
+  // 'a' oyuncusunun onay durumu false kalmalıdır (kalıcı kilitlenme olmamalıdır)
+  const ownStateAfterReject = adapter.getOwnState("a", 30_001) as KendimOwnState;
+  assert.equal(ownStateAfterReject.hasSubmittedMatches, false);
+
+  // 'a' oyuncusu geçerli ve bağlı 'c' oyuncusu ile yeniden gönderebilir -> kabul edilir
+  const accepted = adapter.submit("a", { kind: "kendim-matches", matches: [{ cardId: gamaCard.cardId, targetPlayerId: "c" }] }, 30_002);
+  assert.deepEqual(accepted, { accepted: true });
+
+  // Şimdi otoriter olarak kilitlenmiştir
+  const ownStateAfterAccept = adapter.getOwnState("a", 30_002) as KendimOwnState;
+  assert.equal(ownStateAfterAccept.hasSubmittedMatches, true);
 });
 
 test("Sözlük Blöfü gerçek tanımı ve seçilen blöf sahibini doğrudan puanlar", () => {

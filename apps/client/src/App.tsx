@@ -45,6 +45,13 @@ import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/vis
 type ConnectionState = "connecting" | "connected" | "offline";
 type Screen = "home" | "create" | "join" | "lobby" | "match";
 
+export interface GameInputAckState {
+  readonly accepted: boolean;
+  readonly timestamp: number;
+  readonly reason?: string | undefined;
+  readonly inputSequence?: number | undefined;
+}
+
 const CLIENT_VERSION = "0.7.0";
 
 function resolveWebSocketUrl(): string {
@@ -147,6 +154,7 @@ function App(): JSX.Element {
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [lastInputAck, setLastInputAck] = useState<GameInputAckState | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | undefined>(undefined);
   const reconnectAttemptRef = useRef(0);
@@ -282,6 +290,13 @@ function App(): JSX.Element {
           }
 
           if (value.type === "server:game-input-ack") {
+            setLastInputAck({
+              accepted: value.accepted,
+              timestamp: Date.now(),
+              reason: value.reason,
+              inputSequence: value.inputSequence
+            });
+
             if (value.accepted) {
               setNotice("GLIX sahne hamleni kaydetti." + (value.inputSequence ? " #" + value.inputSequence : ""));
               return;
@@ -318,6 +333,11 @@ function App(): JSX.Element {
           }
 
           if (value.type === "server:error") {
+            setLastInputAck({
+              accepted: false,
+              timestamp: Date.now(),
+              reason: value.code
+            });
             setError(value.message);
 
             if (value.code === "room_not_found" || value.code === "resume_failed") {
@@ -508,11 +528,19 @@ function App(): JSX.Element {
     }
 
     setError(null);
-    sendMessage({
+    const sent = sendMessage({
       type: "client:game:submit",
       payload,
       clientTime: Date.now()
     });
+
+    if (!sent) {
+      setLastInputAck({
+        accepted: false,
+        timestamp: Date.now(),
+        reason: "offline"
+      });
+    }
   };
 
   const handleReturnLobby = (): void => {
@@ -834,6 +862,7 @@ function App(): JSX.Element {
           now={matchNow}
           error={error}
           notice={notice}
+          lastInputAck={lastInputAck}
           canManageMatch={canManageGames}
           connection={connection}
           roomCode={roomCodeRef.current || "—"}
@@ -858,6 +887,7 @@ interface MatchScreenProps {
   readonly now: number;
   readonly error: string | null;
   readonly notice: string | null;
+  readonly lastInputAck?: GameInputAckState | null | undefined;
   readonly canManageMatch: boolean;
   readonly connection: ConnectionState;
   readonly roomCode: string;
@@ -927,6 +957,7 @@ function MatchScreen({
   now,
   error,
   notice,
+  lastInputAck,
   canManageMatch,
   connection,
   roomCode,
@@ -1121,6 +1152,7 @@ function MatchScreen({
               selfPlayerId={selfPlayerId}
               players={sortedPlayers}
               isReady={ready}
+              lastInputAck={lastInputAck}
               onReady={onReady}
               onSubmitAction={onSubmit}
             />

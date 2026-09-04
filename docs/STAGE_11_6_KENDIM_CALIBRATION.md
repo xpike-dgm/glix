@@ -209,4 +209,56 @@ Independent audit conducted by the **Senior Mobile Game UI Technical Auditor & A
 | 9 | Automated Test Suite & Build Health | **9.8 / 10** | PASS | **62/62 tests passing (100%)**; clean build and typecheck. |
 | **TOTAL** | **Weighted Composite Score** | **9.74 / 10** | **PASS** | **APPROVED AS GLIX MOBILE PORTRAIT REFERENCE STANDARD** |
 
+---
+
+## 11. Final Acceptance Patch: Rejected Match Recovery & Genuine 8-Participant Calibration
+
+Following the final manager acceptance audit, a targeted acceptance patch was implemented to guarantee absolute state resilience and verify genuine 8-participant mobile calibration:
+
+### 1. Blocker 1: Deterministic Rejection Recovery (No Permanent UI Lock)
+- **Problem**: When a player clicked `EŞLEŞTİRMELERİ KİLİTLE`, `KendimStage` set `isMatchesPending = true`. If the authoritative server rejected the submission (e.g., target disconnected between selection and submit, invalid target, phase expired), the UI remained locked because there was no rejection reset path.
+- **Solution**:
+  - `apps/client/src/App.tsx`: Wired `server:game-input-ack` and `server:error` to track `lastInputAck: GameInputAckState` (with exact optional types `readonly reason?: string | undefined; readonly inputSequence?: number | undefined;`). Offline send failures immediately trigger a synthetic rejected ack (`reason: "offline"`). Passed `lastInputAck` to `KendimStage` and `KendimWordComposer`.
+  - `apps/client/src/visuals/games/kendim/KendimStage.tsx`: Attached `submitTimestampRef`. When a `lastInputAck` with `timestamp >= submitTimestampRef` arrives:
+    - If `!lastInputAck.accepted`: immediately clears `isMatchesPending(false)`, unlocking the card carousel, portrait tokens, and lock button.
+    - If `lastInputAck.accepted`: maintains pending state until authoritative `ownState.hasSubmittedMatches` confirms.
+    - When `ownState.hasSubmittedMatches === true`: permanently locks the UI.
+    - Zero arbitrary timeouts or polling loops.
+  - `apps/client/src/visuals/games/kendim/KendimWordComposer.tsx`: Applied the same deterministic rejection recovery to word submissions.
+  - `apps/client/src/visuals/games/kendim/types.ts`: Updated `findActivePlayer` to verify `isEligibleTarget(player)` (connected, participant, not eliminated).
+- **Automated Verification**:
+  - **Shared Engine Unit Test** (`packages/shared/src/games-stage8.test.ts`, Subtest 31): *"Kendim match fazında kopan hedef oyuncuya yapılan eşleştirmeyi reddeder ve geçerli hedefle tekrar denemeye izin verir"*. Asserts rejected submission leaves `ownState.hasSubmittedMatches === false`, and resubmission with a connected target succeeds and locks.
+  - **Server Integration Test** (`apps/server/test/reconnect.integration.test.mjs`, Subtest 8): *"Kendim — hedef oyuncu ayrıldığında eşleştirme reddedilir, oyuncu kilitlenmez ve yeni hedefle tekrar gönderebilir"*. Asserts end-to-end WebSocket protocol rejection, `server:game-input-ack` (`accepted: false`), `ownHasSubmitted: false`, and subsequent successful resubmission.
+  - **Test Suite Results**: 56/56 engine unit tests + 8/8 server integration tests = **64/64 passing (100%)**.
+
+### 2. Blocker 2: Genuine 8-Participant Match QA Calibration
+- **Screenshot `kendim-8players-390x844.png`**:
+  - Captured in a genuine 8-participant live match (1 local player + 7 active bot participants).
+  - Explicit header: `KARTLAR KART 1 / 8` with 8 progress dots.
+  - Top HUD: 8 participant status badges.
+  - Bottom Tray: 8 portrait tokens arranged in a 4×2 grid with active top sockets.
+  - Viewport Containment: Zero document scroll (`scrollHeight: 844 === clientHeight: 844`, `scrollWidth: 390 === clientWidth: 390`).
+  - Lock Button: Clearly visible and accessible above the viewport bottom fold.
+- **Dedicated Spectator Scenario (`kendim-spectator-390x844.png`)**:
+  - Dedicated scenario where a spectator client reconnects during the match without having joined as a participant (`currentGameParticipant = false`).
+  - Correctly renders read-only spectator view with `GÖZLEM MODU: OYUNCULAR KELİMELERİNİ MÜHÜRLÜYOR`, isolated from participant gameplay.
+- **Rejected Match Recovery Screenshot (`kendim-rejected-submit-recovery-390x844.png`)**:
+  - Captures the exact UI state immediately following authoritative server rejection of a match submission with a disconnected target.
+  - Demonstrates that `EŞLEŞTİRMELERİ KİLİTLE` button is unlocked and active, remaining candidate portrait tokens are enabled, and the player can select a live target and resubmit without page reload.
+
+### 3. Final QA Screenshot Directory (`C:\Users\Xpike\Desktop\glix-stage-11-6-qa/`)
+1. `kendim-write-390x844.png`: Write phase identity scanner card with high-contrast placeholder and seal action.
+2. `kendim-write-keyboard-sim-390x520.png`: Write phase in compact 520px viewport (virtual keyboard simulation), responsive card scaling with zero scroll.
+3. `kendim-match-390x844.png`: Unmapped match phase, single-row deck header, magnetic sockets, portrait grid, zero dead space.
+4. `kendim-match-320x700.png`: Match phase on ultra-narrow 320px viewport, vertical stacked footer, zero document overflow.
+5. `kendim-8players-390x844.png`: Genuine 8-player live match phase (`KART 1 / 8`, 8 dots, 8 portrait tokens in 4×2 grid, lock button visible, 0 scroll).
+6. `kendim-rejected-submit-recovery-390x844.png`: Post-rejection UI recovery showing fully editable carousel and active lock button.
+7. `kendim-mapped-390x844.png`: Mapped state featuring glowing dynamic cubic Bézier neon cable connecting card socket to target token socket.
+8. `kendim-submitted-390x844.png`: Locked state with submitted choices, disabled tray, and locked button status (`SEÇİMLER KİLİTLİ`).
+9. `kendim-result-390x844.png`: Result reveal with `SONUÇLAR` header, 2D planar flipped owner card, and points tally.
+10. `kendim-spectator-390x844.png`: Dedicated spectator scenario showing read-only observation mode with `GÖZLEM MODU` badge.
+11. `kendim-long-content-390x844.png`: Extreme stress test (70-char Turkish word + 38-char nickname) wrapping cleanly inside viewport.
+12. `kendim-tether-closeup-390x844.png`: High-resolution closeup of the SVG neon beam, metallic sockets, and checkmark badge.
+
+
 

@@ -1,10 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { JSX, ChangeEvent, FormEvent } from "react";
+import type { GameInputAckState } from "../../../App";
 
 interface KendimWordComposerProps {
   readonly initialWord: string;
   readonly hasWritten: boolean;
   readonly isSpectator: boolean;
+  readonly lastInputAck?: GameInputAckState | null | undefined;
   readonly onSubmitWord: (word: string) => void;
 }
 
@@ -12,10 +14,30 @@ export function KendimWordComposer({
   initialWord,
   hasWritten,
   isSpectator,
+  lastInputAck,
   onSubmitWord
 }: KendimWordComposerProps): JSX.Element {
   const [word, setWord] = useState(initialWord);
   const [isPending, setIsPending] = useState(false);
+  const submitTimestampRef = useRef<number>(0);
+
+  // Authoritative match/write state recovery on server ack/nack
+  useEffect(() => {
+    if (!lastInputAck) return;
+    if (lastInputAck.timestamp >= submitTimestampRef.current) {
+      if (!lastInputAck.accepted) {
+        setIsPending(false);
+      } else if (hasWritten) {
+        setIsPending(false);
+      }
+    }
+  }, [lastInputAck, hasWritten]);
+
+  useEffect(() => {
+    if (hasWritten) {
+      setIsPending(false);
+    }
+  }, [hasWritten]);
 
   const isLocked = hasWritten || isPending;
   const trimmed = word.trim();
@@ -29,6 +51,7 @@ export function KendimWordComposer({
     if (event) event.preventDefault();
     if (!canSubmit) return;
     setIsPending(true);
+    submitTimestampRef.current = Date.now();
     onSubmitWord(trimmed);
   }, [canSubmit, onSubmitWord, trimmed]);
 

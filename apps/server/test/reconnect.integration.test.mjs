@@ -756,3 +756,89 @@ test("R1/R2 — iki oyunculu maçta disconnect sonrası uyumsuz next game başla
     await closeAll([host, guest]);
   }
 });
+
+test("Kendim — hedef oyuncu ayrıldığında eşleştirme reddedilir, oyuncu kilitlenmez ve yeni hedefle tekrar gönderebilir", { timeout: 90_000 }, async () => {
+  const room = await createRoomWithPlayers(3);
+  const host = room.host;
+  const guest1 = room.players[1].client;
+  const guest2 = room.players[2].client;
+
+  try {
+    await configureManualRoute(host, ["kendim"]);
+    await startAndEnterPlaying(room.players);
+
+    // Write phase: tüm oyuncular kelimelerini gönderir
+    host.send({ type: "client:game:submit", payload: { kind: "kendim-word", word: "KARTAL" }, clientTime: Date.now() });
+    await host.waitFor((msg) => msg.type === "server:game-input-ack" && msg.accepted === true, "host word ack");
+    guest1.send({ type: "client:game:submit", payload: { kind: "kendim-word", word: "ŞAHİN" }, clientTime: Date.now() });
+    guest2.send({ type: "client:game:submit", payload: { kind: "kendim-word", word: "DOĞAN" }, clientTime: Date.now() });
+
+    // Match phase'e geçişi bekle (write fazı 30 saniye sürer)
+    const matchStateMessage = await waitMatch(
+      host,
+      (msg) => msg.state.gameState?.subPhase === "match" && Array.isArray(msg.state.gameState?.cards) && msg.state.gameState.cards.length === 3,
+      "kendim match phase with 3 cards",
+      40_000
+    );
+    const cards = matchStateMessage.state.gameState.cards;
+
+    // Hedef guest2 bağlantısını koparır
+    await guest2.close();
+    await waitMatch(
+      host,
+      (msg) => playerById(msg.state, room.players[2].playerId)?.connected === false,
+      "guest2 disconnected"
+    );
+
+    // Host, kopan guest2'yi hedefleyen bir eşleştirme gönderir
+    const targetCard = cards[0];
+    host.send({
+      type: "client:game:submit",
+      payload: {
+        kind: "kendim-matches",
+        matches: [{ cardId: targetCard.cardId, targetPlayerId: room.players[2].playerId }]
+      },
+      clientTime: Date.now()
+    });
+
+    // Sunucu bu hamleyi reddetmeli: accepted === false
+    const ackRejected = await host.waitFor(
+      (msg) => msg.type === "server:game-input-ack",
+      "kendim match rejected ack"
+    );
+    assert.equal(ackRejected.accepted, false);
+
+    // Host'un onay durumu false kalmalıdır (kalıcı kilitlenme yoktur)
+    const latestState = await host.waitFor(
+      (msg) => msg.type === "server:match-state",
+      "kendim match state after rejection"
+    );
+    assert.equal(latestState.ownHasSubmitted, false);
+
+    // Host, bağlı olan guest1 ile geçerli bir eşleştirme gönderir
+    host.send({
+      type: "client:game:submit",
+      payload: {
+        kind: "kendim-matches",
+        matches: [{ cardId: targetCard.cardId, targetPlayerId: room.players[1].playerId }]
+      },
+      clientTime: Date.now()
+    });
+
+    // Sunucu bu hamleyi kabul etmeli: accepted === true
+    const ackAccepted = await host.waitFor(
+      (msg) => msg.type === "server:game-input-ack",
+      "kendim match accepted ack"
+    );
+    assert.equal(ackAccepted.accepted, true);
+
+    // Host'un onay durumu artık true'dur
+    const acceptedState = await host.waitFor(
+      (msg) => msg.type === "server:match-state" && msg.ownHasSubmitted === true,
+      "kendim match state after accept"
+    );
+    assert.equal(acceptedState.ownHasSubmitted, true);
+  } finally {
+    await closeAll([host, guest1, guest2]);
+  }
+});

@@ -21,7 +21,7 @@ export function findActivePlayer(
   playerId: string | null | undefined
 ): MatchPlayerState | undefined {
   if (!playerId) return undefined;
-  return players.find((player) => player.id === playerId);
+  return players.find((player) => player.id === playerId && isEligibleTarget(player));
 }
 
 export function isEligibleTarget(player: MatchPlayerState): boolean {
