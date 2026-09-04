@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react";
-import type { JSX } from "react";
+import type { JSX, RefObject } from "react";
 import type { KendimCardView, MatchPlayerState } from "@glix/shared";
 import { findActivePlayer } from "./types";
 
@@ -10,6 +10,7 @@ interface KendimCardCarouselProps {
   readonly matches: Record<string, string>;
   readonly players: readonly MatchPlayerState[];
   readonly isLocked: boolean;
+  readonly cardSocketRef?: RefObject<HTMLDivElement | null>;
   readonly onChangeIndex: (newIndex: number) => void;
   readonly onClearMapping: (cardId: string) => void;
 }
@@ -21,6 +22,7 @@ export function KendimCardCarousel({
   matches,
   players,
   isLocked,
+  cardSocketRef,
   onChangeIndex,
   onClearMapping
 }: KendimCardCarouselProps): JSX.Element {
@@ -72,30 +74,31 @@ export function KendimCardCarousel({
     <div className="kendim-carousel-deck" aria-label="Kelime Kartları Destesi">
       {/* Top Deck Navigation Bar */}
       <div className="kendim-deck-status-bar">
-        <div className="kendim-deck-counter">
-          <span className="kendim-deck-eyebrow">KART DESTE SİSTEMİ</span>
-          <strong>{safeIndex + 1} / {total}</strong>
-        </div>
+        <span className="kendim-deck-eyebrow">KARTLAR</span>
+        <strong className="kendim-deck-counter-label">KART {safeIndex + 1} / {total}</strong>
 
-        {/* Semantic Dots Indicator */}
-        <div className="kendim-deck-dots" role="tablist" aria-label="Kart seçimi">
+        {/* Semantic Dots Indicator (Progress display, primary nav is ‹/›) */}
+        <div
+          className="kendim-deck-dots"
+          role="progressbar"
+          aria-label={`Kart ${safeIndex + 1} / ${total}`}
+          aria-valuenow={safeIndex + 1}
+          aria-valuemin={1}
+          aria-valuemax={total}
+        >
           {cards.map((card, index) => {
             const hasMapping = Boolean(matches[card.cardId]);
             const isCurrent = index === safeIndex;
             const isLocalCard = Boolean(ownCardId && card.cardId === ownCardId);
 
             return (
-              <button
+              <span
                 key={card.cardId}
-                type="button"
-                role="tab"
-                aria-selected={isCurrent}
-                aria-label={`Kart ${index + 1}${hasMapping ? " (bağlandı)" : ""}${isLocalCard ? " (senin kartın)" : ""}`}
-                className={`kendim-deck-dot ${isCurrent ? "is-active" : ""} ${hasMapping ? "is-mapped" : ""} ${isLocalCard ? "is-own" : ""}`}
-                onClick={() => onChangeIndex(index)}
+                aria-hidden="true"
+                className={`kendim-deck-dot-indicator ${isCurrent ? "is-active" : ""} ${hasMapping ? "is-mapped" : ""} ${isLocalCard ? "is-own" : ""}`}
               >
-                <span className="kendim-deck-dot-inner" aria-hidden="true" />
-              </button>
+                <span className="kendim-deck-dot-inner" />
+              </span>
             );
           })}
         </div>
@@ -120,6 +123,8 @@ export function KendimCardCarousel({
         >
           <div className="kendim-card-frame">
             <div className="kendim-card-foil-sheen" aria-hidden="true" />
+            <div className="kendim-card-tech-grid top-right" aria-hidden="true" />
+            <div className="kendim-card-tech-grid bottom-left" aria-hidden="true" />
 
             <div className="kendim-card-topline">
               <span className="kendim-card-index-pill">KART #{safeIndex + 1}</span>
@@ -156,6 +161,11 @@ export function KendimCardCarousel({
                     </button>
                   )}
                 </div>
+              ) : isLocked ? (
+                <div className="kendim-tether-indicator is-locked-neutral">
+                  <span className="kendim-tether-lock-icon" aria-hidden="true">🔒</span>
+                  <span className="kendim-tether-label">SEÇİMLER KİLİTLİ</span>
+                </div>
               ) : (
                 <div className="kendim-tether-indicator is-empty">
                   <span className="kendim-tether-empty-dot" aria-hidden="true" />
@@ -163,6 +173,17 @@ export function KendimCardCarousel({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Magnetic Connection Socket on Card Bottom */}
+          <div
+            ref={cardSocketRef}
+            className={`kendim-card-socket ${mappedPlayer ? "is-connected" : isLocked ? "is-locked" : "is-dormant"}`}
+            aria-hidden="true"
+          >
+            <span className="kendim-socket-ring-outer" />
+            <span className="kendim-socket-ring-inner" />
+            <span className="kendim-socket-aperture" />
           </div>
         </div>
 

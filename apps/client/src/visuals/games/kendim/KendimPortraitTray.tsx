@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import type { MatchPlayerState } from "@glix/shared";
-import { getPlayerAvatarUrl, isEligibleTarget } from "./types";
+import { getPlayerAvatarUrl, getPlayerPipUrl, isEligibleTarget } from "./types";
 
 interface KendimPortraitTrayProps {
   readonly players: readonly MatchPlayerState[];
@@ -9,6 +9,7 @@ interface KendimPortraitTrayProps {
   readonly currentMappedPlayerId: string | null;
   readonly isLocked: boolean;
   readonly isSpectator: boolean;
+  readonly setPortraitSocketRef: (playerId: string, el: HTMLDivElement | null) => void;
   readonly onSelectPlayer: (targetPlayerId: string) => void;
   readonly onClearMapping: () => void;
   readonly onLockMatches: () => void;
@@ -23,6 +24,7 @@ export function KendimPortraitTray({
   currentMappedPlayerId,
   isLocked,
   isSpectator,
+  setPortraitSocketRef,
   onSelectPlayer,
   onClearMapping,
   onLockMatches,
@@ -69,6 +71,15 @@ export function KendimPortraitTray({
                 }
               }}
             >
+              {/* Destination Socket on Token Top Edge */}
+              <div
+                ref={(el) => setPortraitSocketRef(player.id, el)}
+                className={`kendim-portrait-socket ${isMappedToCurrent ? "is-active" : ""}`}
+                aria-hidden="true"
+              >
+                <span className="kendim-portrait-socket-core" />
+              </div>
+
               <div className="kendim-portrait-frame">
                 <img
                   src={getPlayerAvatarUrl(index)}
@@ -77,10 +88,15 @@ export function KendimPortraitTray({
                   loading="eager"
                   decoding="async"
                 />
+                <img
+                  src={getPlayerPipUrl(index)}
+                  alt=""
+                  className="kendim-portrait-glyph-pip"
+                  aria-hidden="true"
+                />
                 {isMappedToCurrent && (
-                  <span className="kendim-magnetic-pin" aria-hidden="true">
-                    <span className="kendim-pin-dot" />
-                    <span className="kendim-pin-ring" />
+                  <span className="kendim-portrait-check-badge" aria-hidden="true">
+                    ✓
                   </span>
                 )}
               </div>
@@ -97,7 +113,7 @@ export function KendimPortraitTray({
             <strong>{mappedCount}</strong> / {totalCardsCount} kart eşleşti
           </span>
           <span className="kendim-mapping-subtext">
-            {isLocked ? "Kararların kaydedildi" : "Boş bırakılan kartlar puan kaybettirmez"}
+            {isLocked ? "Kararların kaydedildi" : "Boş bırakılan kartlar puan kaybettirmez."}
           </span>
         </div>
 
@@ -107,13 +123,14 @@ export function KendimPortraitTray({
             className="kendim-lock-matches-button"
             disabled={isLocked}
             onClick={onLockMatches}
+            aria-label={isLocked ? "Seçimler kilitlendi" : "Eşleştirmeleri kilitle"}
           >
             <span className="kendim-lock-glow" aria-hidden="true" />
             <span className="kendim-lock-content">
               <span className="kendim-lock-icon" aria-hidden="true">
                 {isLocked ? "🔒" : "⚡"}
               </span>
-              <strong>{isLocked ? "EŞLEŞTİRMELER KİLİTLİ" : "EŞLEŞTİRMELERİ KİLİTLE"}</strong>
+              <strong>{isLocked ? "SEÇİMLER KİLİTLİ" : "EŞLEŞTİRMELERİ KİLİTLE"}</strong>
             </span>
           </button>
         )}

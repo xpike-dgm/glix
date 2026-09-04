@@ -72,13 +72,18 @@ export function KendimResultReveal({
     <div className="kendim-result-deck" aria-label="Kendim Tur Sonuçları">
       {/* Top Deck Navigation Bar */}
       <div className="kendim-deck-status-bar">
-        <div className="kendim-deck-counter">
-          <span className="kendim-deck-eyebrow">SONUÇ AÇIKLAMA DESTEK ALANI</span>
-          <strong>KART {safeIndex + 1} / {total}</strong>
-        </div>
+        <span className="kendim-deck-eyebrow">SONUÇLAR</span>
+        <strong className="kendim-deck-counter-label">KART {safeIndex + 1} / {total}</strong>
 
-        {/* Semantic Dots Indicator */}
-        <div className="kendim-deck-dots" role="tablist" aria-label="Sonuç kartı seçimi">
+        {/* Semantic Dots Indicator (Progress display, primary nav is ‹/›) */}
+        <div
+          className="kendim-deck-dots"
+          role="progressbar"
+          aria-label={`Sonuç Kartı ${safeIndex + 1} / ${total}`}
+          aria-valuenow={safeIndex + 1}
+          aria-valuemin={1}
+          aria-valuemax={total}
+        >
           {cards.map((card, index) => {
             const isCurrent = index === safeIndex;
             const guessForCard = selfPlayerId
@@ -89,20 +94,13 @@ export function KendimResultReveal({
               : "is-unmapped-dot";
 
             return (
-              <button
+              <span
                 key={card.cardId}
-                type="button"
-                role="tab"
-                aria-selected={isCurrent}
-                aria-label={`Sonuç Kartı ${index + 1}`}
-                className={`kendim-deck-dot ${isCurrent ? "is-active" : ""} ${statusClass}`}
-                onClick={() => {
-                  setActiveIndex(index);
-                  setIsFlipped(true);
-                }}
+                aria-hidden="true"
+                className={`kendim-deck-dot-indicator ${isCurrent ? "is-active" : ""} ${statusClass}`}
               >
-                <span className="kendim-deck-dot-inner" aria-hidden="true" />
-              </button>
+                <span className="kendim-deck-dot-inner" />
+              </span>
             );
           })}
         </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { JSX } from "react";
 import type { JsonValue, KendimPublicState, KendimOwnState, MatchPlayerState } from "@glix/shared";
 import type { VisualPhase } from "../../types";
@@ -6,6 +6,7 @@ import { KendimWordComposer } from "./KendimWordComposer";
 import { KendimCardCarousel } from "./KendimCardCarousel";
 import { KendimPortraitTray } from "./KendimPortraitTray";
 import { KendimResultReveal } from "./KendimResultReveal";
+import { KendimTetherOverlay } from "./KendimTetherOverlay";
 
 interface KendimStageProps {
   readonly publicState: KendimPublicState;
@@ -33,6 +34,15 @@ export function KendimStage({
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [matches, setMatches] = useState<Record<string, string>>({});
   const [isMatchesPending, setIsMatchesPending] = useState(false);
+
+  // Refs for dynamic tether measurement
+  const matchSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const cardSocketRef = useRef<HTMLDivElement | null>(null);
+  const portraitSocketRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const handleSetPortraitSocketRef = useCallback((playerId: string, el: HTMLDivElement | null): void => {
+    portraitSocketRefs.current[playerId] = el;
+  }, []);
 
   const subPhase = publicState?.subPhase ?? "write";
   const cards = publicState?.cards ?? [];
@@ -98,7 +108,6 @@ export function KendimStage({
   const handleLockMatches = useCallback((): void => {
     if (isMatchesLocked || isSpectator) return;
     setIsMatchesPending(true);
-
     const formattedMatches = Object.entries(matches)
       .filter(([, targetPlayerId]) => Boolean(targetPlayerId))
       .map(([cardId, targetPlayerId]) => ({ cardId, targetPlayerId }));
@@ -110,6 +119,8 @@ export function KendimStage({
   }, [isMatchesLocked, isSpectator, matches, onSubmitAction]);
 
   const mappedCount = Object.keys(matches).length;
+  const currentMappedPlayerId = currentCardId ? (matches[currentCardId] ?? null) : null;
+  const targetSocketEl = currentMappedPlayerId ? (portraitSocketRefs.current[currentMappedPlayerId] ?? null) : null;
 
   return (
     <div className="kendim-stage-container" aria-label="Kendim Portre Oyun Alanı">
@@ -139,9 +150,19 @@ export function KendimStage({
         />
       )}
 
-      {/* 3. Match Phase (30s): Card Deck + Portrait Tray */}
+      {/* 3. Match Phase (30s): Card Deck + Portrait Tray + Physical Tether */}
       {subPhase === "match" && (
-        <div className="kendim-match-surface">
+        <div ref={matchSurfaceRef} className="kendim-match-surface">
+          {/* Dynamic SVG Neon Tether Overlay */}
+          <KendimTetherOverlay
+            containerRef={matchSurfaceRef}
+            cardSocketRef={cardSocketRef}
+            targetSocketRef={targetSocketEl}
+            isMapped={Boolean(currentMappedPlayerId && !isSpectator)}
+            activeCardId={currentCardId}
+            targetPlayerId={currentMappedPlayerId}
+          />
+
           <KendimCardCarousel
             cards={cards}
             activeIndex={activeCardIndex}
@@ -149,6 +170,7 @@ export function KendimStage({
             matches={matches}
             players={players}
             isLocked={isMatchesLocked}
+            cardSocketRef={cardSocketRef}
             onChangeIndex={setActiveCardIndex}
             onClearMapping={handleClearMappingForCard}
           />
@@ -157,9 +179,10 @@ export function KendimStage({
             players={players}
             selfPlayerId={selfPlayerId}
             isOwnCardActive={isOwnCardActive}
-            currentMappedPlayerId={currentCardId ? (matches[currentCardId] ?? null) : null}
+            currentMappedPlayerId={currentMappedPlayerId}
             isLocked={isMatchesLocked}
             isSpectator={isSpectator}
+            setPortraitSocketRef={handleSetPortraitSocketRef}
             onSelectPlayer={handleSelectPlayer}
             onClearMapping={handleClearCurrentMapping}
             onLockMatches={handleLockMatches}

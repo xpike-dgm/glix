@@ -250,8 +250,9 @@
 }
 
 .kendim-word-input::placeholder {
-  color: rgba(148, 163, 184, 0.45);
-  font-weight: 700;
+  color: #94a3b8;
+  opacity: 1;
+  font-weight: 800;
 }
 
 .kendim-seal-stamp {
@@ -281,10 +282,7 @@
   position: relative;
   width: 100%;
   min-height: 48px;
-  background: linear-gradient(135deg, rgba(0, 245, 255, 0.25), rgba(139, 0, 255, 0.35));
-  border: 1.5px solid #00f5ff;
   border-radius: 0.75rem;
-  color: #ffffff;
   cursor: pointer;
   overflow: hidden;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -293,16 +291,28 @@
   justify-content: center;
 }
 
-.kendim-seal-button:hover:not(:disabled) {
-  transform: translateY(-1px);
+.kendim-seal-button:not(:disabled) {
+  background: linear-gradient(135deg, #00f5ff, #8b00ff);
+  border: 1.5px solid #00f5ff;
+  color: #ffffff;
   box-shadow: 0 0 20px rgba(0, 245, 255, 0.45);
 }
 
+.kendim-seal-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(0, 245, 255, 0.6);
+}
+
 .kendim-seal-button:disabled {
-  opacity: 0.55;
+  opacity: 1;
   cursor: default;
-  border-color: rgba(148, 163, 184, 0.3);
-  background: rgba(30, 41, 59, 0.4);
+  border: 1.5px solid rgba(148, 163, 184, 0.45);
+  background: rgba(30, 41, 59, 0.85);
+  color: #cbd5e1;
+}
+
+.kendim-seal-button:disabled .kendim-seal-button-content {
+  color: #94a3b8;
 }
 
 .kendim-seal-button-content {
@@ -360,6 +370,7 @@
    Match Phase Surface (Card Deck + Portrait Tray)
    -------------------------------------------------------------------------- */
 .kendim-match-surface {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
@@ -367,117 +378,95 @@
   justify-content: space-between;
   align-items: center;
   min-height: 0;
-  gap: 0.35rem;
+  gap: 0.2rem;
 }
 
-/* Deck Status Bar */
+/* Single-row Deck Status Bar (KARTLAR / KART 1/7 / Dots) */
 .kendim-deck-status-bar {
   width: 100%;
   max-width: 380px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.15rem 0.35rem;
+  padding: 0.15rem 0.45rem;
   box-sizing: border-box;
 }
 
-.kendim-deck-counter {
-  display: flex;
-  flex-direction: column;
-}
-
 .kendim-deck-eyebrow {
-  font-size: 0.55rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
   color: #00f5ff;
   text-transform: uppercase;
 }
 
-.kendim-deck-counter strong {
-  font-size: 0.85rem;
-  font-weight: 900;
-  color: #f8fafc;
+.kendim-deck-counter-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  text-transform: uppercase;
 }
 
-/* Semantic Indicator Dots (Card Tabs) */
+/* Non-interactive Semantic Progress Dots (Avoids 44px hitbox crowding on 320px) */
 .kendim-deck-dots {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.1rem;
+  justify-content: flex-end;
+  gap: 0.3rem;
 }
 
-.kendim-deck-dot {
-  position: relative;
-  min-width: 28px;
-  width: 28px;
-  min-height: 44px;
-  height: 44px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
+.kendim-deck-dot-indicator {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  touch-action: manipulation;
-}
-
-/* 44x44px minimum touch target hit area via pseudo-element */
-.kendim-deck-dot::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  min-width: 44px;
-  min-height: 44px;
-  width: 44px;
-  height: 44px;
+  width: 10px;
+  height: 10px;
   background: transparent;
-  pointer-events: auto;
 }
 
 .kendim-deck-dot-inner {
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: rgba(148, 163, 184, 0.25);
-  border: 1px solid rgba(148, 163, 184, 0.4);
+  border: 1px solid rgba(148, 163, 184, 0.45);
   transition: all 0.2s ease;
   pointer-events: none;
 }
 
-.kendim-deck-dot.is-active .kendim-deck-dot-inner {
+.kendim-deck-dot-indicator.is-active .kendim-deck-dot-inner {
+  width: 9px;
+  height: 9px;
   background: #00f5ff;
   border-color: #00f5ff;
   box-shadow: 0 0 8px #00f5ff;
-  transform: scale(1.25);
+  transform: scale(1.15);
 }
 
-.kendim-deck-dot.is-mapped .kendim-deck-dot-inner {
+.kendim-deck-dot-indicator.is-mapped .kendim-deck-dot-inner {
   border-color: #00ff88;
-  background: rgba(0, 255, 136, 0.6);
+  background: rgba(0, 255, 136, 0.75);
 }
 
-.kendim-deck-dot.is-own .kendim-deck-dot-inner {
+.kendim-deck-dot-indicator.is-own .kendim-deck-dot-inner {
   border-color: #ff007f;
+  box-shadow: 0 0 6px rgba(255, 0, 127, 0.5);
 }
 
-.kendim-deck-dot.is-correct-dot .kendim-deck-dot-inner {
+.kendim-deck-dot-indicator.is-correct-dot .kendim-deck-dot-inner {
   background: #00ff88;
   border-color: #00ff88;
   box-shadow: 0 0 6px rgba(0, 255, 136, 0.6);
 }
 
-.kendim-deck-dot.is-wrong-dot .kendim-deck-dot-inner {
+.kendim-deck-dot-indicator.is-wrong-dot .kendim-deck-dot-inner {
   background: #ff0055;
   border-color: #ff0055;
   box-shadow: 0 0 6px rgba(255, 0, 85, 0.6);
 }
 
-.kendim-deck-dot.is-unmapped-dot .kendim-deck-dot-inner {
+.kendim-deck-dot-indicator.is-unmapped-dot .kendim-deck-dot-inner {
   background: rgba(148, 163, 184, 0.3);
   border-color: rgba(148, 163, 184, 0.5);
 }
@@ -487,14 +476,14 @@
   width: 100%;
   max-width: 380px;
   flex: 1 1 auto;
-  min-height: 160px;
-  max-height: 260px;
+  min-height: 170px;
+  max-height: 250px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   gap: 0.35rem;
-  margin: auto 0;
+  margin: 0;
 }
 
 .kendim-carousel-arrow {
@@ -534,13 +523,13 @@
 .kendim-hero-card {
   flex: 1 1 auto;
   height: 100%;
-  max-width: 290px;
-  background: linear-gradient(165deg, rgba(16, 26, 52, 0.96), rgba(8, 14, 30, 0.98));
-  border: 1.5px solid rgba(0, 245, 255, 0.5);
+  max-width: 295px;
+  background: linear-gradient(165deg, rgba(16, 26, 52, 0.98), rgba(8, 14, 30, 0.98));
+  border: 1.5px solid rgba(0, 245, 255, 0.55);
   border-radius: 1.15rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 245, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 245, 255, 0.25);
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* Allows magnetic connection socket to seat on bottom border */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -556,6 +545,92 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 255, 136, 0.25);
 }
 
+/* Card Decorative Cyber Dot Grids */
+.kendim-card-tech-grid {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  opacity: 0.35;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #00f5ff 1.2px, transparent 1.2px);
+  background-size: 6px 6px;
+  background-repeat: repeat;
+  z-index: 1;
+}
+
+.kendim-card-tech-grid.top-right {
+  top: 10px;
+  right: 12px;
+}
+
+.kendim-card-tech-grid.bottom-left {
+  bottom: 12px;
+  left: 12px;
+}
+
+/* Card-side Magnetic Connection Socket */
+.kendim-card-socket {
+  position: absolute;
+  bottom: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38px;
+  height: 20px;
+  background: linear-gradient(180deg, #334155 0%, #0f172a 100%);
+  border: 1.5px solid #475569;
+  border-radius: 6px 6px 12px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+  z-index: 6;
+  transition: all 0.25s ease;
+}
+
+.kendim-card-socket.is-connected {
+  border-color: #00ff88;
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.5), 0 4px 10px rgba(0, 0, 0, 0.6);
+}
+
+.kendim-card-socket.is-locked {
+  border-color: #64748b;
+}
+
+.kendim-card-socket .kendim-socket-ring-outer {
+  position: absolute;
+  inset: 2px;
+  border-radius: 4px 4px 10px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.kendim-card-socket .kendim-socket-ring-inner {
+  width: 14px;
+  height: 8px;
+  border-radius: 4px;
+  background: #090d16;
+  border: 1px solid #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kendim-card-socket.is-connected .kendim-socket-ring-inner {
+  border-color: #00ff88;
+}
+
+.kendim-card-socket .kendim-socket-aperture {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1e293b;
+  transition: all 0.25s ease;
+}
+
+.kendim-card-socket.is-connected .kendim-socket-aperture {
+  background: #00ff88;
+  box-shadow: 0 0 10px #00ff88, 0 0 4px #ffffff;
+}
+
 .kendim-card-frame {
   width: 100%;
   height: 100%;
@@ -565,6 +640,8 @@
   padding: 0.65rem 0.8rem;
   box-sizing: border-box;
   position: relative;
+  overflow: hidden;
+  border-radius: 1.15rem;
 }
 
 .kendim-card-foil-sheen {
@@ -707,6 +784,16 @@
   color: #94a3b8;
 }
 
+.kendim-tether-indicator.is-locked-neutral {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: #cbd5e1;
+}
+
+.kendim-tether-lock-icon {
+  font-size: 0.75rem;
+}
+
 .kendim-tether-empty-dot {
   width: 6px;
   height: 6px;
@@ -770,6 +857,16 @@
   box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
 }
 
+/* Dynamic SVG Physical Tether Animations */
+@keyframes tetherPulseFlow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -40; }
+}
+
+.kendim-tether-pulse-path {
+  animation: tetherPulseFlow 1.2s linear infinite;
+}
+
 /* --------------------------------------------------------------------------
    Portrait Tray (Up to 8 player tokens)
    -------------------------------------------------------------------------- */
@@ -778,11 +875,11 @@
   max-width: 380px;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  background: rgba(10, 16, 32, 0.85);
-  border: 1px solid rgba(0, 245, 255, 0.2);
+  gap: 0.2rem;
+  background: rgba(10, 16, 32, 0.9);
+  border: 1px solid rgba(0, 245, 255, 0.25);
   border-radius: 0.85rem;
-  padding: 0.45rem 0.55rem;
+  padding: 0.4rem 0.5rem;
   box-sizing: border-box;
 }
 
@@ -794,7 +891,7 @@
 }
 
 .kendim-tray-label {
-  font-size: 0.58rem;
+  font-size: 0.65rem;
   font-weight: 900;
   letter-spacing: 0.12em;
   color: #00f5ff;
@@ -820,19 +917,21 @@
 }
 
 .kendim-portrait-token {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0.6);
   border: 1.5px solid rgba(148, 163, 184, 0.25);
   border-radius: 0.55rem;
-  padding: 0.25rem 0.15rem;
+  padding: 0.35rem 0.15rem 0.2rem;
   cursor: pointer;
   transition: all 0.15s ease;
   min-height: 48px;
   box-sizing: border-box;
   color: inherit;
+  overflow: visible;
 }
 
 .kendim-portrait-token:hover:not(:disabled) {
@@ -844,7 +943,7 @@
 .kendim-portrait-token.is-tethered {
   border-color: #00ff88;
   background: rgba(0, 255, 136, 0.15);
-  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.35);
 }
 
 .kendim-portrait-token.is-invalid-self {
@@ -861,10 +960,45 @@
   opacity: 0.55;
 }
 
+/* Destination Socket on Token Top Edge */
+.kendim-portrait-socket {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 6px;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 4px 4px 2px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  transition: all 0.2s ease;
+}
+
+.kendim-portrait-socket.is-active {
+  border-color: #00ff88;
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+}
+
+.kendim-portrait-socket-core {
+  width: 6px;
+  height: 2px;
+  background: #0f172a;
+  border-radius: 1px;
+}
+
+.kendim-portrait-socket.is-active .kendim-portrait-socket-core {
+  background: #ffffff;
+}
+
 .kendim-portrait-frame {
   position: relative;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   overflow: visible;
   display: flex;
@@ -880,36 +1014,36 @@
   background: rgba(0, 0, 0, 0.4);
 }
 
-.kendim-magnetic-pin {
+.kendim-portrait-glyph-pip {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 12px;
-  height: 12px;
+  top: -4px;
+  left: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(10, 16, 32, 0.95);
+  border: 1px solid rgba(0, 245, 255, 0.6);
+  padding: 1px;
+  box-sizing: border-box;
+  z-index: 3;
+}
+
+.kendim-portrait-check-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #00ff88;
+  color: #05140d;
+  font-size: 0.62rem;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.kendim-pin-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #00ff88;
-  box-shadow: 0 0 6px #00ff88;
-}
-
-.kendim-pin-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1px solid #00ff88;
-  animation: pinPulse 1.5s ease-out infinite;
-}
-
-@keyframes pinPulse {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(1.6); opacity: 0; }
+  box-shadow: 0 0 8px #00ff88;
+  z-index: 3;
 }
 
 .kendim-portrait-name {
@@ -941,7 +1075,7 @@
 }
 
 .kendim-mapping-count {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   color: #f8fafc;
 }
 
@@ -959,7 +1093,7 @@
   position: relative;
   padding: 0.5rem 0.85rem;
   min-height: 44px;
-  background: linear-gradient(135deg, rgba(0, 245, 255, 0.25), rgba(139, 0, 255, 0.35));
+  background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%);
   border: 1.5px solid #00f5ff;
   border-radius: 0.55rem;
   color: #ffffff;
@@ -969,11 +1103,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 0 14px rgba(0, 245, 255, 0.25);
 }
 
 .kendim-lock-matches-button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 0 16px rgba(0, 245, 255, 0.45);
+  border-color: #38bdf8;
+  box-shadow: 0 0 20px rgba(0, 245, 255, 0.5);
 }
 
 .kendim-lock-matches-button:disabled {
@@ -1311,6 +1447,22 @@
   .kendim-compact-roster-rail {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .kendim-tray-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+  }
+
+  .kendim-mapping-summary {
+    text-align: center;
+    align-items: center;
+  }
+
+  .kendim-lock-matches-button {
+    width: 100%;
+    min-height: 44px;
+  }
 }
 
 /* Reduced height viewport (Virtual Keyboard Simulation 390x520) */
@@ -1383,9 +1535,9 @@
 @media (prefers-reduced-motion: reduce) {
   .kendim-card-hologram-strip,
   .kendim-radar-sweep,
-  .kendim-pin-ring,
   .kendim-own-card-badge,
-  .kendim-owner-bonus-halo {
+  .kendim-owner-bonus-halo,
+  .kendim-tether-pulse-path {
     animation: none !important;
   }
 
