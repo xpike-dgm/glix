@@ -824,6 +824,7 @@ class KendimAdapter extends Stage8AdapterBase {
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (this.phaseEndsAt !== null && now >= this.phaseEndsAt) { this.advance(now); return { accepted: false, reason: "late" }; }
     if (this.subPhase === "write") {
+      if (this.words.has(playerId)) return { accepted: false, reason: "duplicate" };
       if (inputKind(payload) !== "kendim-word") return { accepted: false, reason: "invalid" };
       const word = inputString(payload, "word");
       if (word === null || normalizeText(word).length === 0) return { accepted: false, reason: "invalid" };

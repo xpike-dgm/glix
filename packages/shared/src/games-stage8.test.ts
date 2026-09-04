@@ -59,6 +59,19 @@ test("Kendim doğru/yanlış eşleştirmeyi, tek doğru sahibin bonusunu ve lide
   assert.equal(adapter.getScoreDeltas().some((delta) => delta.playerId === "a" && delta.reason === "kendim:lider"), true);
 });
 
+test("Kendim write fazında ikinci kelime gönderimini duplicate olarak reddeder ve ilk kelimeyi korur", () => {
+  const adapter = createStage8GameAdapter("kendim", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  assert.deepEqual(adapter.submit("a", { kind: "kendim-word", word: "İLK KELİME" }, 1_000), { accepted: true });
+  assert.deepEqual(adapter.submit("a", { kind: "kendim-word", word: "İKİNCİ KELİME" }, 2_000), { accepted: false, reason: "duplicate" });
+  adapter.advance(30_000);
+  const publicCards = (adapter.getPublicState(30_000) as KendimPublicState).cards!;
+  const cardForA = publicCards.find((card) => card.word === "İLK KELİME");
+  assert.ok(cardForA, "İlk kelime korunmalı");
+  const wrongCardForA = publicCards.find((card) => card.word === "İKİNCİ KELİME");
+  assert.equal(wrongCardForA, undefined, "İkinci kelime kaydedilmemeli");
+});
+
 test("Sözlük Blöfü gerçek tanımı ve seçilen blöf sahibini doğrudan puanlar", () => {
   const adapter = createStage8GameAdapter("sozluk-blofu", ["a", "b", "c"], () => 0);
   adapter.start(0);

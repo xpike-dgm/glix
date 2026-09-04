@@ -21,18 +21,31 @@ interface GameHUDProps {
   readonly selfPlayerId: string | null;
   readonly readyPlayerIds: readonly string[];
   readonly ownHasSubmitted: boolean;
+  readonly selfStatusLabel?: string | undefined;
   readonly connection: VisualConnectionState;
   readonly onLeave: () => void;
 }
 
-function selfState(player: MatchPlayerState | undefined, ownHasSubmitted: boolean, gameId?: string): string {
+function selfState(
+  player: MatchPlayerState | undefined,
+  ownHasSubmitted: boolean,
+  gameId?: string,
+  phase?: VisualPhase,
+  selfStatusLabel?: string
+): string {
   if (!player) return "OTURUM ARANIYOR";
   if (player.eliminated) return "ELENDİ";
   if (!player.currentGameParticipant) return "İZLEYİCİ";
   if (!player.connected) return "KOPTU";
-  const isKpk = gameId === "kontrol-paneli-kaosu";
-  if (ownHasSubmitted) return isKpk ? "KABLO KESİLDİ" : "HAMLE GÖNDERDİ";
-  return isKpk ? "SENİN PANELİN" : "SENİN SIRAN";
+  if (selfStatusLabel) return selfStatusLabel;
+  if (gameId === "kontrol-paneli-kaosu") {
+    return ownHasSubmitted ? "KABLO KESİLDİ" : "SENİN PANELİN";
+  }
+  if (gameId === "kendim") {
+    if (phase === "results") return "SONUÇLAR";
+    return ownHasSubmitted ? "SEÇİMLER KİLİTLİ" : "EŞLEŞTİR";
+  }
+  return ownHasSubmitted ? "HAMLE GÖNDERDİ" : "SENİN SIRAN";
 }
 
 export function GameHUD({
@@ -51,9 +64,11 @@ export function GameHUD({
   selfPlayerId,
   readyPlayerIds,
   ownHasSubmitted,
+  selfStatusLabel,
   connection,
   onLeave
 }: GameHUDProps): JSX.Element {
+  const selfStatus = selfState(selfPlayer, ownHasSubmitted, gameId, phase, selfStatusLabel);
   return (
     <header className="glix-game-hud">
       <div className="glix-hud-topline">
@@ -71,9 +86,9 @@ export function GameHUD({
         />
 
         <div className="glix-hud-self-cluster">
-          <div className="glix-self-player-badge" aria-label={`Sen: ${selfPlayer?.nickname ?? "Oyuncu"}, ${selfState(selfPlayer, ownHasSubmitted, gameId)}`}>
+          <div className="glix-self-player-badge" aria-label={`Sen: ${selfPlayer?.nickname ?? "Oyuncu"}, ${selfStatus}`}>
             <span className="glix-self-player-glyph" aria-hidden="true">{selfPlayer?.nickname.slice(0, 1).toUpperCase() ?? "?"}</span>
-            <span><strong>{selfPlayer?.nickname ?? "Oyuncu"}</strong><small>{selfState(selfPlayer, ownHasSubmitted, gameId)}</small></span>
+            <span><strong>{selfPlayer?.nickname ?? "Oyuncu"}</strong><small>{selfStatus}</small></span>
             <b>{selfPlayer?.score ?? 0}</b>
           </div>
           <ConnectionStateBadge connection={connection} compact />

@@ -23,7 +23,9 @@ import {
   type Stage8GameId,
   type Stage9GameId,
   type KontrolPaneliPublicState,
-  type KontrolPaneliOwnState
+  type KontrolPaneliOwnState,
+  type KendimPublicState,
+  type KendimOwnState
 } from "@glix/shared";
 import { Stage6GameControls } from "./games/Stage6GameControls";
 import { Stage7GameControls } from "./games/Stage7GameControls";
@@ -37,6 +39,7 @@ import { TutorialOverlay } from "./visuals/overlays/TutorialOverlay";
 import { GameViewport } from "./visuals/viewport/GameViewport";
 import { PremiumStageHero } from "./visuals/stage/PremiumStageHero";
 import { KpkStage } from "./visuals/games/kontrol-paneli-kaosu/KpkStage";
+import { KendimStage } from "./visuals/games/kendim/KendimStage";
 import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/visualAssetManifest";
 
 type ConnectionState = "connecting" | "connected" | "offline";
@@ -396,6 +399,10 @@ function App(): JSX.Element {
     socket.send(JSON.stringify(message));
     return true;
   };
+
+  if (typeof window !== "undefined") {
+    (window as unknown as { __glixSend?: typeof sendMessage }).__glixSend = sendMessage;
+  }
 
   const clearFormError = (): void => {
     setError(null);
@@ -1054,6 +1061,16 @@ function MatchScreen({
   ) : null;
 
   const isKpk = game.id === "kontrol-paneli-kaosu";
+  const isKendim = game.id === "kendim";
+  const kendimPublicState = isKendim ? (state.gameState as unknown as KendimPublicState) : null;
+  const kendimOwnState = isKendim ? (ownGameState as unknown as KendimOwnState) : null;
+  const kendimSelfStatusLabel = isKendim
+    ? state.phase === "results"
+      ? "SONUÇLAR"
+      : kendimPublicState?.subPhase === "write"
+        ? (kendimOwnState?.hasWritten ? "KELİME MÜHÜRLENDİ" : "KELİME YAZ")
+        : (kendimOwnState?.hasSubmittedMatches ? "SEÇİMLER KİLİTLİ" : "EŞLEŞTİR")
+    : undefined;
 
   return (
     <section className="glix-match-screen" aria-labelledby="match-title">
@@ -1081,6 +1098,7 @@ function MatchScreen({
             selfPlayerId={selfPlayerId}
             readyPlayerIds={state.readyPlayerIds}
             ownHasSubmitted={ownHasSubmitted}
+            selfStatusLabel={kendimSelfStatusLabel}
             connection={connection}
             onLeave={onLeave}
           />
@@ -1098,10 +1116,22 @@ function MatchScreen({
               onReady={onReady}
               onSubmitAction={onSubmit}
             />
+          ) : isKendim ? (
+            <KendimStage
+              publicState={state.gameState as unknown as KendimPublicState}
+              ownState={ownGameState as unknown as KendimOwnState | null | undefined}
+              phase={state.phase}
+              isSpectator={isSpectator}
+              selfPlayerId={selfPlayerId}
+              players={sortedPlayers}
+              isReady={ready}
+              onReady={onReady}
+              onSubmitAction={onSubmit}
+            />
           ) : undefined
         }
         hero={
-          isKpk ? undefined : (
+          isKpk || isKendim ? undefined : (
             <PremiumStageHero
               game={game}
               phase={state.phase}
@@ -1121,7 +1151,7 @@ function MatchScreen({
                 remainingLabel={formatRemaining(remaining)}
               />
             )}
-            {state.phase === "results" && !isKpk && (
+            {state.phase === "results" && !isKpk && !isKendim && (
               <ResultOverlay gameName={game.name} disableInteraction>
                 {resultControls}
               </ResultOverlay>
@@ -1143,7 +1173,7 @@ function MatchScreen({
                 )}
               </ResultOverlay>
             )}
-            {isSpectator && state.phase !== "finished" && !isKpk && (
+            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && (
               <SpectatorOverlay
                 roomCode={roomCode}
                 connected={Boolean(self?.connected)}
@@ -1153,7 +1183,7 @@ function MatchScreen({
           </>
         }
       >
-        {!isKpk && (
+        {!isKpk && !isKendim && (
           <>
             <div className="glix-stage-context">
               <div>
