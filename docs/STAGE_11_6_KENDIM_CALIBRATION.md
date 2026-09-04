@@ -121,3 +121,20 @@ Captured via Headless Chrome automated testing into `C:\Users\Xpike\Desktop\glix
 - **`npm run typecheck`**: Strict TypeScript compilation $\to$ **Clean (0 errors)**.
 - **`npm run build`**: Shared package, client bundle, and server build $\to$ **Success (0 errors)**.
 - **`npm run smoke:realtime`**: Full WebSocket multiplayer smoke test $\to$ **Passed (100% OK)**.
+
+---
+
+## 8. Pre-Art-Gate Audit Resolutions
+
+### Blocker 1: Production QA Hook Elimination
+- `window.__glixSend` was completely removed from `apps/client/src/App.tsx`.
+- Production bundle search confirmed zero test/debug/automation hooks exposed on `window`.
+- Automated test scripts run exclusively via real user interaction events (DOM clicks, keyboard input dispatch) or standard WebSocket protocol messages.
+
+### Blocker 2: Mobile Touch Targets ($\ge 44\times 44\text{px}$)
+- **Deck Indicator Dots (`.kendim-deck-dot`)**: Implemented accessible `::before` pseudo-element expanding the interactive hitbox to $44\times 44\text{px}$ while preserving the tight visual $10\times 10\text{px}$ glowing dot (`.kendim-deck-dot-inner`).
+- **Unmap Button (`.kendim-clear-mapping-btn`)**: Configured with an explicit $44\times 44\text{px}$ hitbox (and `::before` layer), housing a $28\times 28\text{px}$ centered visual badge (`.kendim-clear-mapping-icon`).
+- **Carousel Arrows (`.kendim-carousel-arrow`)**: Measured at $44\times 54\text{px}$.
+- **Portrait Tokens (`.kendim-portrait-token`)**: Measured at $80\times 56\text{px}$ (and $\ge 44\text{px}$ height in all media queries).
+- **Lock & Seal Buttons (`.kendim-lock-matches-button`, `.kendim-seal-button`)**: Measured at $195\times 48\text{px}$ and $48\text{px}$ height respectively.
+- **CDP Runtime Measurement**: Verified programmatically in headless Chrome with all targets strictly $\ge 44\times 44\text{px}$.

@@ -100,7 +100,9 @@ export function KendimResultReveal({
                   setActiveIndex(index);
                   setIsFlipped(true);
                 }}
-              />
+              >
+                <span className="kendim-deck-dot-inner" aria-hidden="true" />
+              </button>
             );
           })}
         </div>

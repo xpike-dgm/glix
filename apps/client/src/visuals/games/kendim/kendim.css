@@ -400,53 +400,84 @@
   color: #f8fafc;
 }
 
-/* Semantic Indicator Dots */
+/* Semantic Indicator Dots (Card Tabs) */
 .kendim-deck-dots {
   display: flex;
-  gap: 0.35rem;
   align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
 }
 
 .kendim-deck-dot {
+  position: relative;
+  min-width: 28px;
+  width: 28px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+/* 44x44px minimum touch target hit area via pseudo-element */
+.kendim-deck-dot::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.kendim-deck-dot-inner {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: rgba(148, 163, 184, 0.25);
   border: 1px solid rgba(148, 163, 184, 0.4);
-  padding: 0;
-  cursor: pointer;
   transition: all 0.2s ease;
+  pointer-events: none;
 }
 
-.kendim-deck-dot.is-active {
+.kendim-deck-dot.is-active .kendim-deck-dot-inner {
   background: #00f5ff;
   border-color: #00f5ff;
   box-shadow: 0 0 8px #00f5ff;
   transform: scale(1.25);
 }
 
-.kendim-deck-dot.is-mapped {
+.kendim-deck-dot.is-mapped .kendim-deck-dot-inner {
   border-color: #00ff88;
   background: rgba(0, 255, 136, 0.6);
 }
 
-.kendim-deck-dot.is-own {
+.kendim-deck-dot.is-own .kendim-deck-dot-inner {
   border-color: #ff007f;
 }
 
-.kendim-deck-dot.is-correct-dot {
+.kendim-deck-dot.is-correct-dot .kendim-deck-dot-inner {
   background: #00ff88;
   border-color: #00ff88;
   box-shadow: 0 0 6px rgba(0, 255, 136, 0.6);
 }
 
-.kendim-deck-dot.is-wrong-dot {
+.kendim-deck-dot.is-wrong-dot .kendim-deck-dot-inner {
   background: #ff0055;
   border-color: #ff0055;
   box-shadow: 0 0 6px rgba(255, 0, 85, 0.6);
 }
 
-.kendim-deck-dot.is-unmapped-dot {
+.kendim-deck-dot.is-unmapped-dot .kendim-deck-dot-inner {
   background: rgba(148, 163, 184, 0.3);
   border-color: rgba(148, 163, 184, 0.5);
 }
@@ -684,28 +715,59 @@
 }
 
 .kendim-clear-mapping-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.15rem;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+
+/* 44x44px minimum touch target hitbox via pseudo-element */
+.kendim-clear-mapping-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  pointer-events: auto;
+}
+
+.kendim-clear-mapping-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   background: rgba(255, 0, 85, 0.15);
   border: 1px solid rgba(255, 0, 85, 0.4);
-  border-radius: 50%;
   color: #ff3377;
   font-size: 0.8rem;
   font-weight: 900;
-  cursor: pointer;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 0.35rem;
   transition: all 0.15s ease;
+  pointer-events: none;
 }
 
-.kendim-clear-mapping-btn:hover {
-  background: rgba(255, 0, 85, 0.3);
+.kendim-clear-mapping-btn:hover .kendim-clear-mapping-icon {
+  background: rgba(255, 0, 85, 0.35);
+  border-color: #ff0055;
   transform: scale(1.15);
+  box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
 }
 
 /* --------------------------------------------------------------------------
@@ -1280,7 +1342,7 @@
   }
 
   .kendim-seal-button {
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .kendim-card-stage {
@@ -1294,7 +1356,7 @@
   }
 
   .kendim-portrait-token {
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .kendim-portrait-frame {
@@ -1303,8 +1365,8 @@
   }
 
   .kendim-lock-matches-button {
-    min-height: 34px;
-    padding: 0.3rem 0.6rem;
+    min-height: 44px;
+    padding: 0.35rem 0.6rem;
   }
 
   .kendim-card-stage.is-result-stage {

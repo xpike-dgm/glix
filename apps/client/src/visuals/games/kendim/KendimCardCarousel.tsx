@@ -93,7 +93,9 @@ export function KendimCardCarousel({
                 aria-label={`Kart ${index + 1}${hasMapping ? " (bağlandı)" : ""}${isLocalCard ? " (senin kartın)" : ""}`}
                 className={`kendim-deck-dot ${isCurrent ? "is-active" : ""} ${hasMapping ? "is-mapped" : ""} ${isLocalCard ? "is-own" : ""}`}
                 onClick={() => onChangeIndex(index)}
-              />
+              >
+                <span className="kendim-deck-dot-inner" aria-hidden="true" />
+              </button>
             );
           })}
         </div>
@@ -150,7 +152,7 @@ export function KendimCardCarousel({
                       onClick={() => onClearMapping(currentCard.cardId)}
                       aria-label="Eşleştirmeyi kaldır"
                     >
-                      ✕
+                      <span className="kendim-clear-mapping-icon" aria-hidden="true">✕</span>
                     </button>
                   )}
                 </div>
