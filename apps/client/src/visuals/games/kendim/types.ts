@@ -1,4 +1,5 @@
 import type { MatchPlayerState } from "@glix/shared";
+import { isEligibleKendimTarget, pruneInvalidLocalMappings } from "@glix/shared";
 import { PREMIUM_ASSET_PATHS } from "../../visualAssetManifest";
 
 export interface KendimPlayerMapping {
@@ -21,9 +22,9 @@ export function findActivePlayer(
   playerId: string | null | undefined
 ): MatchPlayerState | undefined {
   if (!playerId) return undefined;
-  return players.find((player) => player.id === playerId && isEligibleTarget(player));
+  return players.find((player) => player.id === playerId && isEligibleKendimTarget(player));
 }
 
-export function isEligibleTarget(player: MatchPlayerState): boolean {
-  return Boolean(player.connected && player.currentGameParticipant && !player.eliminated);
-}
+export const isEligibleTarget = isEligibleKendimTarget;
+export { pruneInvalidLocalMappings };
+

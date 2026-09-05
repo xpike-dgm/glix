@@ -3,7 +3,7 @@ import type { JSX } from "react";
 import type { JsonValue, KendimPublicState, KendimOwnState, MatchPlayerState } from "@glix/shared";
 import type { VisualPhase } from "../../types";
 import type { GameInputAckState } from "../../../App";
-import { isEligibleTarget } from "./types";
+import { findActivePlayer, isEligibleTarget, pruneInvalidLocalMappings } from "./types";
 import { KendimWordComposer } from "./KendimWordComposer";
 import { KendimCardCarousel } from "./KendimCardCarousel";
 import { KendimPortraitTray } from "./KendimPortraitTray";
@@ -63,6 +63,20 @@ export function KendimStage({
   const hasSubmittedMatches = Boolean(ownState?.hasSubmittedMatches);
   const isMatchesLocked = hasSubmittedMatches || isMatchesPending;
 
+  // Prune invalid local mappings when player eligibility changes BEFORE authoritative submission is accepted
+  useEffect(() => {
+    if (hasSubmittedMatches) return;
+    setMatches((currentMatches) => {
+      const { prunedMatches, hasPruned } = pruneInvalidLocalMappings(currentMatches, players);
+      return hasPruned ? prunedMatches : currentMatches;
+    });
+  }, [players, hasSubmittedMatches]);
+
+  // Derive the currently valid local mappings for pre-submit state (synchronous consistency across renders)
+  const effectiveMatches = hasSubmittedMatches
+    ? matches
+    : pruneInvalidLocalMappings(matches, players).prunedMatches;
+
   // Reset pending matches if rejected by server, or when authoritative ownState confirms
   useEffect(() => {
     if (!lastInputAck) return;
@@ -101,11 +115,15 @@ export function KendimStage({
     // Guard against mapping own card to self
     if (isOwnCardActive && targetPlayerId === selfPlayerId) return;
 
+    // Guard against mapping to an ineligible target
+    const targetPlayer = findActivePlayer(players, targetPlayerId);
+    if (!targetPlayer) return;
+
     setMatches((prev) => ({
       ...prev,
       [currentCardId]: targetPlayerId
     }));
-  }, [currentCardId, isMatchesLocked, isOwnCardActive, isSpectator, selfPlayerId]);
+  }, [currentCardId, isMatchesLocked, isOwnCardActive, isSpectator, players, selfPlayerId]);
 
   // Handle clearing mapping for the current card
   const handleClearCurrentMapping = useCallback((): void => {
@@ -132,7 +150,14 @@ export function KendimStage({
     if (isMatchesLocked || isSpectator) return;
     setIsMatchesPending(true);
     submitTimestampRef.current = Date.now();
-    const formattedMatches = Object.entries(matches)
+
+    // Authoritative client-side pruning before submit
+    const { prunedMatches } = pruneInvalidLocalMappings(matches, players);
+    if (!hasSubmittedMatches) {
+      setMatches(prunedMatches);
+    }
+
+    const formattedMatches = Object.entries(prunedMatches)
       .filter(([, targetPlayerId]) => Boolean(targetPlayerId))
       .map(([cardId, targetPlayerId]) => ({ cardId, targetPlayerId }));
 
@@ -140,10 +165,10 @@ export function KendimStage({
       kind: "kendim-matches",
       matches: formattedMatches
     });
-  }, [isMatchesLocked, isSpectator, matches, onSubmitAction]);
+  }, [isMatchesLocked, isSpectator, matches, players, hasSubmittedMatches, onSubmitAction]);
 
-  const mappedCount = Object.keys(matches).length;
-  const currentMappedPlayerId = currentCardId ? (matches[currentCardId] ?? null) : null;
+  const mappedCount = Object.keys(effectiveMatches).length;
+  const currentMappedPlayerId = currentCardId ? (effectiveMatches[currentCardId] ?? null) : null;
   const targetSocketEl = currentMappedPlayerId ? (portraitSocketRefs.current[currentMappedPlayerId] ?? null) : null;
 
   return (
@@ -192,7 +217,7 @@ export function KendimStage({
             cards={cards}
             activeIndex={activeCardIndex}
             ownCardId={ownCardId}
-            matches={matches}
+            matches={effectiveMatches}
             players={players}
             isLocked={isMatchesLocked}
             cardSocketRef={cardSocketRef}

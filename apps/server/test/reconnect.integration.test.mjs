@@ -842,3 +842,89 @@ test("Kendim — hedef oyuncu ayrıldığında eşleştirme reddedilir, oyuncu k
     await closeAll([host, guest1, guest2]);
   }
 });
+
+test("Kendim — 4 oyunculu maçta bir hedef koptuğunda yalnızca kalan geçerli eşleştirmeler sunucuya gönderilir ve kabul edilir", { timeout: 90_000 }, async () => {
+  const room = await createRoomWithPlayers(4);
+  const host = room.host;
+  const guest1 = room.players[1].client;
+  const guest2 = room.players[2].client;
+  const guest3 = room.players[3].client;
+
+  try {
+    await configureManualRoute(host, ["kendim"]);
+    await startAndEnterPlaying(room.players);
+
+    // Write phase: 4 oyuncu da kelime girer
+    host.send({ type: "client:game:submit", payload: { kind: "kendim-word", word: "KARTAL" }, clientTime: Date.now() });
+    await host.waitFor((msg) => msg.type === "server:game-input-ack" && msg.accepted === true, "host word ack");
+    guest1.send({ type: "client:game:submit", payload: { kind: "kendim-word", word: "ŞAHİN" }, clientTime: Date.now() });
+    guest2.send({ type: "client:game:submit", payload: { kind: "kendim-word", word: "DOĞAN" }, clientTime: Date.now() });
+    guest3.send({ type: "client:game:submit", payload: { kind: "kendim-word", word: "ATMACA" }, clientTime: Date.now() });
+
+    // Match phase geçişini bekle (4 kart)
+    const matchStateMessage = await waitMatch(
+      host,
+      (msg) => msg.state.gameState?.subPhase === "match" && Array.isArray(msg.state.gameState?.cards) && msg.state.gameState.cards.length === 4,
+      "kendim match phase with 4 cards",
+      40_000
+    );
+    const cards = matchStateMessage.state.gameState.cards;
+
+    // Hedef guest2 (Player X) bağlantısını koparır
+    await guest2.close();
+    const stateAfterDc = await waitMatch(
+      host,
+      (msg) => playerById(msg.state, room.players[2].playerId)?.connected === false,
+      "guest2 disconnected"
+    );
+
+    // İstemci tarafı pruning mantığını doğrula:
+    // Başlangıçta: Card 0 -> guest2 (Player X), Card 1 -> guest1 (Player Y)
+    const initialLocalMatches = {
+      [cards[0].cardId]: room.players[2].playerId,
+      [cards[1].cardId]: room.players[1].playerId
+    };
+
+    // pruneInvalidLocalMappings çalıştırıldığında:
+    const activePlayers = stateAfterDc.state.players;
+    const eligibleIds = new Set(activePlayers.filter((p) => p.connected && p.currentGameParticipant && !p.eliminated).map((p) => p.id));
+    const prunedMatches = {};
+    for (const [cardId, targetId] of Object.entries(initialLocalMatches)) {
+      if (eligibleIds.has(targetId)) {
+        prunedMatches[cardId] = targetId;
+      }
+    }
+
+    // Card 0 (guest2) budanmış olmalı, Card 1 (guest1) korunmalı, sayı 2'den 1'e düşmeli
+    assert.equal(prunedMatches[cards[0].cardId], undefined);
+    assert.equal(prunedMatches[cards[1].cardId], room.players[1].playerId);
+    assert.equal(Object.keys(prunedMatches).length, 1);
+
+    // Host, budanmış geçerli eşleştirmeleri gönderir (Card 0'ı tekrar açmadan)
+    const formattedMatches = Object.entries(prunedMatches).map(([cardId, targetPlayerId]) => ({ cardId, targetPlayerId }));
+    host.send({
+      type: "client:game:submit",
+      payload: {
+        kind: "kendim-matches",
+        matches: formattedMatches
+      },
+      clientTime: Date.now()
+    });
+
+    // Sunucu bu hamleyi kabul etmeli: accepted === true
+    const ackAccepted = await host.waitFor(
+      (msg) => msg.type === "server:game-input-ack",
+      "kendim match accepted ack with pruned valid matches"
+    );
+    assert.equal(ackAccepted.accepted, true);
+
+    // Host'un onay durumu true olur (kilitlenir)
+    const acceptedState = await host.waitFor(
+      (msg) => msg.type === "server:match-state" && msg.ownHasSubmitted === true,
+      "kendim match state after accept"
+    );
+    assert.equal(acceptedState.ownHasSubmitted, true);
+  } finally {
+    await closeAll([host, guest1, guest2, guest3]);
+  }
+});

@@ -260,5 +260,21 @@ Following the final manager acceptance audit, a targeted acceptance patch was im
 11. `kendim-long-content-390x844.png`: Extreme stress test (70-char Turkish word + 38-char nickname) wrapping cleanly inside viewport.
 12. `kendim-tether-closeup-390x844.png`: High-resolution closeup of the SVG neon beam, metallic sockets, and checkmark badge.
 
+## 12. Final Acceptance Patch 2: Stale Invalid Mapping Pruning
 
-
+Following the Patch 1 audit, manager code review identified a state-integrity requirement:
+- **Problem**: When a mapped candidate disconnects before submission acceptance, `findActivePlayer()` refused disconnected players, rendering the card as `EŞLEŞTİRİLMEDİ (BOŞ)`. However, the disconnected `targetPlayerId` lingered in the local `matches` map. This caused `mappedCount`, deck dots, and `handleLockMatches()` payload to retain stale invalid targets.
+- **Solution**:
+  - **Shared Pruning Pure Helpers** (`packages/shared/src/games-stage8.ts`):
+    - `isEligibleKendimTarget(player)`: Strictly validates `player.connected && Boolean(player.currentGameParticipant) && !player.eliminated`.
+    - `pruneInvalidLocalMappings(matches, players)`: Compares mapping values against the eligible player set, pruning any stale mappings and returning `{ prunedMatches, prunedCount }`.
+  - **Single-Source Client Synchronization** (`apps/client/src/visuals/games/kendim/KendimStage.tsx`):
+    - `useEffect` synchronizes local `matches` state when `players` changes prior to submission acceptance (`!ownState?.hasSubmittedMatches`).
+    - Synchronously derives `effectiveMatches = ownState?.hasSubmittedMatches ? matches : pruneInvalidLocalMappings(matches, players).prunedMatches` to guarantee zero visual flash.
+    - `mappedCount`, `currentMappedPlayerId`, `KendimCardCarousel` dots, `KendimTetherOverlay`, and `handleLockMatches()` payload all derive strictly from `effectiveMatches`.
+    - Preserves locked state: once `ownState?.hasSubmittedMatches === true`, the submission is authoritative and immutable.
+- **Verification & Tests**:
+  - **Engine Unit Test** (`packages/shared/src/games-stage8.test.ts`, Subtest 32): Asserts `pruneInvalidLocalMappings` discards disconnected, eliminated, and non-participant targets while strictly preserving valid mappings.
+  - **Server Integration Test** (`apps/server/test/reconnect.integration.test.mjs`, Subtest 9): 4-player WebSocket match test proving that when a target disconnects, only the remaining valid mappings are sent to and accepted by the server.
+  - **Full Test Suite**: 57 engine unit tests + 9 server integration tests = **66/66 tests passing (100%)**. TypeScript typecheck clean (0 errors). Production build clean.
+  - **Real-Browser QA Script**: Live 4-player test with Chrome CDP verifying 2 cards mapped, 1 target disconnected, count decreases from 2 to 1, disconnected card renders empty with no tether, dot updates, remaining card stays mapped, and submission locks cleanly (`kendim-stale-mapping-pruned-390x844.png`).

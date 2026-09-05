@@ -1,4 +1,4 @@
-import type { GameId, JsonValue } from "./index.js";
+import type { GameId, JsonValue, MatchPlayerState } from "./index.js";
 import type { ScoreDelta } from "./engine.js";
 
 /** Stage 8 contains the social, negotiation and private-information games. */
@@ -103,6 +103,44 @@ export interface KendimOwnState {
   readonly hasWritten: boolean;
   readonly hasSubmittedMatches: boolean;
   readonly finished: boolean;
+}
+
+/**
+ * Evaluates whether a player in the match is currently eligible as a Kendim target.
+ * Required product rule: connected === true, currentGameParticipant === true, eliminated !== true.
+ */
+export function isEligibleKendimTarget(player: MatchPlayerState): boolean {
+  return Boolean(player.connected && player.currentGameParticipant && !player.eliminated);
+}
+
+/**
+ * Prunes local matches so that only mappings whose target player is currently eligible
+ * (connected, currentGameParticipant, not eliminated) are retained.
+ * Returns the pruned dictionary and a boolean flag indicating if any mapping was pruned.
+ */
+export function pruneInvalidLocalMappings(
+  matches: Record<string, string>,
+  players: readonly MatchPlayerState[]
+): {
+  readonly prunedMatches: Record<string, string>;
+  readonly hasPruned: boolean;
+} {
+  const eligiblePlayerIds = new Set(
+    players.filter(isEligibleKendimTarget).map((p) => p.id)
+  );
+
+  let hasPruned = false;
+  const prunedMatches: Record<string, string> = {};
+
+  for (const [cardId, targetPlayerId] of Object.entries(matches)) {
+    if (eligiblePlayerIds.has(targetPlayerId)) {
+      prunedMatches[cardId] = targetPlayerId;
+    } else {
+      hasPruned = true;
+    }
+  }
+
+  return { prunedMatches, hasPruned };
 }
 
 export type SozlukBlofuSubPhase = "write" | "choose" | "results";

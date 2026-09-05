@@ -11,8 +11,11 @@ import {
   type Stage8GameAdapter,
   type YaziYazOwnState,
   type YaziYazPublicState,
-  type ZehirliKadehPublicState
+  type ZehirliKadehPublicState,
+  isEligibleKendimTarget,
+  pruneInvalidLocalMappings
 } from "./games-stage8.js";
+import type { MatchPlayerState } from "./index.js";
 
 function submit(adapter: Stage8GameAdapter, playerId: string, payload: Record<string, unknown>, now: number): void {
   assert.deepEqual(adapter.submit(playerId, payload as never, now), { accepted: true });
@@ -103,6 +106,40 @@ test("Kendim match fazında kopan hedef oyuncuya yapılan eşleştirmeyi reddede
   // Şimdi otoriter olarak kilitlenmiştir
   const ownStateAfterAccept = adapter.getOwnState("a", 30_002) as KendimOwnState;
   assert.equal(ownStateAfterAccept.hasSubmittedMatches, true);
+});
+
+test("Kendim — pruneInvalidLocalMappings bağlı olmayan, elenen veya katılımcı olmayan oyuncuların eşleştirmelerini budar ve geçerlileri korur", () => {
+  const players: MatchPlayerState[] = [
+    { id: "p1", nickname: "P1", score: 0, miniGameScore: 0, connected: true, currentGameParticipant: true, eliminated: false },
+    { id: "p2", nickname: "P2", score: 0, miniGameScore: 0, connected: true, currentGameParticipant: true, eliminated: false },
+    { id: "p3", nickname: "P3", score: 0, miniGameScore: 0, connected: false, currentGameParticipant: true, eliminated: false }, // disconnected
+    { id: "p4", nickname: "P4", score: 0, miniGameScore: 0, connected: true, currentGameParticipant: false, eliminated: false }, // spectator
+    { id: "p5", nickname: "P5", score: 0, miniGameScore: 0, connected: true, currentGameParticipant: true, eliminated: true }, // eliminated
+  ];
+
+  const initialMatches: Record<string, string> = {
+    card1: "p1", // valid
+    card2: "p2", // valid
+    card3: "p3", // target disconnected
+    card4: "p4", // target not participant
+    card5: "p5", // target eliminated
+    card6: "unknown_p", // target not in room
+  };
+
+  const { prunedMatches, hasPruned } = pruneInvalidLocalMappings(initialMatches, players);
+
+  assert.equal(hasPruned, true, "hasPruned true dönmeli");
+  assert.deepEqual(prunedMatches, {
+    card1: "p1",
+    card2: "p2",
+  }, "Yalnızca geçerli hedefler (p1, p2) korunmalı");
+  assert.equal(Object.keys(prunedMatches).length, 2, "Eşleşme sayısı 6'dan 2'ye düşmeli");
+
+  // Tüm hedefler geçerliyse hasPruned: false ve tüm eşleşmeler korunmalı
+  const validOnlyMatches = { card1: "p1", card2: "p2" };
+  const resultValid = pruneInvalidLocalMappings(validOnlyMatches, players);
+  assert.equal(resultValid.hasPruned, false);
+  assert.deepEqual(resultValid.prunedMatches, validOnlyMatches);
 });
 
 test("Sözlük Blöfü gerçek tanımı ve seçilen blöf sahibini doğrudan puanlar", () => {
