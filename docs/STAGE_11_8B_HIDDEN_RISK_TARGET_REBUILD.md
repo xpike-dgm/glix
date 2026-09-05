@@ -1,6 +1,6 @@
 # GLIX Stage 11.8B — Hidden Risk & Target Rebuild
 
-Status: implementation complete; final delivery remains gated on the mandatory fresh adversarial reviewer.
+Status: implementation complete and batch branch pushed; final delivery remains gated on the mandatory fresh adversarial reviewer.
 
 ## Delivery identity
 
@@ -9,7 +9,8 @@ Status: implementation complete; final delivery remains gated on the mandatory f
 - Branch: `stage-11-8b-hidden-risk-target`.
 - Required base branch: `origin/stage-11-7-1-shared-prescale-fixes`.
 - Required base SHA: `adbef522c5e18f091994953fdc3bff6a92a4338c`.
-- Final implementation SHA: pending the implementation commit.
+- Final implementation SHA: `55b660b` (`feat: rebuild stage 11.8B hidden risk and target games`).
+- Pushed ref: `origin/stage-11-8b-hidden-risk-target`.
 - Batch A, C and D were not started; KPK and Kendim were not redesigned.
 
 ## Changed files
@@ -112,7 +113,7 @@ See [`docs/screenshots/stage11b/README.md`](./screenshots/stage11b/README.md). T
 
 ## Independent reviewer gate
 
-- Reviewer: pending fresh independent adversarial review.
-- Score: pending.
-- Blockers: pending.
-- Unresolved game-specific P2: pending reviewer determination.
+- Previous post-push reviewer: Mendel — `8.7/10`, FAIL. Its procedural blockers were the stale `pending` report fields and the fact that its own long-running verification was interrupted; it found no new source or contract blocker. The report fields and durable evidence are now closed below for the fresh final gate.
+- Current final reviewer: fresh adversarial gate required before delivery is declared PASS.
+- Current blockers: final reviewer gate not yet closed.
+- Unresolved game-specific P2: none identified by source/tests/runtime evidence; final reviewer must confirm.
