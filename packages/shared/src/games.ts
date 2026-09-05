@@ -695,15 +695,18 @@ class SizmaAdapter implements Stage6GameAdapter {
       }
 
       const rawClueText = readInputString(payload, "clueText");
-      if (rawClueText !== null) {
-        const clueText = rawClueText.trim().replace(/\s+/g, " ").slice(0, 160);
-        if (clueText.length === 0) {
-          return { accepted: false, reason: "invalid" };
-        }
-        const clueRounds = this.clueTokens.get(playerId) ?? new Map<number, string>();
-        clueRounds.set(this.clueRound, clueText);
-        this.clueTokens.set(playerId, clueRounds);
+      if (rawClueText === null) {
+        return { accepted: false, reason: "invalid" };
       }
+
+      const clueText = rawClueText.trim().replace(/\s+/g, " ").slice(0, 160);
+      if (clueText.length === 0) {
+        return { accepted: false, reason: "invalid" };
+      }
+
+      const clueRounds = this.clueTokens.get(playerId) ?? new Map<number, string>();
+      clueRounds.set(this.clueRound, clueText);
+      this.clueTokens.set(playerId, clueRounds);
 
       completed.add(this.clueRound);
       this.completedClueRounds.set(playerId, completed);

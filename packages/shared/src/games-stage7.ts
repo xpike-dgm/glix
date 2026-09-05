@@ -1547,6 +1547,11 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
   setConnectedPlayerIds(playerIds: readonly string[], now = Date.now()): void {
     const hadConnected = this.connectedPlayerIds.size > 0;
     this.connectedPlayerIds = new Set(this.playerIds.filter((candidate) => playerIds.includes(candidate)));
+    this.targets.forEach((target, shooter) => {
+      if (target !== null && !this.connectedPlayerIds.has(target)) {
+        this.targets.set(shooter, null);
+      }
+    });
     if (this.connectedPlayerIds.size === 0) {
       if (hadConnected) this.allDisconnectedAt = now;
       return;

@@ -46,7 +46,7 @@ test("Sızma iki ipucu turunu ve hazır bariyerini tamamlamadan oylamayı açmaz
   for (const round of [1, 2]) {
     for (const playerId of ["a", "b", "c"]) {
       assert.equal((adapter.getOwnState(playerId, 0) as SizmaOwnState).clueRound, round);
-      submit(adapter, playerId, { kind: "clue-complete" }, 100 + round);
+      submit(adapter, playerId, { kind: "clue-complete", clueText: `ipucu ${playerId}` }, 100 + round);
     }
   }
 

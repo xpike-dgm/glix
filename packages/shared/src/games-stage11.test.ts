@@ -12,7 +12,7 @@ function publicState(adapter: Stage6GameAdapter, now = 0): SizmaPublicState {
 
 function completeClue(adapter: Stage6GameAdapter, playerId: string, now: number): void {
   assert.deepEqual(
-    adapter.submit(playerId, { kind: "clue-complete" }, now),
+    adapter.submit(playerId, { kind: "clue-complete", clueText: `ipucu ${playerId}` }, now),
     { accepted: true }
   );
 }

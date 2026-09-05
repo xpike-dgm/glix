@@ -46,6 +46,9 @@ test("11.8B Sızma clue tokenlarını kamusal, kelime ve rol atamasını özel t
   const adapter = createStage6GameAdapter("sizma", ["a", "b", "c"], () => 0);
   adapter.start(0);
 
+  assert.deepEqual(adapter.submit("a", { kind: "clue-complete" }, 1), { accepted: false, reason: "invalid" });
+  assert.deepEqual(adapter.submit("a", { kind: "clue-complete", clueText: "   " }, 2), { accepted: false, reason: "invalid" });
+
   const own = adapter.getOwnState("a", 1) as { assignedWord: string; role: string };
   const before = adapter.getPublicState(1) as SizmaPublicState;
   assert.equal(before.clueTokens.length, 0);
@@ -278,6 +281,28 @@ test("11.8B Çapraz Ateş sonucu mutual, non-mutual gelen ve miss ödülünü a�
   const result = adapter.getPublicState(25_000) as CaprazAtesPublicState;
   assert.deepEqual(result.results?.map((entry) => [entry.playerId, entry.points]), [["a", 0], ["b", 0], ["c", 0], ["d", 1]]);
   assert.deepEqual(adapter.getScoreDeltas(), [{ playerId: "d", points: 1, reason: "capraz-ates:hedef-sonucu" }]);
+});
+
+test("11.8B Çapraz Ateş kabul edilmiş kopuk hedefi sonuçtan önce boşa çevirir", () => {
+  const adapter = createStage7GameAdapter("capraz-ates", ["a", "b", "c"]);
+  adapter.start(0);
+  stage7Submit(adapter, "a", { kind: "crossfire-target", targetPlayerId: "b" }, 1_000);
+
+  adapter.setConnectedPlayerIds?.(["a", "c"], 1_001);
+  assert.equal((adapter.getOwnState("a", 1_001) as { selectedTargetId: string | null }).selectedTargetId, null);
+
+  adapter.setConnectedPlayerIds?.(["a", "b", "c"], 1_002);
+  assert.equal((adapter.getOwnState("a", 1_002) as { selectedTargetId: string | null }).selectedTargetId, null);
+
+  adapter.advance(25_000);
+  const result = adapter.getPublicState(25_000) as CaprazAtesPublicState;
+  assert.deepEqual(result.results?.find((entry) => entry.playerId === "a"), {
+    playerId: "a",
+    targetPlayerId: null,
+    incomingCount: 0,
+    points: 1
+  });
+  assert.equal(adapter.getMiniGameScores().get("a"), 1);
 });
 
 test("11.8B batch status ve reducer stale negative ACK sonrasında editable/accepted stateini korur", () => {
