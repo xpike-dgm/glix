@@ -8,6 +8,7 @@ import {
   type KontrolPaneliPublicState,
   type RusvetDarbePublicState,
   type SozlukBlofuPublicState,
+  type SozlukBlofuOwnState,
   type Stage8GameAdapter,
   type YaziYazOwnState,
   type YaziYazPublicState,
@@ -42,6 +43,17 @@ test("Yazı Yaz iki yazanı gizli tutar ve doğru kişi/kelime tahminini ayrı p
   adapter.advance(120_000);
   assert.equal(adapter.isFinished, true);
   assert.deepEqual([score(adapter, "a"), score(adapter, "b"), score(adapter, "c")], [2, 2, 2]);
+});
+
+test("Yazı Yaz reddedilen ikinci yazıda ilk değeri değiştirmez", () => {
+  const adapter = createStage8GameAdapter("yazi-yaz", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  const writer = ["a", "b", "c"].find((id) => (adapter.getOwnState(id, 1) as YaziYazOwnState).role === "writer")!;
+  assert.deepEqual(adapter.submit(writer, { kind: "yazi-word", word: "İLK" }, 1), { accepted: true });
+  assert.deepEqual(adapter.submit(writer, { kind: "yazi-word", word: "İKİNCİ" }, 2), { accepted: false, reason: "duplicate" });
+  adapter.advance(120_000);
+  const entry = (adapter.getPublicState(120_000) as YaziYazPublicState).entries?.find((item) => item.playerId === writer);
+  assert.equal(entry?.word, "İLK");
 });
 
 test("Kendim doğru/yanlış eşleştirmeyi, tek doğru sahibin bonusunu ve lider bonusunu uygular", () => {
@@ -165,6 +177,14 @@ test("Sözlük Blöfü gerçek tanımı ve seçilen blöf sahibini doğrudan pua
   assert.equal(score(adapter, "a"), 3);
   assert.equal((adapter.getPublicState(80_000) as SozlukBlofuPublicState).definitions?.find((definition) => definition.id === aDefinition.id)?.ownerId, "a");
   assert.equal(adapter.isFinished, true);
+});
+
+test("Sözlük Blöfü reddedilen ikinci yazıda ilk blöfü değiştirmez", () => {
+  const adapter = createStage8GameAdapter("sozluk-blofu", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  assert.deepEqual(adapter.submit("a", { kind: "dictionary-bluff", text: "İLK TANIM" }, 1), { accepted: true });
+  assert.deepEqual(adapter.submit("a", { kind: "dictionary-bluff", text: "İKİNCİ TANIM" }, 2), { accepted: false, reason: "duplicate" });
+  assert.equal((adapter.getOwnState("a", 2) as SozlukBlofuOwnState).bluffText, "İLK TANIM");
 });
 
 test("Çağrışım Ağı normalleştirilmiş ortak cevabı grup büyüklüğü kadar puanlar", () => {

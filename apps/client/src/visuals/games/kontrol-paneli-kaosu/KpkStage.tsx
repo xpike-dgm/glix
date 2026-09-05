@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { JSX } from "react";
 import type { JsonValue } from "@glix/shared";
-import type { KontrolPaneliPublicState, KontrolPaneliOwnState, PanelColor, MatchPlayerState } from "@glix/shared";
+import type { KontrolPaneliPublicState, KontrolPaneliOwnState, PanelColor, MatchPlayerState, ClientActionState } from "@glix/shared";
 import type { VisualPhase } from "../../types";
 import { KpkWireCorridor } from "./KpkWireCorridor";
 import { KpkClueDock } from "./KpkClueDock";
@@ -18,6 +18,7 @@ interface KpkStageProps {
   readonly players?: readonly MatchPlayerState[];
   readonly isReady?: boolean;
   readonly onReady?: () => void;
+  readonly actionState: ClientActionState | null;
   readonly onSubmitAction: (payload: JsonValue) => void;
 }
 
@@ -30,15 +31,16 @@ export function KpkStage({
   players,
   isReady,
   onReady,
+  actionState,
   onSubmitAction
 }: KpkStageProps): JSX.Element {
   // Local pending/committed selection - never invented on reconnect
   const [localCutColor, setLocalCutColor] = useState<PanelColor | null>(null);
-  const [isPending, setIsPending] = useState(false);
   const [sparkFx, setSparkFx] = useState<{ x: number; y: number; color: string } | null>(null);
   const [isShaking, setIsShaking] = useState(false);
 
   const hasCutConfirmed = Boolean(ownState?.hasCut);
+  const isPending = actionState?.status === "pending";
   const isResultsPhase = phase === "results" || publicState.finished;
 
   // Resolve player's server result from publicState.results
@@ -50,10 +52,16 @@ export function KpkStage({
   useEffect(() => {
     if (phase === "preparing" || phase === "tutorial") {
       setLocalCutColor(null);
-      setIsPending(false);
       setSparkFx(null);
     }
   }, [phase]);
+
+  useEffect(() => {
+    if ((!actionState || actionState.status === "rejected") && !hasCutConfirmed) {
+      setLocalCutColor(null);
+      setSparkFx(null);
+    }
+  }, [actionState, hasCutConfirmed]);
 
   // Handle cut submission
   const handleCut = useCallback((color: PanelColor, xPercent: number, yPercent: number): void => {
@@ -62,8 +70,6 @@ export function KpkStage({
     }
 
     setLocalCutColor(color);
-    setIsPending(true);
-
     const wireCfg = KPK_WIRE_CONFIG[color];
     setSparkFx({ x: xPercent, y: yPercent, color: wireCfg?.accentColor ?? "#00f5ff" });
     setIsShaking(true);

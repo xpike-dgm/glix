@@ -11,6 +11,7 @@ import {
   getAvailableGames,
   getConnectedPlayerCount,
   getGameDefinition,
+  reduceClientActionState,
   type ClientMessage,
   type GameId,
   type GameDefinition,
@@ -25,7 +26,9 @@ import {
   type KontrolPaneliPublicState,
   type KontrolPaneliOwnState,
   type KendimPublicState,
-  type KendimOwnState
+  type KendimOwnState,
+  type ClientActionState,
+  type SubmissionStatus
 } from "@glix/shared";
 import { Stage6GameControls } from "./games/Stage6GameControls";
 import { Stage7GameControls } from "./games/Stage7GameControls";
@@ -44,13 +47,6 @@ import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/vis
 
 type ConnectionState = "connecting" | "connected" | "offline";
 type Screen = "home" | "create" | "join" | "lobby" | "match";
-
-export interface GameInputAckState {
-  readonly accepted: boolean;
-  readonly timestamp: number;
-  readonly reason?: string | undefined;
-  readonly inputSequence?: number | undefined;
-}
 
 const CLIENT_VERSION = "0.7.0";
 
@@ -149,18 +145,23 @@ function App(): JSX.Element {
   const [selfPlayerId, setSelfPlayerId] = useState<string | null>(null);
   const [canManageGames, setCanManageGames] = useState(false);
   const [ownHasSubmitted, setOwnHasSubmitted] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>({ mode: "none", canAct: false, completed: false, acceptedActionCount: 0, locked: true });
   const [ownGameState, setOwnGameState] = useState<JsonValue | null>(null);
   const [clockOffset, setClockOffset] = useState(0);
   const [clockNow, setClockNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [lastInputAck, setLastInputAck] = useState<GameInputAckState | null>(null);
+  const [actionState, setActionState] = useState<ClientActionState | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | undefined>(undefined);
   const reconnectAttemptRef = useRef(0);
   const nicknameRef = useRef(nickname);
   const roomCodeRef = useRef(roomCodeInput);
   const resumeTokenRef = useRef(readStoredValue(STORAGE_KEYS.resumeToken));
+  const actionSequenceRef = useRef(0);
+  const actionClientInstanceRef = useRef(crypto.randomUUID());
+  const sessionScopeRef = useRef("boot");
+  const latestMatchRef = useRef<{ matchId: string; stateVersion: number; actionScope: string } | null>(null);
 
   useEffect(() => {
     void preloadPremiumBrandAssets();
@@ -258,6 +259,8 @@ function App(): JSX.Element {
             setRoomCodeInput(value.roomCode);
             writeStoredValue(STORAGE_KEYS.resumeToken, value.reconnectToken);
             writeStoredValue(STORAGE_KEYS.roomCode, value.roomCode);
+            sessionScopeRef.current = value.reconnectToken;
+            setActionState(null);
             return;
           }
 
@@ -276,26 +279,36 @@ function App(): JSX.Element {
           }
 
           if (value.type === "server:match-state") {
+            const latest = latestMatchRef.current;
+            if (latest?.matchId === value.state.matchId && value.state.stateVersion < latest.stateVersion) return;
+            latestMatchRef.current = { matchId: value.state.matchId, stateVersion: value.state.stateVersion, actionScope: value.actionScope };
             setMatchState(value.state);
             setRoomState(null);
             setSelfPlayerId(value.selfPlayerId);
             setCanManageGames(value.canManageMatch);
             setOwnHasSubmitted(value.ownHasSubmitted);
+            setSubmissionStatus(value.submissionStatus);
             setOwnGameState(value.ownGameState);
             setClockOffset(value.state.serverNow - Date.now());
             setScreen("match");
             setError(null);
             setNotice(null);
+            const self = value.state.players.find((player) => player.id === value.selfPlayerId);
+            setActionState((current) => reduceClientActionState(current, {
+              type: "scope",
+              scope: { matchId: value.state.matchId, gameId: value.state.currentGameId, phaseIndex: value.state.phaseIndex, actionScope: value.actionScope, sessionId: sessionScopeRef.current, spectator: !self?.currentGameParticipant || Boolean(self.eliminated) },
+              stateVersion: value.state.stateVersion,
+              mode: value.submissionStatus.mode,
+              completed: value.submissionStatus.completed
+            }));
             return;
           }
 
           if (value.type === "server:game-input-ack") {
-            setLastInputAck({
-              accepted: value.accepted,
-              timestamp: Date.now(),
-              reason: value.reason,
-              inputSequence: value.inputSequence
-            });
+            if (latestMatchRef.current && value.stateVersion > latestMatchRef.current.stateVersion) {
+              latestMatchRef.current = { ...latestMatchRef.current, stateVersion: value.stateVersion };
+            }
+            setActionState((current) => current ? reduceClientActionState(current, { type: "ack", actionId: value.actionId, accepted: value.accepted, stateVersion: value.stateVersion, ...(value.reason ? { reason: value.reason } : {}) }) : current);
 
             if (value.accepted) {
               setNotice("GLIX sahne hamleni kaydetti." + (value.inputSequence ? " #" + value.inputSequence : ""));
@@ -333,11 +346,6 @@ function App(): JSX.Element {
           }
 
           if (value.type === "server:error") {
-            setLastInputAck({
-              accepted: false,
-              timestamp: Date.now(),
-              reason: value.code
-            });
             setError(value.message);
 
             if (value.code === "room_not_found" || value.code === "resume_failed") {
@@ -528,18 +536,22 @@ function App(): JSX.Element {
     }
 
     setError(null);
+    const actionId = `${actionClientInstanceRef.current}:${++actionSequenceRef.current}`;
+    const observedStateVersion = latestMatchRef.current?.matchId === matchState.matchId ? latestMatchRef.current.stateVersion : matchState.stateVersion;
+    setActionState((current) => current ? reduceClientActionState(current, { type: "submit", actionId, observedStateVersion }) : current);
     const sent = sendMessage({
       type: "client:game:submit",
       payload,
-      clientTime: Date.now()
+      clientTime: Date.now(),
+      actionId,
+      stateVersion: observedStateVersion,
+      phaseIndex: matchState.phaseIndex,
+      actionScope: latestMatchRef.current?.actionScope ?? "adapter"
     });
 
     if (!sent) {
-      setLastInputAck({
-        accepted: false,
-        timestamp: Date.now(),
-        reason: "offline"
-      });
+      setError("Bağlantı çevrimdışı; hamle gönderilemedi.");
+      setActionState((current) => current ? reduceClientActionState(current, { type: "ack", actionId, accepted: false, stateVersion: observedStateVersion, reason: "offline" }) : current);
     }
   };
 
@@ -858,11 +870,12 @@ function App(): JSX.Element {
           state={matchState}
           selfPlayerId={selfPlayerId}
           ownHasSubmitted={ownHasSubmitted}
+          submissionStatus={submissionStatus}
+          actionState={actionState}
           ownGameState={ownGameState}
           now={matchNow}
           error={error}
           notice={notice}
-          lastInputAck={lastInputAck}
           canManageMatch={canManageGames}
           connection={connection}
           roomCode={roomCodeRef.current || "—"}
@@ -883,11 +896,12 @@ interface MatchScreenProps {
   readonly state: MatchState;
   readonly selfPlayerId: string | null;
   readonly ownHasSubmitted: boolean;
+  readonly submissionStatus: SubmissionStatus;
+  readonly actionState: ClientActionState | null;
   readonly ownGameState: JsonValue | null;
   readonly now: number;
   readonly error: string | null;
   readonly notice: string | null;
-  readonly lastInputAck?: GameInputAckState | null | undefined;
   readonly canManageMatch: boolean;
   readonly connection: ConnectionState;
   readonly roomCode: string;
@@ -953,11 +967,12 @@ function MatchScreen({
   state,
   selfPlayerId,
   ownHasSubmitted,
+  submissionStatus,
+  actionState,
   ownGameState,
   now,
   error,
   notice,
-  lastInputAck,
   canManageMatch,
   connection,
   roomCode,
@@ -1125,6 +1140,7 @@ function MatchScreen({
             selfPlayerId={selfPlayerId}
             readyPlayerIds={state.readyPlayerIds}
             ownHasSubmitted={ownHasSubmitted}
+            submissionStatus={submissionStatus}
             selfStatusLabel={kendimSelfStatusLabel}
             connection={connection}
             onLeave={onLeave}
@@ -1141,6 +1157,7 @@ function MatchScreen({
               players={sortedPlayers}
               isReady={ready}
               onReady={onReady}
+              actionState={actionState}
               onSubmitAction={onSubmit}
             />
           ) : isKendim ? (
@@ -1152,7 +1169,7 @@ function MatchScreen({
               selfPlayerId={selfPlayerId}
               players={sortedPlayers}
               isReady={ready}
-              lastInputAck={lastInputAck}
+              actionState={actionState}
               onReady={onReady}
               onSubmitAction={onSubmit}
             />
@@ -1231,7 +1248,9 @@ function MatchScreen({
 
             {state.phase === "playing" && !isSpectator && (
               <div className="glix-control-slot" aria-label={`${game.name} hamle alanı`}>
-                {stageControls}
+                <fieldset className="glix-action-fence" disabled={actionState?.status === "pending"} aria-busy={actionState?.status === "pending"}>
+                  {stageControls}
+                </fieldset>
               </div>
             )}
 

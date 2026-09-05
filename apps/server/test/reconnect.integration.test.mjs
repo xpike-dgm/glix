@@ -104,9 +104,15 @@ async function launchServer() {
 
 class TestClient {
   constructor(wsUrl) {
+    TestClient.instanceSequence = (TestClient.instanceSequence ?? 0) + 1;
+    this.instanceId = TestClient.instanceSequence;
     this.socket = new WebSocket(wsUrl);
     this.messages = [];
     this.waiters = [];
+    this.latestStateVersion = 0;
+    this.actionSequence = 0;
+    this.latestPhaseIndex = 0;
+    this.latestActionScope = "adapter";
     this.socket.on("message", (data) => {
       let message;
       try {
@@ -114,6 +120,12 @@ class TestClient {
       } catch {
         return;
       }
+      if (message.type === "server:match-state") {
+        this.latestStateVersion = Math.max(this.latestStateVersion, message.state.stateVersion);
+        this.latestPhaseIndex = message.state.phaseIndex;
+        this.latestActionScope = message.actionScope;
+      }
+      if (message.type === "server:game-input-ack") this.latestStateVersion = Math.max(this.latestStateVersion, message.stateVersion ?? 0);
 
       const waiterIndex = this.waiters.findIndex((waiter) => waiter.predicate(message));
       if (waiterIndex >= 0) {
@@ -157,7 +169,10 @@ class TestClient {
 
   send(message) {
     assert.equal(this.socket.readyState, WebSocket.OPEN, "Test client WebSocket açık olmalı.");
-    this.socket.send(JSON.stringify(message));
+    const wireMessage = message.type === "client:game:submit"
+      ? { ...message, actionId: message.actionId ?? `test-${this.instanceId}:${++this.actionSequence}`, stateVersion: message.stateVersion ?? this.latestStateVersion, phaseIndex: message.phaseIndex ?? this.latestPhaseIndex, actionScope: message.actionScope ?? this.latestActionScope }
+      : message;
+    this.socket.send(JSON.stringify(wireMessage));
   }
 
   waitFor(predicate, label, timeoutMs = SOCKET_TIMEOUT_MS) {
@@ -615,6 +630,8 @@ test("Stage 11.3A — sayısal mini oyunlarda ilk kabul edilen seçim kazanır",
       "first numeric input ack"
     );
     assert.equal(firstAck.accepted, true);
+    assert.match(firstAck.actionId, /^test-\d+:\d+$/);
+    assert.ok(Number.isSafeInteger(firstAck.stateVersion));
 
     host.send({
       type: "client:game:submit",
@@ -629,6 +646,7 @@ test("Stage 11.3A — sayısal mini oyunlarda ilk kabul edilen seçim kazanır",
       { accepted: duplicateAck.accepted, reason: duplicateAck.reason },
       { accepted: false, reason: "input_duplicate" }
     );
+    assert.ok(duplicateAck.stateVersion >= firstAck.stateVersion);
 
     const results = await waitMatch(
       host,
@@ -637,6 +655,38 @@ test("Stage 11.3A — sayısal mini oyunlarda ilk kabul edilen seçim kazanır",
       25_000
     );
     assert.equal(results.state.gameState.choices.find((choice) => choice.playerId === room.players[0].playerId)?.value, 1);
+    assert.deepEqual(Object.keys(results.submissionStatus).sort(), ["acceptedActionCount", "canAct", "completed", "locked", "mode"]);
+    assert.doesNotMatch(JSON.stringify(results.submissionStatus), /value|choice|word|target/i);
+  } finally {
+    await closeAll(room.players.map(({ client }) => client));
+  }
+});
+
+test("Stage 11.7.1 — adapter round scope and actionId fence delayed/replayed repeatable input", { timeout: 60_000 }, async () => {
+  const room = await createRoomWithPlayers(3);
+  const [host, guest, disconnecting] = room.players.map(({ client }) => client);
+  try {
+    await configureManualRoute(host, ["gizli-kareler"]);
+    await startAndEnterPlaying(room.players);
+    const staleScope = host.latestActionScope;
+    const staleVersion = host.latestStateVersion;
+    const phaseIndex = host.latestPhaseIndex;
+    host.send({ type: "client:game:submit", payload: { kind: "grid-cell", cell: 0 }, clientTime: Date.now() });
+    guest.send({ type: "client:game:submit", payload: { kind: "grid-cell", cell: 1 }, clientTime: Date.now() });
+    await host.waitFor((message) => message.type === "server:game-input-ack" && message.accepted, "round one host ack");
+    await disconnecting.close();
+    await waitMatch(host, (message) => message.state.gameState?.round === 2, "round two after neutral disconnect");
+
+    host.send({ type: "client:game:submit", payload: { kind: "grid-cell", cell: 2 }, clientTime: Date.now(), actionId: "delayed-round-one", stateVersion: staleVersion, phaseIndex, actionScope: staleScope });
+    const delayed = await host.waitFor((message) => message.type === "server:game-input-ack" && message.actionId === "delayed-round-one", "delayed round action ack");
+    assert.deepEqual({ accepted: delayed.accepted, reason: delayed.reason }, { accepted: false, reason: "invalid_game_input" });
+
+    const replayId = "round-two-once";
+    host.send({ type: "client:game:submit", payload: { kind: "grid-cell", cell: 2 }, clientTime: Date.now(), actionId: replayId });
+    await host.waitFor((message) => message.type === "server:game-input-ack" && message.actionId === replayId && message.accepted, "round two accepted action");
+    host.send({ type: "client:game:submit", payload: { kind: "grid-cell", cell: 2 }, clientTime: Date.now(), actionId: replayId });
+    const replay = await host.waitFor((message) => message.type === "server:game-input-ack" && message.actionId === replayId && !message.accepted, "replayed action ack");
+    assert.equal(replay.reason, "input_duplicate");
   } finally {
     await closeAll(room.players.map(({ client }) => client));
   }

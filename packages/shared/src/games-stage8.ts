@@ -399,7 +399,7 @@ export interface Stage8GameAdapter {
   advance(now: number): boolean;
   submit(playerId: string, payload: JsonValue | null, now: number): Stage8SubmitResult;
   /** Updates live targets without removing reconnectable room members. */
-  setConnectedPlayerIds?(playerIds: readonly string[]): void;
+  setConnectedPlayerIds?(playerIds: readonly string[], now?: number): void;
   removePlayer(playerId: string): void;
   getPublicState(now: number): Stage8PublicState;
   getOwnState(playerId: string, now: number): Stage8OwnState;
@@ -728,6 +728,7 @@ class YaziYazAdapter extends Stage8AdapterBase {
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (this.phaseEndsAt !== null && now >= this.phaseEndsAt) { this.advance(now); return { accepted: false, reason: "late" }; }
     if (this.subPhase === "write") {
+      if (this.written.has(playerId)) return { accepted: false, reason: "duplicate" };
       const role = this.roles.get(playerId);
       if (inputKind(payload) === "yazi-word" && role === "writer") {
         const value = inputString(payload, "word");
@@ -971,6 +972,7 @@ class SozlukBlofuAdapter extends Stage8AdapterBase {
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (this.phaseEndsAt !== null && now >= this.phaseEndsAt) { this.advance(now); return { accepted: false, reason: "late" }; }
     if (this.subPhase === "write") {
+      if (this.bluffs.has(playerId)) return { accepted: false, reason: "duplicate" };
       if (inputKind(payload) !== "dictionary-bluff") return { accepted: false, reason: "invalid" };
       const value = inputString(payload, "text");
       if (value === null || normalizeText(value).length === 0 || value.trim().length > 100) return { accepted: false, reason: "invalid" };

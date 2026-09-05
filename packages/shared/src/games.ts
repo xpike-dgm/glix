@@ -145,7 +145,7 @@ export interface Stage6GameAdapter {
   advance(now: number): boolean;
   submit(playerId: string, payload: JsonValue | null, now: number): Stage6SubmitResult;
   /** Updates live targets without removing reconnectable room members. */
-  setConnectedPlayerIds?(playerIds: readonly string[]): void;
+  setConnectedPlayerIds?(playerIds: readonly string[], now?: number): void;
   removePlayer(playerId: string): void;
   getPublicState(now: number): Stage6PublicState;
   getOwnState(playerId: string, now: number): Stage6OwnState;
@@ -479,6 +479,7 @@ class SizmaAdapter implements Stage6GameAdapter {
   private readonly votes = new Map<string, string>();
   private readonly miniScores: Map<string, number>;
   private connectedPlayerIds: Set<string>;
+  private allDisconnectedAt: number | null = null;
   private readonly deltas: ScoreDelta[] = [];
   private started = false;
   private subPhase: SizmaSubPhase = "clue";
@@ -531,14 +532,27 @@ class SizmaAdapter implements Stage6GameAdapter {
     this.started = true;
   }
 
-  setConnectedPlayerIds(playerIds: readonly string[]): void {
+  setConnectedPlayerIds(playerIds: readonly string[], now = Date.now()): void {
+    const hadConnected = this.connectedPlayerIds.size > 0;
     this.connectedPlayerIds = new Set(this.playerIds.filter((playerId) => playerIds.includes(playerId)));
+    if (this.connectedPlayerIds.size === 0) {
+      if (hadConnected) this.allDisconnectedAt = now;
+      return;
+    }
+    if (this.allDisconnectedAt !== null) {
+      if (this.voteEndsAt !== null) this.voteEndsAt += Math.max(0, now - this.allDisconnectedAt);
+      this.allDisconnectedAt = null;
+    }
+    this.normalizeClueTurn();
+    this.normalizeReadyForVote(now);
   }
 
   private normalizeClueTurn(): void {
     if (this.subPhase !== "clue") {
       return;
     }
+
+    if (this.connectedPlayerIds.size === 0) return;
 
     if (this.playerIds.length === 0) {
       this.subPhase = "results";
@@ -558,7 +572,8 @@ class SizmaAdapter implements Stage6GameAdapter {
     let checked = 0;
     while (
       checked < this.playerIds.length &&
-      (this.completedClueRounds.get(this.playerIds[this.clueTurnIndex]!)?.has(this.clueRound) ?? false)
+      (!this.connectedPlayerIds.has(this.playerIds[this.clueTurnIndex]!) ||
+        (this.completedClueRounds.get(this.playerIds[this.clueTurnIndex]!)?.has(this.clueRound) ?? false))
     ) {
       this.clueTurnIndex = (this.clueTurnIndex + 1) % this.playerIds.length;
       checked += 1;
@@ -583,7 +598,7 @@ class SizmaAdapter implements Stage6GameAdapter {
       return;
     }
 
-    if (this.readyPlayerIds.size >= this.playerIds.length) {
+    if (this.connectedPlayerIds.size > 0 && [...this.connectedPlayerIds].every((playerId) => this.readyPlayerIds.has(playerId))) {
       this.subPhase = "vote";
       this.voteEndsAt = now + 30_000;
     }
@@ -620,7 +635,7 @@ class SizmaAdapter implements Stage6GameAdapter {
   advance(now: number): boolean {
     assertNow(now);
 
-    if (!this.started || this.finished || this.subPhase !== "vote" || this.voteEndsAt === null) {
+    if (!this.started || this.finished || this.connectedPlayerIds.size === 0 || this.subPhase !== "vote" || this.voteEndsAt === null) {
       return false;
     }
 
@@ -801,6 +816,8 @@ class MemoryAdapter implements Stage6GameAdapter {
   private readonly deltas: ScoreDelta[] = [];
   private readonly order: string[];
   private readonly eliminated = new Set<string>();
+  private connectedPlayerIds: Set<string>;
+  private allDisconnectedAt: number | null = null;
   private sequence: MemoryColor[] = [];
   private sequenceIndex = 0;
   private activePlayerId: string | null = null;
@@ -818,6 +835,7 @@ class MemoryAdapter implements Stage6GameAdapter {
     this.eliminationThreshold = Math.max(1, Math.ceil(this.initialPlayerCount / 2));
     this.miniScores = copyScores(this.playerIds);
     this.order = shuffle(this.playerIds, this.random);
+    this.connectedPlayerIds = new Set(this.playerIds);
   }
 
   get isStarted(): boolean {
@@ -870,7 +888,7 @@ class MemoryAdapter implements Stage6GameAdapter {
     for (let offset = 1; offset <= this.order.length; offset += 1) {
       const index = (this.currentOrderIndex + offset + this.order.length) % this.order.length;
       const playerId = this.order[index]!;
-      if (!this.eliminated.has(playerId)) {
+      if (!this.eliminated.has(playerId) && this.connectedPlayerIds.has(playerId)) {
         this.currentOrderIndex = index;
         return playerId;
       }
@@ -933,7 +951,7 @@ class MemoryAdapter implements Stage6GameAdapter {
   advance(now: number): boolean {
     assertNow(now);
 
-    if (!this.started || this.finished) {
+    if (!this.started || this.finished || this.connectedPlayerIds.size === 0) {
       return false;
     }
 
@@ -948,6 +966,24 @@ class MemoryAdapter implements Stage6GameAdapter {
     }
 
     return false;
+  }
+
+  setConnectedPlayerIds(playerIds: readonly string[], now = Date.now()): void {
+    const hadConnected = this.connectedPlayerIds.size > 0;
+    this.connectedPlayerIds = new Set(this.playerIds.filter((playerId) => playerIds.includes(playerId)));
+    if (this.connectedPlayerIds.size === 0) {
+      if (hadConnected) this.allDisconnectedAt = now;
+      return;
+    }
+    if (this.allDisconnectedAt !== null) {
+      const pausedFor = Math.max(0, now - this.allDisconnectedAt);
+      if (this.displayUntil !== null) this.displayUntil += pausedFor;
+      if (this.inputDeadline !== null) this.inputDeadline += pausedFor;
+      this.allDisconnectedAt = null;
+    }
+    if (this.started && !this.finished && this.activePlayerId !== null && !this.connectedPlayerIds.has(this.activePlayerId)) {
+      this.prepareNextTurn(now, false);
+    }
   }
 
   submit(playerId: string, payload: JsonValue | null, now: number): Stage6SubmitResult {

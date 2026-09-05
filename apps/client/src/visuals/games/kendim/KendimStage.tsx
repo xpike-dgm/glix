@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { JSX } from "react";
 import type { JsonValue, KendimPublicState, KendimOwnState, MatchPlayerState } from "@glix/shared";
 import type { VisualPhase } from "../../types";
-import type { GameInputAckState } from "../../../App";
+import type { ClientActionState } from "@glix/shared";
 import { findActivePlayer, isEligibleTarget, pruneInvalidLocalMappings } from "./types";
 import { KendimWordComposer } from "./KendimWordComposer";
 import { KendimCardCarousel } from "./KendimCardCarousel";
@@ -18,7 +18,7 @@ interface KendimStageProps {
   readonly selfPlayerId: string | null;
   readonly players?: readonly MatchPlayerState[];
   readonly isReady?: boolean;
-  readonly lastInputAck?: GameInputAckState | null | undefined;
+  readonly actionState: ClientActionState | null;
   readonly onReady?: () => void;
   readonly onSubmitAction: (payload: JsonValue) => void;
 }
@@ -31,14 +31,13 @@ export function KendimStage({
   selfPlayerId,
   players = [],
   isReady,
-  lastInputAck,
+  actionState,
   onReady,
   onSubmitAction
 }: KendimStageProps): JSX.Element {
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [matches, setMatches] = useState<Record<string, string>>({});
   const [isMatchesPending, setIsMatchesPending] = useState(false);
-  const submitTimestampRef = useRef<number>(0);
 
   // Refs for dynamic tether measurement
   const matchSurfaceRef = useRef<HTMLDivElement | null>(null);
@@ -79,15 +78,8 @@ export function KendimStage({
 
   // Reset pending matches if rejected by server, or when authoritative ownState confirms
   useEffect(() => {
-    if (!lastInputAck) return;
-    if (lastInputAck.timestamp >= submitTimestampRef.current) {
-      if (!lastInputAck.accepted) {
-        setIsMatchesPending(false);
-      } else if (hasSubmittedMatches) {
-        setIsMatchesPending(false);
-      }
-    }
-  }, [lastInputAck, hasSubmittedMatches]);
+    if (!actionState || actionState.status === "rejected" || (actionState.status === "accepted" && hasSubmittedMatches)) setIsMatchesPending(false);
+  }, [actionState, hasSubmittedMatches]);
 
   useEffect(() => {
     if (hasSubmittedMatches) {
@@ -149,7 +141,6 @@ export function KendimStage({
   const handleLockMatches = useCallback((): void => {
     if (isMatchesLocked || isSpectator) return;
     setIsMatchesPending(true);
-    submitTimestampRef.current = Date.now();
 
     // Authoritative client-side pruning before submit
     const { prunedMatches } = pruneInvalidLocalMappings(matches, players);
@@ -195,7 +186,7 @@ export function KendimStage({
           initialWord={ownState?.ownWord ?? ""}
           hasWritten={Boolean(ownState?.hasWritten)}
           isSpectator={isSpectator}
-          lastInputAck={lastInputAck}
+          actionState={actionState}
           onSubmitWord={handleSubmitWord}
         />
       )}

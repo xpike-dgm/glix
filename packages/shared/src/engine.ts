@@ -266,6 +266,19 @@ export type SubmitInputResult<T = unknown> =
   | { readonly accepted: true; readonly record: MiniGameInputRecord<T> }
   | { readonly accepted: false; readonly reason: InputRejectionReason };
 
+export interface PreparedMiniGameInput<T = unknown> {
+  readonly playerId: string;
+  readonly payload: T | null;
+  readonly receivedAt: number;
+  readonly clientTime: number | null;
+  readonly empty: boolean;
+  readonly phaseIndex: number;
+}
+
+export type PrepareInputResult<T = unknown> =
+  | { readonly accepted: true; readonly prepared: PreparedMiniGameInput<T> }
+  | { readonly accepted: false; readonly reason: InputRejectionReason };
+
 export interface MiniGameEngineSnapshot {
   readonly gameId: GameId;
   readonly phase: RuntimePhaseId;
@@ -457,12 +470,12 @@ export class MiniGameEngine {
     return true;
   }
 
-  submitInput<T = unknown>(
+  prepareInput<T = unknown>(
     playerId: string,
     payload: T | null,
     now: number,
     clientTime: number | null = null
-  ): SubmitInputResult<T> {
+  ): PrepareInputResult<T> {
     assertTimestamp(now);
 
     if (!this.playerSet.has(playerId)) {
@@ -501,19 +514,35 @@ export class MiniGameEngine {
       return { accepted: false, reason: "empty-not-allowed" };
     }
 
-    const record: MiniGameInputRecord<T> = {
-      playerId,
-      sequence: this.nextInputSequence,
-      receivedAt: now,
-      clientTime,
-      payload,
-      empty
+    return {
+      accepted: true,
+      prepared: { playerId, payload, receivedAt: now, clientTime, empty, phaseIndex: this.phaseIndex }
     };
+  }
 
+  commitPreparedInput<T = unknown>(prepared: PreparedMiniGameInput<T>): MiniGameInputRecord<T> {
+    if (prepared.phaseIndex !== this.phaseIndex) {
+      throw new Error("Prepared input crossed an authoritative phase boundary.");
+    }
+    const record: MiniGameInputRecord<T> = {
+      playerId: prepared.playerId,
+      sequence: this.nextInputSequence,
+      receivedAt: prepared.receivedAt,
+      clientTime: prepared.clientTime,
+      payload: prepared.payload,
+      empty: prepared.empty
+    };
     this.nextInputSequence += 1;
     this.inputs.push(record);
-    this.submittedPlayerSet.add(playerId);
-    return { accepted: true, record };
+    this.submittedPlayerSet.add(prepared.playerId);
+    return record;
+  }
+
+  submitInput<T = unknown>(playerId: string, payload: T | null, now: number, clientTime: number | null = null): SubmitInputResult<T> {
+    const result = this.prepareInput(playerId, payload, now, clientTime);
+    return result.accepted
+      ? { accepted: true, record: this.commitPreparedInput(result.prepared) }
+      : result;
   }
 
   getMissingActivePlayerIds(): readonly string[] {

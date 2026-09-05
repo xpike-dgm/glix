@@ -49,8 +49,8 @@ test("Rus Ruleti güvenli atışta hedefe geçer ve riski 76 ile sınırlar", ()
   assert.equal(adapter.isFinished, false);
 });
 
-test("Stage 11.3A wire sözleşmesi gizlilik redaksiyonu için protocol v2'yi ilan eder", () => {
-  assert.equal(PROTOCOL_VERSION, 2);
+test("Stage 11.7.1 wire sözleşmesi action correlation için protocol v3'ü ilan eder", () => {
+  assert.equal(PROTOCOL_VERSION, 3);
 });
 
 test("Rus Ruleti yalnızca silah sahibinin ve hayatta olan hedefin atışını kabul eder", () => {
@@ -83,6 +83,18 @@ test("Rus Ruleti patlama sonrası taşıyıcıyı yalnızca bağlı hayatta kala
 
   const state = adapter.getPublicState(1_000) as RusRuletiPublicState;
   assert.equal(state.currentHolderId, "a");
+});
+
+test("Rus Ruleti tüm katılımcılar grace-disconnected iken kararı ve skoru dondurur", () => {
+  const adapter = createStage9GameAdapter("rus-ruleti", ["a", "b", "c"], () => 0.99);
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.([], 1_000);
+  assert.equal(adapter.advance(100_000), false);
+  assert.equal(adapter.isFinished, false);
+  assert.deepEqual(adapter.getScoreDeltas(), []);
+  adapter.setConnectedPlayerIds?.(["b", "c"], 101_000);
+  assert.equal(adapter.advance(101_001), false);
+  assert.ok(["b", "c"].includes((adapter.getPublicState(101_001) as { currentHolderId: string | null }).currentHolderId ?? ""));
 });
 
 test("Son Kişi gizli bitişten önceki son kaçanı ödüllendirir", () => {

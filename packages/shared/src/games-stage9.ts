@@ -109,7 +109,7 @@ export interface Stage9GameAdapter {
   advance(now: number): boolean;
   submit(playerId: string, payload: JsonValue | null, now: number): Stage9SubmitResult;
   /** Updates live targets without removing reconnectable room members. */
-  setConnectedPlayerIds?(playerIds: readonly string[]): void;
+  setConnectedPlayerIds?(playerIds: readonly string[], now?: number): void;
   removePlayer(playerId: string): void;
   getPublicState(now: number): Stage9PublicState;
   getOwnState(playerId: string, now: number): Stage9OwnState;
@@ -241,6 +241,7 @@ class RusRuletiAdapter extends Stage9AdapterBase {
   private phaseEndsAt: number | null = null;
   private lastShot: RusRuletiShotView | null = null;
   private subPhase: RusRuletiSubPhase = "shot";
+  private allDisconnectedAt: number | null = null;
 
   constructor(playerIds: readonly string[], random: Stage9RandomSource) {
     super(playerIds);
@@ -264,8 +265,17 @@ class RusRuletiAdapter extends Stage9AdapterBase {
     return this.aliveIds().filter((playerId) => this.isConnected(playerId));
   }
 
-  override setConnectedPlayerIds(playerIds: readonly string[]): void {
+  override setConnectedPlayerIds(playerIds: readonly string[], now = Date.now()): void {
+    const hadConnected = this.connectedPlayerIds.size > 0;
     super.setConnectedPlayerIds(playerIds);
+    if (this.connectedPlayerIds.size === 0) {
+      if (hadConnected) this.allDisconnectedAt = now;
+      return;
+    }
+    if (this.allDisconnectedAt !== null) {
+      if (this.phaseEndsAt !== null) this.phaseEndsAt += Math.max(0, now - this.allDisconnectedAt);
+      this.allDisconnectedAt = null;
+    }
     if (this.finished) {
       this.currentHolderId = null;
       return;
@@ -331,7 +341,7 @@ class RusRuletiAdapter extends Stage9AdapterBase {
 
   advance(now: number): boolean {
     assertNow(now);
-    if (!this.isStarted || this.finished || this.phaseEndsAt === null) return false;
+    if (!this.isStarted || this.finished || this.connectedPlayerIds.size === 0 || this.phaseEndsAt === null) return false;
 
     let changed = false;
     while (!this.finished && this.phaseEndsAt !== null && now >= this.phaseEndsAt) {

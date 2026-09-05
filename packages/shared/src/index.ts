@@ -1,6 +1,6 @@
 import type { RuntimePhaseId } from "./engine.js";
 
-export const PROTOCOL_VERSION = 2 as const;
+export const PROTOCOL_VERSION = 3 as const;
 export const DEFAULT_SERVER_PORT = 8787 as const;
 export const DEFAULT_WS_PATH = "/ws" as const;
 export const MAX_PLAYERS = 8 as const;
@@ -128,6 +128,8 @@ export interface MatchState {
   readonly players: readonly MatchPlayerState[];
 }
 
+export type { GameActionMode, SubmissionStatus } from "./contracts.js";
+
 export type ClientMessage =
   | {
       readonly type: "client:hello";
@@ -163,6 +165,10 @@ export type ClientMessage =
       readonly type: "client:game:submit";
       readonly payload: JsonValue | null;
       readonly clientTime: number;
+      readonly actionId: string;
+      readonly stateVersion: number;
+      readonly phaseIndex: number;
+      readonly actionScope: string;
     }
   | {
       readonly type: "client:match:return-lobby";
@@ -232,6 +238,8 @@ export type ServerMessage =
       readonly canManageMatch: boolean;
       readonly ownInputCount: number;
       readonly ownHasSubmitted: boolean;
+      readonly submissionStatus: import("./contracts.js").SubmissionStatus;
+      readonly actionScope: string;
       /** Private state for the receiving player, such as the Sızma word. */
       readonly ownGameState: JsonValue | null;
     }
@@ -239,6 +247,8 @@ export type ServerMessage =
       readonly type: "server:game-input-ack";
       readonly accepted: boolean;
       readonly serverTime: number;
+      readonly actionId: string;
+      readonly stateVersion: number;
       readonly inputSequence?: number;
       readonly reason?:
         | "input_phase_locked"
@@ -282,3 +292,4 @@ export * from "./games.js";
 export * from "./games-stage7.js";
 export * from "./games-stage8.js";
 export * from "./games-stage9.js";
+export * from "./contracts.js";

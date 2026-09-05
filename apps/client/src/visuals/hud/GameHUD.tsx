@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import type { MatchPlayerState } from "@glix/shared";
+import type { MatchPlayerState, SubmissionStatus } from "@glix/shared";
 import { ConnectionStateBadge } from "./ConnectionStateBadge";
 import { GameTimer } from "./GameTimer";
 import { PlayerAvatarStrip } from "./PlayerAvatarStrip";
@@ -21,6 +21,7 @@ interface GameHUDProps {
   readonly selfPlayerId: string | null;
   readonly readyPlayerIds: readonly string[];
   readonly ownHasSubmitted: boolean;
+  readonly submissionStatus: SubmissionStatus;
   readonly selfStatusLabel?: string | undefined;
   readonly connection: VisualConnectionState;
   readonly onLeave: () => void;
@@ -29,6 +30,7 @@ interface GameHUDProps {
 function selfState(
   player: MatchPlayerState | undefined,
   ownHasSubmitted: boolean,
+  submissionStatus: SubmissionStatus,
   gameId?: string,
   phase?: VisualPhase,
   selfStatusLabel?: string
@@ -45,7 +47,8 @@ function selfState(
     if (phase === "results") return "SONUÇLAR";
     return ownHasSubmitted ? "SEÇİMLER KİLİTLİ" : "EŞLEŞTİR";
   }
-  return ownHasSubmitted ? "HAMLE GÖNDERDİ" : "SENİN SIRAN";
+  if (submissionStatus.mode === "repeatable") return submissionStatus.canAct ? "HAMLEYE DEVAM" : "BEKLİYOR";
+  return submissionStatus.completed ? "HAMLE GÖNDERDİ" : submissionStatus.canAct ? "SENİN SIRAN" : "BEKLİYOR";
 }
 
 export function GameHUD({
@@ -64,11 +67,12 @@ export function GameHUD({
   selfPlayerId,
   readyPlayerIds,
   ownHasSubmitted,
+  submissionStatus,
   selfStatusLabel,
   connection,
   onLeave
 }: GameHUDProps): JSX.Element {
-  const selfStatus = selfState(selfPlayer, ownHasSubmitted, gameId, phase, selfStatusLabel);
+  const selfStatus = selfState(selfPlayer, ownHasSubmitted, submissionStatus, gameId, phase, selfStatusLabel);
   return (
     <header className="glix-game-hud">
       <div className="glix-hud-topline">
@@ -102,7 +106,7 @@ export function GameHUD({
         players={players}
         selfPlayerId={selfPlayerId}
         readyPlayerIds={readyPlayerIds}
-        ownHasSubmitted={ownHasSubmitted}
+        ownHasSubmitted={submissionStatus.completed && submissionStatus.mode !== "repeatable"}
       />
 
       <span className="glix-hud-phase" data-phase={phase}>{phaseLabel}</span>

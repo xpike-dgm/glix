@@ -329,7 +329,7 @@ export interface Stage7GameAdapter {
   advance(now: number): boolean;
   submit(playerId: string, payload: JsonValue | null, now: number): Stage7SubmitResult;
   /** Updates live targets without removing reconnectable room members. */
-  setConnectedPlayerIds?(playerIds: readonly string[]): void;
+  setConnectedPlayerIds?(playerIds: readonly string[], now?: number): void;
   removePlayer(playerId: string): void;
   getPublicState(now: number): Stage7PublicState;
   getOwnState(playerId: string, now: number): Stage7OwnState;
@@ -680,6 +680,7 @@ class KorBombaAdapter implements Stage7GameAdapter {
   private passCount = 0;
   private explodedPlayerId: string | null = null;
   private finished = false;
+  private allDisconnectedAt: number | null = null;
 
   constructor(playerIds: readonly string[], random: Stage7RandomSource) {
     this.playerIds = uniquePlayerIds(playerIds);
@@ -692,8 +693,19 @@ class KorBombaAdapter implements Stage7GameAdapter {
   get isFinished(): boolean { return this.finished; }
   get eliminatedPlayerIds(): readonly string[] { return []; }
 
-  setConnectedPlayerIds(playerIds: readonly string[]): void {
+  setConnectedPlayerIds(playerIds: readonly string[], now = Date.now()): void {
+    const hadConnected = this.connectedPlayerIds.size > 0;
     this.connectedPlayerIds = new Set(this.playerIds.filter((candidate) => playerIds.includes(candidate)));
+    if (this.connectedPlayerIds.size === 0) {
+      if (hadConnected) this.allDisconnectedAt = now;
+      return;
+    }
+    if (this.allDisconnectedAt !== null) {
+      const pausedFor = Math.max(0, now - this.allDisconnectedAt);
+      if (this.startedAt !== null) this.startedAt += pausedFor;
+      if (this.explosionAt !== null) this.explosionAt += pausedFor;
+      this.allDisconnectedAt = null;
+    }
     this.ensureHolderAvailable();
   }
 
@@ -734,7 +746,7 @@ class KorBombaAdapter implements Stage7GameAdapter {
 
   advance(now: number): boolean {
     assertNow(now);
-    if (!this.isStarted || this.finished || this.explosionAt === null) return false;
+    if (!this.isStarted || this.finished || this.connectedPlayerIds.size === 0 || this.explosionAt === null) return false;
     let changed = this.ensureHolderAvailable();
     const hardCapAt = this.startedAt! + KOR_BOMBA_HARD_CAP_MS;
     if (now >= hardCapAt) {
@@ -1022,6 +1034,8 @@ class GizliKarelerAdapter implements Stage7GameAdapter {
     [2, new Map()]
   ]);
   private readonly eliminated = new Set<string>();
+  private connectedPlayerIds: Set<string>;
+  private allDisconnectedAt: number | null = null;
   private readonly roundResults: GizliKareRoundResult[] = [];
   private startedAt: number | null = null;
   private currentRound: 1 | 2 = 1;
@@ -1033,6 +1047,7 @@ class GizliKarelerAdapter implements Stage7GameAdapter {
     this.playerIds = uniquePlayerIds(playerIds);
     this.configuredGridSize = this.playerIds.length <= 4 ? 3 : 4;
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
   }
 
   get isStarted(): boolean { return this.startedAt !== null; }
@@ -1052,7 +1067,7 @@ class GizliKarelerAdapter implements Stage7GameAdapter {
   private resolveRound(now: number): void {
     if (this.finished || this.roundEndsAt === null) return;
     const selected = this.selections.get(this.currentRound)!;
-    const eligible = this.playerIds.filter((playerId) => !this.eliminated.has(playerId));
+    const eligible = this.playerIds.filter((playerId) => !this.eliminated.has(playerId) && this.connectedPlayerIds.has(playerId));
     const groups = new Map<number, string[]>();
     selected.forEach((cell, playerId) => {
       const group = groups.get(cell) ?? [];
@@ -1117,7 +1132,7 @@ class GizliKarelerAdapter implements Stage7GameAdapter {
 
   advance(now: number): boolean {
     assertNow(now);
-    if (!this.isStarted || this.finished || this.roundEndsAt === null || now < this.roundEndsAt) return false;
+    if (!this.isStarted || this.finished || this.connectedPlayerIds.size === 0 || this.roundEndsAt === null || now < this.roundEndsAt) return false;
     this.resolveRound(now);
     return true;
   }
@@ -1135,7 +1150,7 @@ class GizliKarelerAdapter implements Stage7GameAdapter {
     if (selected.has(playerId)) return { accepted: false, reason: "duplicate" };
     selected.set(playerId, cell);
 
-    const eligible = this.playerIds.filter((candidate) => !this.eliminated.has(candidate));
+    const eligible = this.playerIds.filter((candidate) => !this.eliminated.has(candidate) && this.connectedPlayerIds.has(candidate));
     if (this.currentRound === 1 && eligible.every((candidate) => selected.has(candidate))) {
       const cells = new Set([...selected.values()]);
       if (cells.size === 1) this.resolveRound(now);
@@ -1143,8 +1158,26 @@ class GizliKarelerAdapter implements Stage7GameAdapter {
     return { accepted: true };
   }
 
+  setConnectedPlayerIds(playerIds: readonly string[], now = Date.now()): void {
+    const previousSize = this.connectedPlayerIds.size;
+    this.connectedPlayerIds = new Set(this.playerIds.filter((playerId) => playerIds.includes(playerId)));
+    if (this.connectedPlayerIds.size === 0) {
+      if (previousSize > 0) this.allDisconnectedAt = now;
+      return;
+    }
+    if (this.allDisconnectedAt !== null) {
+      if (this.roundEndsAt !== null) this.roundEndsAt += Math.max(0, now - this.allDisconnectedAt);
+      this.allDisconnectedAt = null;
+    }
+    if (!this.isStarted || this.finished || this.connectedPlayerIds.size >= previousSize) return;
+    const selected = this.selections.get(this.currentRound)!;
+    const eligible = this.playerIds.filter((playerId) => !this.eliminated.has(playerId) && this.connectedPlayerIds.has(playerId));
+    if (eligible.length > 0 && eligible.every((playerId) => selected.has(playerId))) this.resolveRound(now);
+  }
+
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     this.eliminated.delete(playerId);
     this.selections.forEach((selection) => selection.delete(playerId));
   }

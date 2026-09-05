@@ -149,6 +149,39 @@ test("Gizli Kareler çakışanları eler ve tek kalana ikinci raunt bonusu verir
   assert.equal(adapter.isFinished, true);
 });
 
+test("Kör Bomba tüm katılımcılar grace-disconnected iken patlamayı ve hard cap'i dondurur", () => {
+  const adapter = createStage7GameAdapter("kor-bomba", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.([], 1_000);
+  assert.equal(adapter.advance(100_000), false);
+  assert.equal(adapter.isFinished, false);
+  assert.deepEqual(adapter.getScoreDeltas(), []);
+  adapter.setConnectedPlayerIds?.(["b"], 101_000);
+  assert.equal(adapter.advance(101_001), false);
+  assert.equal((adapter.getPublicState(101_001) as { bombHolderId: string | null }).bombHolderId, "b");
+});
+
+test("Gizli Kareler grace-disconnected eksik seçimi nötr sayıp rauntu ilerletir", () => {
+  const adapter = createStage7GameAdapter("gizli-kareler", ["a", "b", "c"]);
+  adapter.start(0);
+  assert.deepEqual(adapter.submit("a", { kind: "grid-cell", cell: 0 }, 1), { accepted: true });
+  assert.deepEqual(adapter.submit("b", { kind: "grid-cell", cell: 1 }, 2), { accepted: true });
+  adapter.setConnectedPlayerIds?.(["a", "b"], 3);
+  const state = adapter.getPublicState(3) as { round: number; finished: boolean };
+  assert.equal(state.round, 2);
+  assert.equal(state.finished, false);
+});
+
+test("Gizli Kareler tüm katılımcılar grace-disconnected iken rauntu dondurur", () => {
+  const adapter = createStage7GameAdapter("gizli-kareler", ["a", "b", "c"]);
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.([], 10);
+  assert.equal(adapter.advance(40_000), false);
+  const frozen = adapter.getPublicState(40_000) as { round: number; finished: boolean };
+  assert.equal(frozen.round, 1);
+  assert.equal(frozen.finished, false);
+});
+
 test("Çizgiyi Geçme aynı onluk bölgeyi pasif bırakır", () => {
   const adapter = createStage7GameAdapter("cizgiyi-gecme", ["a", "b", "c"]);
   adapter.start(0);

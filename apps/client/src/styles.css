@@ -6710,10 +6710,16 @@ body {
   width: min(100%, 900px);
 }
 
-.glix-control-slot > .stage6-controls,
-.glix-control-slot > .stage7-controls,
-.glix-control-slot > .stage8-controls,
-.glix-control-slot > .stage9-controls {
+.glix-control-slot > .glix-action-fence {
+  width: 100%;
+  max-width: 900px;
+  min-width: 0;
+}
+
+.glix-action-fence > .stage6-controls,
+.glix-action-fence > .stage7-controls,
+.glix-action-fence > .stage8-controls,
+.glix-action-fence > .stage9-controls {
   width: 100%;
   max-width: 900px;
   max-height: 29dvh;
@@ -6721,10 +6727,10 @@ body {
   scrollbar-width: none;
 }
 
-.glix-control-slot > .stage6-controls::-webkit-scrollbar,
-.glix-control-slot > .stage7-controls::-webkit-scrollbar,
-.glix-control-slot > .stage8-controls::-webkit-scrollbar,
-.glix-control-slot > .stage9-controls::-webkit-scrollbar { display: none; }
+.glix-action-fence > .stage6-controls::-webkit-scrollbar,
+.glix-action-fence > .stage7-controls::-webkit-scrollbar,
+.glix-action-fence > .stage8-controls::-webkit-scrollbar,
+.glix-action-fence > .stage9-controls::-webkit-scrollbar { display: none; }
 
 .glix-default-action {
   display: grid;
@@ -7127,10 +7133,10 @@ body {
   .glix-stage-context h1 { font-size: 1rem; }
   .glix-stage-context p { max-width: 28rem; font-size: 0.52rem; }
   .glix-interaction-slot { max-height: 27dvh; }
-  .glix-control-slot > .stage6-controls,
-  .glix-control-slot > .stage7-controls,
-  .glix-control-slot > .stage8-controls,
-  .glix-control-slot > .stage9-controls { max-height: 22dvh; }
+  .glix-action-fence > .stage6-controls,
+  .glix-action-fence > .stage7-controls,
+  .glix-action-fence > .stage8-controls,
+  .glix-action-fence > .stage9-controls { max-height: 22dvh; }
   .glix-match-footer { margin-top: 0.25rem; }
   .glix-tutorial-overlay { padding-bottom: 3.35rem; }
   .glix-tutorial-panel { width: min(92%, 35rem); padding: 0.55rem 0.75rem; }
@@ -7180,4 +7186,10 @@ body {
   0%, 20% { transform: rotate(0deg); }
   45%, 75% { transform: rotate(-90deg); }
   95%, 100% { transform: rotate(0deg); }
+}
+.glix-action-fence {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }

@@ -65,6 +65,65 @@ test("R7 — Sızma aktif sıradaki oyuncu çıkarılınca kalan sıra geçerli 
   readyAndVote(adapter, 1_000);
 });
 
+test("Sızma grace-disconnected aktif ipucu koltuğunu skor uydurmadan atlar", () => {
+  const adapter = createStage6GameAdapter("sizma", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  const before = publicState(adapter, 1).clueTurnPlayerId;
+  adapter.setConnectedPlayerIds?.(["b", "c"], 2);
+  const after = publicState(adapter, 2);
+  assert.notEqual(after.clueTurnPlayerId, before);
+  assert.equal(adapter.getScoreDeltas().length, 0);
+});
+
+test("Memory grace-disconnected aktif koltuğu elenme veya gizli dizi sızıntısı olmadan atlar", () => {
+  const adapter = createStage6GameAdapter("zaman-bombasi-hafizasi", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  const before = adapter.getPublicState(1) as { activePlayerId: string | null };
+  const remaining = ["a", "b", "c"].filter((playerId) => playerId !== before.activePlayerId);
+  adapter.setConnectedPlayerIds?.(remaining, 2);
+  const after = adapter.getPublicState(2) as { activePlayerId: string | null; sequence: readonly string[]; subPhase: string };
+  assert.notEqual(after.activePlayerId, before.activePlayerId);
+  assert.deepEqual(adapter.eliminatedPlayerIds, []);
+  if (after.subPhase !== "display") assert.deepEqual(after.sequence, []);
+});
+
+test("Sızma tüm katılımcılar grace-disconnected iken fazı ve skoru dondurur", () => {
+  const adapter = createStage6GameAdapter("sizma", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.([], 10);
+  const frozen = publicState(adapter, 40_000);
+  adapter.advance(40_000);
+  assert.deepEqual(publicState(adapter, 40_000), frozen);
+  assert.equal(adapter.isFinished, false);
+  assert.deepEqual(adapter.getScoreDeltas(), []);
+});
+
+test("Memory tüm katılımcılar grace-disconnected iken bitmez ve reconnect deadline'ı öteler", () => {
+  const adapter = createStage6GameAdapter("zaman-bombasi-hafizasi", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  const before = adapter.getPublicState(1) as { activePlayerId: string | null; displayUntil: number | null };
+  adapter.setConnectedPlayerIds?.([], 10);
+  assert.equal(adapter.advance(50_000), false);
+  assert.equal(adapter.isFinished, false);
+  adapter.setConnectedPlayerIds?.(["a", "b", "c"], 50_010);
+  const resumed = adapter.getPublicState(50_010) as { activePlayerId: string | null; displayUntil: number | null };
+  assert.equal(resumed.activePlayerId, before.activePlayerId);
+  assert.ok((resumed.displayUntil ?? 0) > 50_010);
+});
+
+test("Memory tek tek reconnect olurken bağlı ilk koltuğa deterministik geçer ve skor yazmaz", () => {
+  const adapter = createStage6GameAdapter("zaman-bombasi-hafizasi", ["a", "b", "c"], () => 0);
+  adapter.start(0);
+  const original = adapter.getPublicState(1) as { activePlayerId: string | null };
+  const firstReconnect = ["a", "b", "c"].find((id) => id !== original.activePlayerId)!;
+  adapter.setConnectedPlayerIds?.([], 10);
+  adapter.setConnectedPlayerIds?.([firstReconnect], 50_010);
+  const resumed = adapter.getPublicState(50_010) as { activePlayerId: string | null };
+  assert.equal(resumed.activePlayerId, firstReconnect);
+  assert.equal(adapter.isFinished, false);
+  assert.deepEqual(adapter.getScoreDeltas(), []);
+});
+
 test("R7 — Sızma son aktif ipucu oyuncusu çıkarılınca oyun out-of-range sırada kilitlenmez", () => {
   const adapter = createStage6GameAdapter("sizma", ["a", "b", "c"], () => 0);
   adapter.start(0);

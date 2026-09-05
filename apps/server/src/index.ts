@@ -17,6 +17,10 @@ import {
   createMiniGameRegistry,
   getAvailableGames,
   getConnectedPlayerCount,
+  deriveSubmissionStatus,
+  deriveActionScope,
+  extractGameTargets,
+  areExtractedTargetsEligible,
   type ClientMessage,
   type GameId,
   type GameSelectionMode,
@@ -95,6 +99,7 @@ interface MatchRecord {
   readonly miniGameScores: Map<string, number>;
   resultsApplied: boolean;
   stateVersion: number;
+  readonly processedActionIds: Set<string>;
 }
 
 interface RoomRecord {
@@ -177,53 +182,15 @@ function isGameId(value: unknown): value is GameId {
  * self-targeting, role-specific and phase-specific constraints); this gate
  * only enforces the shared live-roster invariant at the server boundary.
  */
-function submittedTargetPlayerIds(payload: JsonValue | null): readonly string[] | null {
-  if (!isRecord(payload) || typeof payload.kind !== "string") {
-    return null;
-  }
-
-  const targetKinds = new Set([
-    "vote",
-    "russian-shot",
-    "bomb-pass",
-    "crossfire-target",
-    "president-vote",
-    "drawing-vote",
-    "alliance-vote",
-    "glass-trade",
-    "yazi-guess"
-  ]);
-
-  if (targetKinds.has(payload.kind)) {
-    const key = payload.kind === "yazi-guess" ? "targetWriterId" : "targetPlayerId";
-    return typeof payload[key] === "string" ? [payload[key]] : [""];
-  }
-
-  if (payload.kind === "kendim-matches" || payload.kind === "president-distribution") {
-    const rawEntries = payload.kind === "kendim-matches" ? payload.matches : payload.allocations;
-    if (!Array.isArray(rawEntries)) {
-      return [""];
-    }
-
-    return rawEntries.map((entry) => (
-      isRecord(entry) && typeof entry.targetPlayerId === "string" ? entry.targetPlayerId : ""
-    ));
-  }
-
-  return null;
-}
-
 function submittedTargetsAreLive(room: RoomRecord, match: MatchRecord, payload: JsonValue | null): boolean {
-  const targetIds = submittedTargetPlayerIds(payload);
-  if (targetIds === null) {
-    return true;
-  }
-
+  const extraction = extractGameTargets(match.gameIds[match.currentGameIndex]!, payload);
   const currentParticipants = new Set(match.engine.playerIds);
-  return targetIds.every((targetId) => {
-    const player = room.players.get(targetId);
-    return currentParticipants.has(targetId) && player?.connected === true && !match.engine.isEliminated(targetId);
-  });
+  return areExtractedTargetsEligible(extraction, [...room.players.values()].map((player) => ({
+    id: player.id,
+    connected: player.connected,
+    currentGameParticipant: currentParticipants.has(player.id),
+    eliminated: match.engine.isEliminated(player.id)
+  })));
 }
 
 function sendJson(socket: WebSocket, message: ServerMessage): void {
@@ -383,13 +350,21 @@ function parseClientMessage(raw: string): ClientMessage | null {
       value.type === "client:game:submit" &&
       typeof value.clientTime === "number" &&
       Number.isFinite(value.clientTime) &&
+      typeof value.actionId === "string" && value.actionId.length > 0 && value.actionId.length <= 80 &&
+      typeof value.stateVersion === "number" && Number.isSafeInteger(value.stateVersion) && value.stateVersion >= 0 &&
+      typeof value.phaseIndex === "number" && Number.isSafeInteger(value.phaseIndex) && value.phaseIndex >= 0 &&
+      typeof value.actionScope === "string" && value.actionScope.length <= 240 &&
       "payload" in value &&
       isJsonValue(value.payload)
     ) {
       return {
         type: "client:game:submit",
         payload: value.payload,
-        clientTime: value.clientTime
+        clientTime: value.clientTime,
+        actionId: value.actionId,
+        stateVersion: value.stateVersion,
+        phaseIndex: value.phaseIndex,
+        actionScope: value.actionScope
       };
     }
 
@@ -530,7 +505,9 @@ function synchronizeMatchRuntime(room: RoomRecord, match: MatchRecord, now: numb
   let changed = false;
   const adapter = match.adapter;
 
-  adapter?.setConnectedPlayerIds?.(getConnectedPlayerIds(room));
+  const adapterBeforeRoster = adapter ? JSON.stringify(adapter.getPublicState(now)) : null;
+  adapter?.setConnectedPlayerIds?.(getConnectedPlayerIds(room), now);
+  if (adapter && adapterBeforeRoster !== JSON.stringify(adapter.getPublicState(now))) changed = true;
 
   const phaseBefore = match.engine.snapshot(now);
 
@@ -578,7 +555,7 @@ function synchronizeMatchRuntime(room: RoomRecord, match: MatchRecord, now: numb
 }
 
 function getMatchSnapshot(room: RoomRecord, match: MatchRecord, now: number) {
-  synchronizeMatchRuntime(room, match, now);
+  if (synchronizeMatchRuntime(room, match, now)) match.stateVersion += 1;
   const snapshot = match.engine.snapshot(now);
   const currentParticipantIds = new Set(match.engine.playerIds);
   const players = [...room.players.values()]
@@ -637,6 +614,8 @@ function sendMatchStateToPlayer(
   const ownGameState = currentGameParticipant
     ? match.adapter?.getOwnState(player.id, now) ?? null
     : null;
+  const submissionStatus = deriveSubmissionStatus(match.gameIds[match.currentGameIndex]!, ownGameState as JsonValue | null, state.gameState, state.phase === "playing");
+  const actionScope = deriveActionScope(match.gameIds[match.currentGameIndex]!, state.gameState);
 
   sendJson(player.socket, {
     type: "server:match-state",
@@ -645,6 +624,8 @@ function sendMatchStateToPlayer(
     canManageMatch: room.hostPlayerId === player.id,
     ownInputCount,
     ownHasSubmitted: ownInputCount > 0,
+    submissionStatus,
+    actionScope,
     ownGameState: ownGameState as JsonValue | null
   });
 }
@@ -771,6 +752,7 @@ function removePlayer(room: RoomRecord, playerId: string): void {
 }
 
 function attachSocket(room: RoomRecord, player: PlayerRecord, socket: WebSocket): void {
+  const wasConnected = player.connected;
   if (player.socket && player.socket !== socket) {
     const oldContext = socketContexts.get(player.socket);
 
@@ -795,6 +777,10 @@ function attachSocket(room: RoomRecord, player: PlayerRecord, socket: WebSocket)
   context.playerId = player.id;
   context.roomCode = room.code;
   socketContexts.set(socket, context);
+  if (room.match && !wasConnected) {
+    synchronizeMatchRuntime(room, room.match, Date.now());
+    room.match.stateVersion += 1;
+  }
 }
 
 function sendSessionAndState(room: RoomRecord, player: PlayerRecord, socket: WebSocket): void {
@@ -851,6 +837,11 @@ function handleSocketClose(socket: WebSocket): void {
     if (nextHost) {
       room.hostPlayerId = nextHost;
     }
+  }
+
+  if (room.match) {
+    synchronizeMatchRuntime(room, room.match, Date.now());
+    room.match.stateVersion += 1;
   }
 
   broadcastRoomSnapshot(room);
@@ -1122,7 +1113,8 @@ function createMatch(room: RoomRecord, gameIds: readonly GameId[]): MatchRecord 
     adapter,
     miniGameScores: new Map(),
     resultsApplied: false,
-    stateVersion: 1
+    stateVersion: 1,
+    processedActionIds: new Set()
   };
 }
 
@@ -1153,7 +1145,6 @@ function applyMatchResult(room: RoomRecord, match: MatchRecord): boolean {
     }
 
     match.resultsApplied = true;
-    match.stateVersion += 1;
     return true;
   }
 
@@ -1208,7 +1199,6 @@ function startNextGame(room: RoomRecord, match: MatchRecord, now: number): boole
     match.adapter = createGameAdapter(nextGameId, playerIds);
     match.miniGameScores.clear();
     match.resultsApplied = false;
-    match.stateVersion += 1;
     return true;
   }
 
@@ -1216,7 +1206,6 @@ function startNextGame(room: RoomRecord, match: MatchRecord, now: number): boole
   // route stays on the last valid game without constructing an invalid one or
   // retrying the same transition on every ticker pass.
   match.gameIds.splice(match.currentGameIndex + 1);
-  match.stateVersion += 1;
   return true;
 }
 
@@ -1230,10 +1219,7 @@ function advanceMatches(): void {
       continue;
     }
 
-    const before = match.engine.snapshot(now);
     let changed = synchronizeMatchRuntime(room, match, now);
-    const after = match.engine.snapshot(now);
-    changed ||= before.phaseIndex !== after.phaseIndex;
     const scoreApplied = applyMatchResult(room, match);
     changed ||= scoreApplied;
 
@@ -1420,14 +1406,14 @@ function handleGameSubmit(
 
   const room = rooms.get(context.roomCode);
   const match = room?.match;
+  let publishRuntimeTransition = false;
+  const reject = (reason: NonNullable<Extract<ServerMessage, { type: "server:game-input-ack" }>["reason"]>): void => {
+    sendJson(socket, { type: "server:game-input-ack", accepted: false, serverTime: now, actionId: message.actionId, stateVersion: match?.stateVersion ?? 0, reason });
+    if (publishRuntimeTransition && room && match) broadcastMatchState(room, now);
+  };
 
   if (!room || !match) {
-    sendJson(socket, {
-      type: "server:game-input-ack",
-      accepted: false,
-      serverTime: now,
-      reason: "invalid_game_input"
-    });
+    reject("invalid_game_input");
     sendError(socket, "match_not_started", "Henüz aktif bir mini oyun yok.");
     return;
   }
@@ -1436,24 +1422,34 @@ function handleGameSubmit(
     !match.engine.playerIds.includes(context.playerId) ||
     match.engine.isEliminated(context.playerId)
   ) {
-    sendJson(socket, {
-      type: "server:game-input-ack",
-      accepted: false,
-      serverTime: now,
-      reason: "spectator"
-    });
+    reject("spectator");
     return;
   }
 
-  synchronizeMatchRuntime(room, match, now);
+  publishRuntimeTransition = synchronizeMatchRuntime(room, match, now);
+  if (publishRuntimeTransition) match.stateVersion += 1;
+
+  const currentGameState = match.adapter?.getPublicState(now) as unknown as JsonValue | null;
+  if (message.stateVersion > match.stateVersion || message.phaseIndex !== match.engine.snapshot(now).phaseIndex || message.actionScope !== deriveActionScope(match.gameIds[match.currentGameIndex]!, currentGameState)) {
+    reject("invalid_game_input");
+    return;
+  }
+
+  const actionFenceKey = `${context.playerId}:${message.actionId}`;
+  if (match.processedActionIds.has(actionFenceKey)) {
+    reject("input_duplicate");
+    return;
+  }
+  match.processedActionIds.add(actionFenceKey);
 
   if (!submittedTargetsAreLive(room, match, message.payload)) {
-    sendJson(socket, {
-      type: "server:game-input-ack",
-      accepted: false,
-      serverTime: now,
-      reason: "invalid_game_input"
-    });
+    reject("invalid_game_input");
+    return;
+  }
+
+  const prepared = match.engine.prepareInput(context.playerId, message.payload, now, message.clientTime);
+  if (!prepared.accepted) {
+    reject(inputRejectionCode(prepared.reason));
     return;
   }
 
@@ -1461,38 +1457,18 @@ function handleGameSubmit(
     const adapterResult = match.adapter.submit(context.playerId, message.payload, now);
 
     if (!adapterResult.accepted) {
-      sendJson(socket, {
-        type: "server:game-input-ack",
-        accepted: false,
-        serverTime: now,
-        reason: isStage6Game(match.adapter.gameId)
+      reject(isStage6Game(match.adapter.gameId)
           ? stage6InputRejectionCode(adapterResult.reason)
           : isStage7Game(match.adapter.gameId)
             ? stage7InputRejectionCode(adapterResult.reason)
             : isStage8Game(match.adapter.gameId)
               ? stage8InputRejectionCode(adapterResult.reason)
-              : stage9InputRejectionCode(adapterResult.reason)
-      });
+              : stage9InputRejectionCode(adapterResult.reason));
       return;
     }
   }
 
-  const result = match.engine.submitInput(
-    context.playerId,
-    message.payload,
-    now,
-    message.clientTime
-  );
-
-  if (!result.accepted) {
-    sendJson(socket, {
-      type: "server:game-input-ack",
-      accepted: false,
-      serverTime: now,
-      reason: inputRejectionCode(result.reason)
-    });
-    return;
-  }
+  const record = match.engine.commitPreparedInput(prepared.prepared);
 
   match.stateVersion += 1;
   synchronizeMatchRuntime(room, match, now);
@@ -1501,7 +1477,9 @@ function handleGameSubmit(
     type: "server:game-input-ack",
     accepted: true,
     serverTime: now,
-    inputSequence: result.record.sequence
+    actionId: message.actionId,
+    stateVersion: match.stateVersion,
+    inputSequence: record.sequence
   });
   broadcastMatchState(room, now);
 }
