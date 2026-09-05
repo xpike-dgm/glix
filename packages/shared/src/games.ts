@@ -23,6 +23,12 @@ export interface Stage6VoteCount {
   readonly votes: number;
 }
 
+export interface SizmaClueToken {
+  readonly playerId: string;
+  readonly round: 1 | 2;
+  readonly text: string;
+}
+
 export interface ButonaBasPublicState {
   readonly gameId: "butona-bas";
   readonly kind: "butona-bas";
@@ -56,6 +62,8 @@ export interface SizmaPublicState {
   readonly clueTurnIndex: number;
   readonly clueTurnsCompleted: number;
   readonly totalClueTurns: number;
+  /** Clues are public once spoken; role and assigned word remain private. */
+  readonly clueTokens: readonly SizmaClueToken[];
   readonly readyPlayerIds: readonly string[];
   readonly voteEndsAt: number | null;
   readonly votedPlayerIds: readonly string[];
@@ -92,12 +100,15 @@ export interface MemoryPublicState {
   readonly sequence: readonly MemoryColor[];
   readonly sequenceIndex: number;
   readonly sequenceLength: number;
+  /** The sequence is revealed again only in the authoritative result recap. */
+  readonly resultSequence: readonly MemoryColor[];
   readonly activePlayerId: string | null;
   readonly inputDeadline: number | null;
   readonly displayUntil: number | null;
   readonly order: readonly string[];
   readonly eliminatedPlayerIds: readonly string[];
   readonly lastFailedPlayerId: string | null;
+  readonly mistakeCount: number;
   readonly initialPlayerCount: number;
   readonly eliminationThreshold: number;
   readonly finished: boolean;
@@ -258,6 +269,17 @@ function readInputString(payload: JsonValue | null, key: string): string | null 
 
   const value = payload[key];
   return typeof value === "string" ? value : null;
+}
+
+function readInputStringArray(payload: JsonValue | null, key: string): string[] | null {
+  if (!isJsonObject(payload) || !Array.isArray(payload[key])) {
+    return null;
+  }
+
+  const values = payload[key];
+  return values.every((value): value is string => typeof value === "string")
+    ? [...values]
+    : null;
 }
 
 function isJsonObject(
@@ -475,6 +497,7 @@ class SizmaAdapter implements Stage6GameAdapter {
   private readonly roles: ReadonlyMap<string, "normal" | "outsider">;
   private readonly assignedWords: ReadonlyMap<string, string>;
   private readonly completedClueRounds = new Map<string, Set<number>>();
+  private readonly clueTokens = new Map<string, Map<number, string>>();
   private readonly readyPlayerIds = new Set<string>();
   private readonly votes = new Map<string, string>();
   private readonly miniScores: Map<string, number>;
@@ -510,6 +533,7 @@ class SizmaAdapter implements Stage6GameAdapter {
       roleMap.set(playerId, outsider ? "outsider" : "normal");
       wordMap.set(playerId, outsider ? this.outsiderWord : this.commonWord);
       this.completedClueRounds.set(playerId, new Set());
+      this.clueTokens.set(playerId, new Map());
     });
     this.roles = roleMap;
     this.assignedWords = wordMap;
@@ -625,7 +649,7 @@ class SizmaAdapter implements Stage6GameAdapter {
             scoreDelta(this.miniScores, this.deltas, playerId, 1, "sizma:normal-bulundu");
           }
         });
-      } else {
+      } else if (this.playerIds.includes(this.outsiderPlayerId)) {
         scoreDelta(this.miniScores, this.deltas, this.outsiderPlayerId, 2, "sizma:sizma-kazandi");
       }
       this.scoreApplied = true;
@@ -668,6 +692,17 @@ class SizmaAdapter implements Stage6GameAdapter {
       const completed = this.completedClueRounds.get(playerId) ?? new Set<number>();
       if (completed.has(this.clueRound)) {
         return { accepted: false, reason: "duplicate" };
+      }
+
+      const rawClueText = readInputString(payload, "clueText");
+      if (rawClueText !== null) {
+        const clueText = rawClueText.trim().replace(/\s+/g, " ").slice(0, 160);
+        if (clueText.length === 0) {
+          return { accepted: false, reason: "invalid" };
+        }
+        const clueRounds = this.clueTokens.get(playerId) ?? new Map<number, string>();
+        clueRounds.set(this.clueRound, clueText);
+        this.clueTokens.set(playerId, clueRounds);
       }
 
       completed.add(this.clueRound);
@@ -729,7 +764,9 @@ class SizmaAdapter implements Stage6GameAdapter {
 
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
     this.connectedPlayerIds.delete(playerId);
+    this.miniScores.delete(playerId);
     this.completedClueRounds.delete(playerId);
+    this.clueTokens.delete(playerId);
     this.readyPlayerIds.delete(playerId);
     this.votes.delete(playerId);
     for (const [voterId, targetPlayerId] of this.votes) {
@@ -767,12 +804,19 @@ class SizmaAdapter implements Stage6GameAdapter {
       clueTurnIndex: this.clueTurnIndex,
       clueTurnsCompleted: this.clueTurnsCompleted,
       totalClueTurns: this.playerIds.length * 2,
+      clueTokens: this.playerIds.flatMap((candidate) => {
+        const rounds = this.clueTokens.get(candidate);
+        return ([1, 2] as const).flatMap((round) => {
+          const text = rounds?.get(round);
+          return text === undefined ? [] : [{ playerId: candidate, round, text }];
+        });
+      }),
       readyPlayerIds: [...this.readyPlayerIds],
       voteEndsAt: this.voteEndsAt,
-      votedPlayerIds: [...this.votes.keys()],
+      votedPlayerIds: this.finished ? [...this.votes.keys()] : [],
       voteCounts,
       topVotedPlayerIds: this.topVotedPlayerIds,
-      outsiderPlayerId: this.finished ? this.outsiderPlayerId : null,
+      outsiderPlayerId: this.finished && this.playerIds.includes(this.outsiderPlayerId) ? this.outsiderPlayerId : null,
       commonWord: this.finished ? this.commonWord : null,
       outsiderWord: this.finished ? this.outsiderWord : null,
       outsiderCaught: this.outsiderCaught,
@@ -827,6 +871,7 @@ class MemoryAdapter implements Stage6GameAdapter {
   private displayUntil: number | null = null;
   private inputDeadline: number | null = null;
   private lastFailedPlayerId: string | null = null;
+  private mistakeCount = 0;
   private finished = false;
   constructor(playerIds: readonly string[], random: RandomSource) {
     this.playerIds = [...new Set(playerIds)];
@@ -923,6 +968,7 @@ class MemoryAdapter implements Stage6GameAdapter {
     const activeBefore = this.order.filter((playerId) => !this.eliminated.has(playerId));
     this.eliminated.add(failed);
     this.lastFailedPlayerId = failed;
+    this.mistakeCount += 1;
     scoreDelta(this.miniScores, this.deltas, failed, -1, "zaman-bombasi-hafizasi:elenme");
     activeBefore.forEach((playerId) => {
       if (playerId !== failed) {
@@ -1004,23 +1050,25 @@ class MemoryAdapter implements Stage6GameAdapter {
     }
 
     const kind = readInputKind(payload);
-    const color = readInputString(payload, "color") as MemoryColor | null;
-    if (kind !== "memory-color" || color === null || !MEMORY_COLORS.includes(color)) {
-      return { accepted: false, reason: "invalid" };
-    }
 
-    const expected = this.sequence[this.sequenceIndex];
-    if (color !== expected) {
-      this.failActivePlayer(now);
+    if (kind === "memory-sequence") {
+      const sequence = readInputStringArray(payload, "sequence");
+      if (sequence === null || sequence.length !== this.sequence.length || !sequence.every((color) => MEMORY_COLORS.includes(color as MemoryColor))) {
+        return { accepted: false, reason: "invalid" };
+      }
+
+      const correct = sequence.every((color, index) => color === this.sequence[index]);
+      if (!correct) {
+        this.failActivePlayer(now);
+        return { accepted: true };
+      }
+
+      this.sequenceIndex = this.sequence.length;
+      this.completeActiveTurn(now);
       return { accepted: true };
     }
 
-    this.sequenceIndex += 1;
-    if (this.sequenceIndex >= this.sequence.length) {
-      this.completeActiveTurn(now);
-    }
-
-    return { accepted: true };
+    return { accepted: false, reason: "invalid" };
   }
 
   removePlayer(playerId: string): void {
@@ -1039,12 +1087,14 @@ class MemoryAdapter implements Stage6GameAdapter {
       sequence: this.subPhase === "display" ? [...this.sequence] : [],
       sequenceIndex: this.sequenceIndex,
       sequenceLength: this.sequence.length,
+      resultSequence: this.finished ? [...this.sequence] : [],
       activePlayerId: this.activePlayerId,
       inputDeadline: this.inputDeadline,
       displayUntil: this.displayUntil,
       order: [...this.order],
       eliminatedPlayerIds: [...this.eliminated],
       lastFailedPlayerId: this.lastFailedPlayerId,
+      mistakeCount: this.mistakeCount,
       initialPlayerCount: this.initialPlayerCount,
       eliminationThreshold: this.eliminationThreshold,
       finished: this.finished

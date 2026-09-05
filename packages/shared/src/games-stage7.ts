@@ -1532,6 +1532,7 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
   private startedAt: number | null = null;
   private finished = false;
   private results: CaprazAtesResultView[] | null = null;
+  private allDisconnectedAt: number | null = null;
 
   constructor(playerIds: readonly string[]) {
     this.playerIds = uniquePlayerIds(playerIds);
@@ -1543,8 +1544,17 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
   get isFinished(): boolean { return this.finished; }
   get eliminatedPlayerIds(): readonly string[] { return []; }
 
-  setConnectedPlayerIds(playerIds: readonly string[]): void {
+  setConnectedPlayerIds(playerIds: readonly string[], now = Date.now()): void {
+    const hadConnected = this.connectedPlayerIds.size > 0;
     this.connectedPlayerIds = new Set(this.playerIds.filter((candidate) => playerIds.includes(candidate)));
+    if (this.connectedPlayerIds.size === 0) {
+      if (hadConnected) this.allDisconnectedAt = now;
+      return;
+    }
+    if (this.allDisconnectedAt !== null) {
+      if (this.startedAt !== null) this.startedAt += Math.max(0, now - this.allDisconnectedAt);
+      this.allDisconnectedAt = null;
+    }
   }
 
   start(now: number): void { assertNow(now); if (this.startedAt === null) this.startedAt = now; }
@@ -1555,7 +1565,7 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
       const target = this.targets.get(playerId) ?? null;
       const incoming = this.playerIds.filter((candidate) => this.targets.get(candidate) === playerId);
       const mutual = target !== null && this.targets.get(target) === playerId;
-      const points = mutual ? 0 : incoming.length > 0 ? -1 : target === null ? 0 : 1;
+      const points = mutual ? 0 : incoming.length > 0 ? -1 : target === null ? 1 : 0;
       if (points !== 0) scoreDelta(this.miniScores, this.deltas, playerId, points, "capraz-ates:hedef-sonucu");
       return { playerId, targetPlayerId: target, incomingCount: incoming.length, points };
     });
@@ -1564,7 +1574,7 @@ class CaprazAtesAdapter implements Stage7GameAdapter {
 
   advance(now: number): boolean {
     assertNow(now);
-    if (!this.isStarted || this.finished || now < this.startedAt! + TWENTY_FIVE_SECONDS) return false;
+    if (!this.isStarted || this.finished || this.connectedPlayerIds.size === 0 || now < this.startedAt! + TWENTY_FIVE_SECONDS) return false;
     this.resolve();
     return true;
   }

@@ -7,8 +7,9 @@ import {
   type SizmaPublicState,
   type Stage6GameAdapter
 } from "./games.js";
+import type { JsonValue } from "./index.js";
 
-function submit(adapter: Stage6GameAdapter, playerId: string, payload: Record<string, string>, now: number): void {
+function submit(adapter: Stage6GameAdapter, playerId: string, payload: JsonValue, now: number): void {
   assert.equal(adapter.submit(playerId, payload, now).accepted, true);
 }
 
@@ -85,18 +86,22 @@ test("Zaman Bombası Hafızası diziyi uzatır, yanlışta puan dağıtır ve e�
   adapter.start(0);
 
   assert.equal((adapter.getPublicState(0) as MemoryPublicState).sequenceLength, 2);
+  const firstSequence = (adapter.getPublicState(0) as MemoryPublicState).sequence;
+  assert.equal(firstSequence.length, 2);
   adapter.advance(1_500);
   const inputState = adapter.getPublicState(1_500) as MemoryPublicState;
   assert.equal(inputState.subPhase, "input");
   assert.deepEqual(inputState.sequence, []);
 
-  submit(adapter, "a", { kind: "memory-color", color: "cyan" }, 1_501);
-  submit(adapter, "a", { kind: "memory-color", color: "cyan" }, 1_502);
-  assert.equal((adapter.getPublicState(1_502) as MemoryPublicState).sequenceLength, 3);
-  assert.equal((adapter.getPublicState(1_502) as MemoryPublicState).activePlayerId, "b");
+  submit(adapter, "a", { kind: "memory-sequence", sequence: firstSequence }, 1_501);
+  const nextDisplay = adapter.getPublicState(1_502) as MemoryPublicState;
+  assert.equal(nextDisplay.sequenceLength, 3);
+  assert.equal(nextDisplay.activePlayerId, "b");
+  assert.deepEqual((adapter.getPublicState(1_502) as MemoryPublicState).resultSequence, []);
 
   adapter.advance(3_502);
-  submit(adapter, "b", { kind: "memory-color", color: "magenta" }, 3_503);
+  const wrongSequence = nextDisplay.sequence.map((color, index) => index === 0 ? (color === "cyan" ? "magenta" : "cyan") : color);
+  submit(adapter, "b", { kind: "memory-sequence", sequence: wrongSequence }, 3_503);
   assert.equal(adapter.isFinished, true);
   assert.deepEqual(adapter.getMiniGameScores(), new Map([
     ["a", 1],

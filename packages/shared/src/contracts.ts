@@ -64,7 +64,7 @@ const CONTRACTS: Readonly<Record<GameId, GameRuntimeContract>> = {
   "kontrol-paneli-kaosu": { actionMode: "single", targets: NO_TARGETS, disconnectPolicy: "retain-until-timeout" },
   "zehirli-kadeh": { actionMode: "single", targets: [{ actionKind: "glass-trade", field: "targetPlayerId" }], disconnectPolicy: "skip-disconnected" },
   "capraz-ates": { actionMode: "single", targets: [{ actionKind: "crossfire-target", field: "targetPlayerId" }], disconnectPolicy: "neutral-missing" },
-  "zaman-bombasi-hafizasi": { actionMode: "turn", targets: NO_TARGETS, disconnectPolicy: "skip-disconnected" }
+  "zaman-bombasi-hafizasi": { actionMode: "batch", targets: NO_TARGETS, disconnectPolicy: "skip-disconnected" }
 };
 
 function isObject(value: JsonValue | null): value is { readonly [key: string]: JsonValue } {

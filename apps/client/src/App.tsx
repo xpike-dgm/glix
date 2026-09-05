@@ -43,6 +43,7 @@ import { GameViewport } from "./visuals/viewport/GameViewport";
 import { PremiumStageHero } from "./visuals/stage/PremiumStageHero";
 import { KpkStage } from "./visuals/games/kontrol-paneli-kaosu/KpkStage";
 import { KendimStage } from "./visuals/games/kendim/KendimStage";
+import { isStage11BGameId, Stage11BStage } from "./visuals/games/stage11-8b/Stage11BStage";
 import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/visualAssetManifest";
 
 type ConnectionState = "connecting" | "connected" | "offline";
@@ -986,6 +987,7 @@ function MatchScreen({
   const stage7GameId = isStage7GameId(state.currentGameId) ? state.currentGameId : null;
   const stage8GameId = isStage8GameId(state.currentGameId) ? state.currentGameId : null;
   const stage9GameId = isStage9GameId(state.currentGameId) ? state.currentGameId : null;
+  const stage11BGameId = isStage11BGameId(state.currentGameId) ? state.currentGameId : null;
   const remaining = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - now);
   const duration = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - state.phaseStartedAt);
   const progress = state.phase === "finished"
@@ -1173,6 +1175,22 @@ function MatchScreen({
               onReady={onReady}
               onSubmitAction={onSubmit}
             />
+          ) : stage11BGameId ? (
+            <Stage11BStage
+              gameId={stage11BGameId}
+              gameName={game.name}
+              phase={state.phase}
+              publicState={state.gameState}
+              ownState={ownGameState}
+              selfPlayerId={selfPlayerId}
+              players={sortedPlayers}
+              now={now}
+              isSpectator={isSpectator}
+              isReady={ready}
+              actionState={actionState}
+              onReady={onReady}
+              onSubmit={onSubmit}
+            />
           ) : undefined
         }
         hero={
@@ -1196,7 +1214,7 @@ function MatchScreen({
                 remainingLabel={formatRemaining(remaining)}
               />
             )}
-            {state.phase === "results" && !isKpk && !isKendim && (
+            {state.phase === "results" && !isKpk && !isKendim && !stage11BGameId && (
               <ResultOverlay gameName={game.name} disableInteraction>
                 {resultControls}
               </ResultOverlay>
@@ -1218,7 +1236,7 @@ function MatchScreen({
                 )}
               </ResultOverlay>
             )}
-            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && (
+            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && !stage11BGameId && (
               <SpectatorOverlay
                 roomCode={roomCode}
                 connected={Boolean(self?.connected)}
@@ -1228,7 +1246,7 @@ function MatchScreen({
           </>
         }
       >
-        {!isKpk && !isKendim && (
+        {!isKpk && !isKendim && !stage11BGameId && (
           <>
             <div className="glix-stage-context">
               <div>
