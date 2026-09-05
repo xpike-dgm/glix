@@ -9,7 +9,7 @@ Status: implementation complete and batch branch pushed; final delivery remains 
 - Branch: `stage-11-8b-hidden-risk-target`.
 - Required base branch: `origin/stage-11-7-1-shared-prescale-fixes`.
 - Required base SHA: `adbef522c5e18f091994953fdc3bff6a92a4338c`.
-- Final implementation SHA: `55b660b` (`feat: rebuild stage 11.8B hidden risk and target games`).
+- Final implementation SHA: `e7d11b7` (`fix: close stage 11.8B target and clue gates`).
 - Pushed ref: `origin/stage-11-8b-hidden-risk-target`.
 - Batch A, C and D were not started; KPK and Kendim were not redesigned.
 
@@ -31,7 +31,9 @@ Status: implementation complete and batch branch pushed; final delivery remains 
 - `packages/shared/src/games-stage8.ts` — focused Zehirli Kadeh all-disconnected pause/resume behavior and permanent-leave seat handling documentation.
 - `packages/shared/src/contracts.ts` — Memory action mode is `batch` with the existing protocol-v3 reducer/scope.
 - `packages/shared/src/games-stage7.test.ts` — updates the existing Crossfire fixture to the explicit miss action.
+- `packages/shared/src/games-stage11.test.ts` — updates the shared Sızma fixture to submit an explicit clue token.
 - `packages/shared/src/games-stage11b.test.ts` — permanent Batch B privacy, target, roster, reconnect, scoring, batch-ACK and DOM-sink regressions.
+- `packages/shared/src/games.test.ts` — updates the shared Sızma and Memory fixtures to the explicit clue/batch contracts.
 - `package.json` — includes the Batch B permanent engine test in `test:engine`.
 - `docs/screenshots/stage11b/README.md` and `docs/screenshots/stage11b/*.png` — durable screenshot matrix/evidence index and browser/runtime artifacts.
 
@@ -101,7 +103,7 @@ Status: implementation complete and batch branch pushed; final delivery remains 
 
 ## Tests and runtime verification
 
-- `npm test` — PASS; engine 85/85 and server integration 10/10 pass, with the existing baseline preserved and Batch B regressions included.
+- `npm test` — PASS; engine 86/86 and server integration 10/10 pass, with the existing baseline preserved and Batch B regressions included.
 - `npm run typecheck` — PASS.
 - `npm run build` — PASS.
 - `npm run smoke:realtime` — PASS; health endpoint and websocket room smoke succeeded.
@@ -113,7 +115,8 @@ See [`docs/screenshots/stage11b/README.md`](./screenshots/stage11b/README.md). T
 
 ## Independent reviewer gate
 
-- Previous post-push reviewer: Mendel — `8.7/10`, FAIL. Its procedural blockers were the stale `pending` report fields and the fact that its own long-running verification was interrupted; it found no new source or contract blocker. The report fields and durable evidence are now closed below for the fresh final gate.
+- Previous post-push reviewer: Mendel — `8.7/10`, FAIL. Its procedural blockers were stale report fields and interrupted verification; it found no new source or contract blocker.
+- Previous evidence-synchronization reviewer: Harvey — `8.9/10`, FAIL. It found no source blocker; its only blocker was that the report still named `55b660b` and `85/85` before this synchronization commit.
 - Current final reviewer: fresh adversarial gate required before delivery is declared PASS.
 - Current blockers: final reviewer gate not yet closed.
 - Unresolved game-specific P2: none identified by source/tests/runtime evidence; final reviewer must confirm.
