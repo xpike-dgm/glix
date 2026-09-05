@@ -1,6 +1,6 @@
 # GLIX Stage 11.8B — Hidden Risk & Target Rebuild
 
-Status: implementation complete and batch branch pushed; final delivery remains gated on the mandatory fresh adversarial reviewer.
+Status: implementation complete; mandatory fresh adversarial reviewer gate PASS.
 
 ## Delivery identity
 
@@ -117,6 +117,8 @@ See [`docs/screenshots/stage11b/README.md`](./screenshots/stage11b/README.md). T
 
 - Previous post-push reviewer: Mendel — `8.7/10`, FAIL. Its procedural blockers were stale report fields and interrupted verification; it found no new source or contract blocker.
 - Previous evidence-synchronization reviewer: Harvey — `8.9/10`, FAIL. It found no source blocker; its only blocker was that the report still named `55b660b` and `85/85` before this synchronization commit.
-- Current final reviewer: fresh adversarial gate required before delivery is declared PASS.
-- Current blockers: final reviewer gate not yet closed.
-- Unresolved game-specific P2: none identified by source/tests/runtime evidence; final reviewer must confirm.
+- Current final reviewer: Noether — PASS.
+- Scores: Rules/scoring `9.2`, Privacy/redaction `9.5`, Target/ACK/reconnect integrity `9.3`, Disconnect/roster behavior `9.2`, Mobile ergonomics `9.0`, Visual/game feel `9.1`, Unique interaction metaphors `9.3`, Results `9.0`, Regression safety `9.4`.
+- Overall: `9.2/10`.
+- Current blockers: NONE.
+- Unresolved game-specific P2: none.
