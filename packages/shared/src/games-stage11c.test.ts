@@ -1,4 +1,7 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   createStage7GameAdapter,
@@ -393,4 +396,23 @@ test("11.8C Protocol v3 submission status ve action state reducer Batch C oyunla
   actState = reduceClientActionState(actState, { type: "ack", actionId: "act-1", accepted: false, stateVersion: 5, reason: "invalid" });
   assert.equal(actState?.status, "rejected");
   assert.equal(actState?.reason, "invalid");
+});
+
+test("11.8C Production App and main cannot import or route Stage11C QA harnesses", () => {
+  const currentFile = fileURLToPath(import.meta.url);
+  const root = path.resolve(path.dirname(currentFile), "../../..");
+  const mainPath = path.join(root, "apps", "client", "src", "main.tsx");
+  const appPath = path.join(root, "apps", "client", "src", "App.tsx");
+
+  const mainSource = fs.readFileSync(mainPath, "utf8");
+  const appSource = fs.readFileSync(appPath, "utf8");
+
+  assert.equal(mainSource.includes("Stage11CQAHarness"), false, "main.tsx must not import Stage11CQAHarness");
+  assert.equal(mainSource.includes("Stage11CAuthoritativeHarness"), false, "main.tsx must not import Stage11CAuthoritativeHarness");
+  assert.equal(mainSource.includes("qa="), false, "main.tsx must not route via qa query parameter");
+  assert.equal(mainSource.includes("?qa"), false, "main.tsx must not contain ?qa hook");
+
+  assert.equal(appSource.includes("Stage11CQAHarness"), false, "App.tsx must not import Stage11CQAHarness");
+  assert.equal(appSource.includes("Stage11CAuthoritativeHarness"), false, "App.tsx must not import Stage11CAuthoritativeHarness");
+  assert.equal(appSource.includes("qa="), false, "App.tsx must not route via qa query parameter");
 });

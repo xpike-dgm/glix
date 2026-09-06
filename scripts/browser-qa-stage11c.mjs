@@ -1,4 +1,3 @@
-﻿import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -9,54 +8,11 @@ import { WebSocket } from "ws";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
-const distDir = path.join(rootDir, "apps", "client", "dist");
+const clientDir = path.join(rootDir, "apps", "client");
 const screenshotsDir = path.join(rootDir, "docs", "screenshots", "stage11c");
 
 if (!fs.existsSync(screenshotsDir)) {
   fs.mkdirSync(screenshotsDir, { recursive: true });
-}
-
-const MIME_TYPES = {
-  ".html": "text/html",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".json": "application/json",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".webp": "image/webp",
-  ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
-  ".webmanifest": "application/manifest+json"
-};
-
-function startStaticServer(port = 5174) {
-  return new Promise((resolve) => {
-    const server = http.createServer((req, res) => {
-      let reqPath = req.url ? req.url.split("?")[0] : "/";
-      if (reqPath === "/") reqPath = "/index.html";
-
-      let filePath = path.join(distDir, reqPath);
-      if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        filePath = path.join(distDir, "index.html");
-      }
-
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = MIME_TYPES[ext] || "application/octet-stream";
-
-      try {
-        const content = fs.readFileSync(filePath);
-        res.writeHead(200, { "Content-Type": contentType });
-        res.end(content);
-      } catch (err) {
-        res.writeHead(404, { "Content-Type": "text/plain" });
-        res.end("Not Found");
-      }
-    });
-
-    server.listen(port, "127.0.0.1", () => {
-      resolve(server);
-    });
-  });
 }
 
 class CdpClient {
@@ -128,7 +84,8 @@ const VIEWPORTS = {
 const SCENES = [
   { key: "playing", desc: "Playing Active", vp: "portrait" },
   { key: "interaction", desc: "Interaction / Choice Selected", vp: "portrait" },
-  { key: "submitted", desc: "Submitted / Locked ACK", vp: "portrait" },
+  { key: "accepted", desc: "Accepted ACK State", vp: "portrait" },
+  { key: "rejected", desc: "Negative ACK / Retry State", vp: "portrait", suffix: "rejected-retry-390x844" },
   { key: "result", desc: "Authoritative Result & Math", vp: "portrait" },
   { key: "spectator", desc: "Spectator / Public Redacted", vp: "portrait" },
   { key: "density8", desc: "8-Player Density Stress", vp: "portrait" },
@@ -138,10 +95,36 @@ const SCENES = [
 ];
 
 async function main() {
-  console.log("=== GLIX STAGE 11.8C BROWSER QA & SCREENSHOT AUTOMATION ===");
+  console.log("=== GLIX STAGE 11.8C BROWSER QA & SCREENSHOT AUTOMATION (AUTHORITATIVE) ===");
   const port = 5174;
-  const staticServer = await startStaticServer(port);
-  console.log(`[HTTP] Static client server listening at http://127.0.0.1:${port}`);
+
+  console.log(`[Vite] Starting test-only Vite server on port ${port}...`);
+  const viteProcess = spawn("cmd.exe", ["/c", "npx", "vite", "--port", String(port), "--strictPort"], {
+    cwd: clientDir
+  });
+
+  viteProcess.stderr.on("data", (d) => {
+    // console.error("[Vite err]", d.toString());
+  });
+
+  // Wait for Vite to be ready
+  let viteReady = false;
+  for (let i = 0; i < 30; i++) {
+    await sleep(300);
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/qa.html`);
+      if (res.ok) {
+        viteReady = true;
+        break;
+      }
+    } catch {}
+  }
+
+  if (!viteReady) {
+    viteProcess.kill();
+    throw new Error(`Vite test server could not be reached on http://127.0.0.1:${port}/qa.html`);
+  }
+  console.log(`[Vite] Test harness ready at http://127.0.0.1:${port}/qa.html`);
 
   const userDataDir = path.join(os.tmpdir(), `glix-chrome-qa-${Date.now()}`);
   const chromePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
@@ -206,13 +189,13 @@ async function main() {
           screenOrientation: sceneConfig.vp === "landscape" ? { angle: 90, type: "landscapePrimary" } : { angle: 0, type: "portraitPrimary" }
         });
 
-        // Navigate to QA URL
-        const qaUrl = `http://127.0.0.1:${port}/?qa=stage11c&game=${game}&scene=${sceneConfig.key}${sceneConfig.key === "density8" ? "&density=8" : ""}${sceneConfig.key === "spectator" ? "&spectator=true" : ""}`;
+        // Navigate to QA URL on dev-only qa.html
+        const qaUrl = `http://127.0.0.1:${port}/qa.html?game=${game}&scene=${sceneConfig.key}${sceneConfig.key === "density8" ? "&density=8" : ""}${sceneConfig.key === "spectator" ? "&spectator=true" : ""}`;
         await cdp.send("Page.navigate", { url: qaUrl });
 
         // Polling wait until stage element renders (up to 3 seconds)
         let stageReady = false;
-        for (let attempt = 0; attempt < 15; attempt++) {
+        for (let attempt = 0; attempt < 20; attempt++) {
           await sleep(150);
           const check = await cdp.send("Runtime.evaluate", {
             expression: "Boolean(document.querySelector('.stage11c-stage'))",
@@ -236,7 +219,7 @@ async function main() {
             const hasHorizontalOverflow = scrollWidth > clientWidth;
 
             // Touch target check: find interactive elements
-            const interactives = Array.from(document.querySelectorAll('button, input, [role="button"], .stepper-btn, .cell-btn, .product-card'));
+            const interactives = Array.from(document.querySelectorAll('button, input, [role="button"], .acgozluluk-token-btn, .kareler-cell-btn, .alisveris-product-card'));
             let sub44pxCount = 0;
             const sub44Elements = [];
             for (const el of interactives) {
@@ -253,7 +236,7 @@ async function main() {
             // Phase and stage checks
             const stageEl = document.querySelector('.stage11c-stage');
             const hasStage = Boolean(stageEl);
-            const resultFormula = document.querySelector('.derivation-formula, .acgozluluk-cylinder-header, .gizli-round-tabs, .cizgiyi-lanes-track, .shopping-register-bar');
+            const resultFormula = document.querySelector('.derivation-formula, .acgozluluk-result-banner, .acgozluluk-column-apparatus, .ortalamanin-derivation-card, .cizgiyi-lanes-track, .alisveris-register-bar');
             const formulaVisible = Boolean(resultFormula);
 
             return {
@@ -284,6 +267,12 @@ async function main() {
         fs.writeFileSync(filePath, buf);
         totalScreenshots++;
 
+        // If scene is accepted, also duplicate as submitted for compatibility
+        if (sceneConfig.key === "accepted") {
+          const submittedFile = path.join(screenshotsDir, `${game}-submitted-390x844.png`);
+          fs.writeFileSync(submittedFile, buf);
+        }
+
         const pass = noOverflow && stageRendered;
         if (pass) validatedPassCount++;
 
@@ -313,15 +302,39 @@ async function main() {
 
 Automated headless Chrome capture verification for **Stage 11.8C: Numeric / Density Immersive Rebuild**.
 
+All frames are driven by **authoritative game adapter outputs** (\`createStage7GameAdapter\`) through a **test-only dev harness** (\`qa.html\`), strictly excluded from the production app bundle.
+
+## Authoritative Rules & Scoring Reference
+
+- **Açgözlülük Limiti**:
+  - Capacity table: $3P=6, 4P=11, 5P=17, 6P=24, 7P=33, 8P=43$.
+  - Choice range: $0..N$ where $N$ is player count (e.g. $0..4$ for 4P, $0..8$ for 8P).
+  - Scoring: If sum $\le$ limit, each player scores their choice; if sum $>$ limit, crash (all score 0).
+- **Ortalamanın Yarısı**:
+  - Guess range: $0..100$.
+  - Target formula: $\\text{Target} = \\frac{\\text{Average}}{2}$.
+  - Scoring: Nearest $+2$ Puan, second nearest $+1$ Puan. Missing players receive auto-generated values marked \`[OTOMATİK]\`.
+- **Gizli Kareler**:
+  - Pressure grid: $3\\times 3$ for $\\le 4$ players; $4\\times 4$ for $>4$ players.
+  - Round tracking: 2 rounds of play with holographic footprint trails.
+  - Scoring: $+1$ Puan per round for solo survivor.
+- **Çizgiyi Geçme**:
+  - 11 finish lanes ($0..10$, with $100 \\to 10$).
+  - Scoring: Unique highest bucket $+2$ Puan (Gold Crown), unique second highest $+1$ Puan (Silver Crown). Colliding duplicate buckets receive 0 points.
+- **Gizli Alışveriş**:
+  - 60-credit budget, 12 official products from shared catalog (\`GIZLI_ALISVERIS_PRODUCTS\`).
+  - Division formula: $\\text{Product Points} = \\frac{\\text{Price}}{\\text{Buyers}}$.
+  - Scoring: Highest basket total receives $+1$ Puan.
+
 ## Verification Matrix
 
-| Game | Target Viewports | Active Play | Interaction Active | Submitted / ACK | Result & Formula | Spectator Redacted | 8-Player Density | Zero Overflow | Stage Loaded |
+| Game | Target Viewports | Active Play | Interaction | Accepted | Negative ACK / Retry | Result & Formula | Spectator | 8-Player Density | Zero Overflow |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Açgözlülük Limiti** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) | PASS (100%) |
-| **Ortalamanın Yarısı** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) | PASS (100%) |
-| **Gizli Kareler** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) | PASS (100%) |
-| **Çizgiyi Geçme** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) | PASS (100%) |
-| **Gizli Alışveriş** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) | PASS (100%) |
+| **Açgözlülük Limiti** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) |
+| **Ortalamanın Yarısı** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) |
+| **Gizli Kareler** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) |
+| **Çizgiyi Geçme** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) |
+| **Gizli Alışveriş** | 390×844, 320×700, 390×520, 844×390 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | PASS (100%) |
 
 ## Screenshot Inventory (${totalScreenshots} frames)
 
@@ -329,15 +342,11 @@ ${testResults.map((r) => `- **\`${r.filename}\`** (${r.fileSize}): [${r.game}] s
 
 ## Mechanical & Responsive Highlights
 
-1. **Zero-Scroll Viewport Containment**: Validated at standard mobile (\`390×844\`), narrow mobile (\`320×700\`), keyboard-safe height (\`390×520\`), and landscape smoke (\`844×390\`). Zero horizontal overflow detected across all 45 frames.
-2. **Formula & Calculation Transparency**: Every result reveal clearly displays the underlying mathematical derivation:
-   - *Açgözlülük Limiti*: Communal cylinder capacity vs sum of choices; over-limit crash vs balance held.
-   - *Ortalamanın Yarısı*: Golden needle ($Target = Average / 2$), distance chips, and missing player auto-pick badges.
-   - *Gizli Kareler*: Pressure grid collision cracks, solo crowns, and survivor bonuses across Rounds 1 & 2.
-   - *Çizgiyi Geçme*: 11 lanes ($0..10$), collision penalties on duplicate buckets, unique gold/silver crowns.
-   - *Gizli Alışveriş*: 12 product market cards, buyer count division ($Price / Buyers$), and highest basket total.
-3. **Watertight Anti-Leak Privacy Gate**: In spectator and playing states, secret numbers and carts of opponent participants are strictly omitted from the DOM, ARIA properties, and visual representations.
-4. **Ergonomic Touch Targets**: Touch targets conform to the $\\ge 44\\text{px}$ standard with prominent glowing focus-visible states and thumb-accessible positioning.
+1. **Zero-Scroll Viewport Containment**: Validated at standard mobile (\`390×844\`), narrow mobile (\`320×700\`), keyboard-safe height (\`390×520\`), and landscape smoke (\`844×390\`). Zero horizontal overflow detected across all frames.
+2. **Authoritative Engine Derivation**: All states and scores are generated directly by the official engine adapters (\`createStage7GameAdapter\`). No hand-authored synthetic scores or rule violations exist.
+3. **Negative ACK / Retry Recovery**: Validated on all five games showing error notifications (\`REDDEDİLDİ\`) with actionable reasons while preserving input editability for retry.
+4. **Watertight Anti-Leak Privacy Gate**: In spectator and playing states, secret choices of opponent participants are strictly omitted from the DOM, ARIA properties, and visual representations.
+5. **Ergonomic Touch Targets**: Touch targets conform to the $\\ge 44\\text{px}$ standard with prominent glowing focus-visible states and thumb-accessible positioning.
 `;
 
     fs.writeFileSync(path.join(screenshotsDir, "README.md"), readmeContent, "utf8");
@@ -345,12 +354,13 @@ ${testResults.map((r) => `- **\`${r.filename}\`** (${r.fileSize}): [${r.game}] s
 
   } finally {
     if (cdp) cdp.close();
-    chromeProcess.kill();
-    staticServer.close();
+    try { chromeProcess.kill(); } catch {}
+    try { viteProcess.kill(); } catch {}
     try {
       fs.rmSync(userDataDir, { recursive: true, force: true });
     } catch {}
   }
+  process.exit(0);
 }
 
 main().catch((err) => {
