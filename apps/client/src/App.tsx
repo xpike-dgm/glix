@@ -6,7 +6,6 @@ import {
   MAX_NICKNAME_LENGTH,
   MAX_PLAYERS,
   MIN_PLAYERS,
-  PROTOCOL_VERSION,
   ROOM_CODE_LENGTH,
   getAvailableGames,
   getConnectedPlayerCount,
@@ -43,6 +42,7 @@ import { GameViewport } from "./visuals/viewport/GameViewport";
 import { PremiumStageHero } from "./visuals/stage/PremiumStageHero";
 import { KpkStage } from "./visuals/games/kontrol-paneli-kaosu/KpkStage";
 import { KendimStage } from "./visuals/games/kendim/KendimStage";
+import { isStage11AGameId, Stage11ATimingPressureStage } from "./visuals/games/Stage11ATimingPressureStage";
 import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/visualAssetManifest";
 
 type ConnectionState = "connecting" | "connected" | "offline";
@@ -108,7 +108,7 @@ function isServerMessage(value: unknown): value is ServerMessage {
 
 function connectionLabel(connection: ConnectionState): string {
   if (connection === "connected") {
-    return "SUNUCU HAZIR";
+    return "BAĞLANTI HAZIR";
   }
 
   if (connection === "connecting") {
@@ -136,7 +136,6 @@ function isStage9GameId(gameId: GameId): gameId is Stage9GameId {
 
 function App(): JSX.Element {
   const [connection, setConnection] = useState<ConnectionState>("connecting");
-  const [serverVersion, setServerVersion] = useState("—");
   const [screen, setScreen] = useState<Screen>("home");
   const [nickname, setNickname] = useState(() => readStoredValue(STORAGE_KEYS.nickname));
   const [roomCodeInput, setRoomCodeInput] = useState(() => readStoredValue(STORAGE_KEYS.roomCode));
@@ -243,12 +242,11 @@ function App(): JSX.Element {
           const value: unknown = JSON.parse(String(event.data));
 
           if (!isServerMessage(value)) {
-            setError("Sunucudan beklenmeyen bir yanıt geldi.");
+            setError("Oyun bağlantısından beklenmeyen bir yanıt geldi.");
             return;
           }
 
           if (value.type === "server:ready") {
-            setServerVersion(value.serverVersion);
             return;
           }
 
@@ -360,7 +358,7 @@ function App(): JSX.Element {
             }
           }
         } catch {
-          setError("Sunucudan okunamayan bir yanıt geldi.");
+          setError("Oyun bağlantısından okunamayan bir yanıt geldi.");
         }
       });
 
@@ -420,7 +418,7 @@ function App(): JSX.Element {
     const socket = socketRef.current;
 
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      setError("Sunucu bağlantısı hazır değil. Birkaç saniye sonra tekrar dene.");
+      setError("Oyun bağlantısı hazır değil. Birkaç saniye sonra tekrar dene.");
       return false;
     }
 
@@ -507,7 +505,7 @@ function App(): JSX.Element {
     }
 
     setError(null);
-    setNotice("Gerçek mini oyun rotası hazırlanıyor.");
+    setNotice("Mini oyun rotası hazırlanıyor.");
     sendMessage({ type: "client:room:start" });
   };
 
@@ -851,7 +849,7 @@ function App(): JSX.Element {
 
           <div className="lobby-footer">
             <span>BAĞLANTI KODU İLE OYNA</span>
-            <span>PROTOKOL v{PROTOCOL_VERSION} / SUNUCU {serverVersion}</span>
+            <span>OYUN HAZIR</span>
             <button
               className="button button-start"
               type="button"
@@ -913,7 +911,7 @@ interface MatchScreenProps {
 
 function matchPhaseLabel(phase: MatchState["phase"]): string {
   const labels: Record<MatchState["phase"], string> = {
-    tutorial: "TUTORİAL",
+    tutorial: "ANLATIM",
     preparing: "HAZIRLIK",
     playing: "OYNA",
     results: "SONUÇLAR",
@@ -928,8 +926,8 @@ function matchPhaseDescription(phase: MatchState["phase"]): string {
   const descriptions: Record<MatchState["phase"], string> = {
     tutorial: "On saniyelik görsel anlatımı izle; oyunun ritmi ve hamlesi burada gösterilir.",
     preparing: "Herkes hazır olduğunda gerçek mini oyun başlar.",
-    playing: "Kuralın gerektirdiği hamleyi kendi telefonundan yap. Skoru sunucu hesaplar.",
-    results: "Bu oyunun puanları ve varsa elenme sonucu işleniyor.",
+    playing: "Kuralın gerektirdiği hamleyi kendi telefonundan yap. Puanlar oyun sonunda hesaplanır.",
+    results: "Bu oyunun puanları ve varsa elenme sonucu açıklanıyor.",
     transition: "Sıradaki mini oyun sahnesi hazırlanıyor.",
     finished: "Seçilen rota tamamlandı. Genel skor tablosu hazır."
   };
@@ -986,6 +984,7 @@ function MatchScreen({
   const stage7GameId = isStage7GameId(state.currentGameId) ? state.currentGameId : null;
   const stage8GameId = isStage8GameId(state.currentGameId) ? state.currentGameId : null;
   const stage9GameId = isStage9GameId(state.currentGameId) ? state.currentGameId : null;
+  const stage11AGameId = isStage11AGameId(state.currentGameId) ? state.currentGameId : null;
   const remaining = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - now);
   const duration = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - state.phaseStartedAt);
   const progress = state.phase === "finished"
@@ -1001,6 +1000,7 @@ function MatchScreen({
     (left, right) => right.score - left.score || right.miniGameScore - left.miniGameScore
   );
   const tutorialSteps = tutorialStepsForGame(game);
+  const locksForAck = actionState?.status === "pending" && submissionStatus.mode !== "repeatable";
 
   const stageControls = stage6GameId ? (
     <Stage6GameControls
@@ -1049,7 +1049,7 @@ function MatchScreen({
         <strong>{ownHasSubmitted ? "HAMLE ALINDI" : "HAMLE GÖNDER"}</strong>
         <small>{ownHasSubmitted ? "SONUCU BEKLE" : "TEK DOKUNUŞ"}</small>
       </button>
-      <p>Hamleni sahnedeki ana nesne üzerinden gönder. Skoru sunucu hesaplar.</p>
+      <p>Hamleni sahnedeki ana nesne üzerinden gönder. Puanlar oyun sonunda hesaplanır.</p>
     </div>
   );
 
@@ -1104,6 +1104,7 @@ function MatchScreen({
 
   const isKpk = game.id === "kontrol-paneli-kaosu";
   const isKendim = game.id === "kendim";
+  const hidesKorKronometreClock = stage11AGameId === "kor-kronometre" && state.phase === "playing";
   const kendimPublicState = isKendim ? (state.gameState as unknown as KendimPublicState) : null;
   const kendimOwnState = isKendim ? (ownGameState as unknown as KendimOwnState) : null;
   const kendimSelfStatusLabel = isKendim
@@ -1132,7 +1133,7 @@ function MatchScreen({
             gameTotal={state.gameIds.length}
             phase={state.phase}
             phaseLabel={matchPhaseLabel(state.phase)}
-            deadline={state.phaseEndsAt}
+            deadline={hidesKorKronometreClock ? null : state.phaseEndsAt}
             now={now}
             totalDurationSeconds={totalDurationSeconds}
             players={state.players}
@@ -1173,10 +1174,27 @@ function MatchScreen({
               onReady={onReady}
               onSubmitAction={onSubmit}
             />
+          ) : stage11AGameId ? (
+            <Stage11ATimingPressureStage
+              gameId={stage11AGameId}
+              gameName={game.name}
+              phase={state.phase}
+              publicState={state.gameState}
+              ownState={ownGameState}
+              selfPlayerId={selfPlayerId}
+              players={sortedPlayers}
+              now={now}
+              isSpectator={isSpectator}
+              actionState={actionState}
+              ready={ready}
+              connection={connection}
+              onReady={onReady}
+              onSubmit={onSubmit}
+            />
           ) : undefined
         }
         hero={
-          isKpk || isKendim ? undefined : (
+          isKpk || isKendim || stage11AGameId ? undefined : (
             <PremiumStageHero
               game={game}
               phase={state.phase}
@@ -1196,7 +1214,7 @@ function MatchScreen({
                 remainingLabel={formatRemaining(remaining)}
               />
             )}
-            {state.phase === "results" && !isKpk && !isKendim && (
+            {state.phase === "results" && !isKpk && !isKendim && !stage11AGameId && (
               <ResultOverlay gameName={game.name} disableInteraction>
                 {resultControls}
               </ResultOverlay>
@@ -1218,7 +1236,7 @@ function MatchScreen({
                 )}
               </ResultOverlay>
             )}
-            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && (
+            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && !stage11AGameId && (
               <SpectatorOverlay
                 roomCode={roomCode}
                 connected={Boolean(self?.connected)}
@@ -1228,7 +1246,7 @@ function MatchScreen({
           </>
         }
       >
-        {!isKpk && !isKendim && (
+        {!isKpk && !isKendim && !stage11AGameId && (
           <>
             <div className="glix-stage-context">
               <div>
@@ -1248,7 +1266,7 @@ function MatchScreen({
 
             {state.phase === "playing" && !isSpectator && (
               <div className="glix-control-slot" aria-label={`${game.name} hamle alanı`}>
-                <fieldset className="glix-action-fence" disabled={actionState?.status === "pending"} aria-busy={actionState?.status === "pending"}>
+                <fieldset className="glix-action-fence" disabled={locksForAck}>
                   {stageControls}
                 </fieldset>
               </div>
@@ -1269,7 +1287,7 @@ function MatchScreen({
 
         <footer className="glix-match-footer">
           <span>ODA {roomCode}</span>
-          <span>{connection === "connected" ? "SYNC AKTİF" : "BAĞLANTI BEKLENİYOR"}</span>
+          <span>{connection === "connected" ? "BAĞLANTI CANLI" : "BAĞLANTI BEKLENİYOR"}</span>
         </footer>
       </GameViewport>
     </section>

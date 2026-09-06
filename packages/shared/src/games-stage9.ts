@@ -470,7 +470,7 @@ class SonKisiAdapter extends Stage9AdapterBase {
     const escapeTimes = [...this.escapedAtByPlayer.values()];
     const lastEscapeAt = escapeTimes.length > 0 ? Math.max(...escapeTimes) : null;
 
-    this.resultsCache.push(...this.initialPlayerIds.map((playerId) => {
+    const results = this.initialPlayerIds.map((playerId) => {
       const escapedAt = this.escapedAtByPlayer.get(playerId) ?? null;
       const escaped = escapedAt !== null;
       const points = !escaped ? -1 : escapedAt === lastEscapeAt ? 1 : 0;
@@ -481,6 +481,11 @@ class SonKisiAdapter extends Stage9AdapterBase {
         elapsedMs: escapedAt === null || this.startedAt === null ? null : escapedAt - this.startedAt,
         points
       };
+    });
+    this.resultsCache.push(...results.sort((left, right) => {
+      const leftElapsed = left.elapsedMs ?? Number.POSITIVE_INFINITY;
+      const rightElapsed = right.elapsedMs ?? Number.POSITIVE_INFINITY;
+      return leftElapsed - rightElapsed || left.playerId.localeCompare(right.playerId);
     }));
 
     this.secretFinishAt = null;
@@ -497,6 +502,7 @@ class SonKisiAdapter extends Stage9AdapterBase {
   submit(playerId: string, payload: JsonValue | null, now: number): Stage9SubmitResult {
     assertNow(now);
     if (!this.initialPlayerIds.includes(playerId)) return { accepted: false, reason: "invalid" };
+    if (!this.isConnected(playerId)) return { accepted: false, reason: "invalid" };
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (this.secretFinishAt !== null && now >= this.secretFinishAt) {
       this.resolve();
@@ -515,13 +521,16 @@ class SonKisiAdapter extends Stage9AdapterBase {
   }
 
   getPublicState(_now: number): SonKisiPublicState {
+    const revealEscapes = this.finished;
     return {
       gameId: this.gameId,
       kind: this.gameId,
       started: this.isStarted,
       phaseEndsAt: null,
-      escapeCount: this.escapedAtByPlayer.size,
-      escapedPlayerIds: [...this.escapedAtByPlayer.keys()],
+      // Escape choices are private during play. The result snapshot is the
+      // first public boundary at which the timeline may be revealed.
+      escapeCount: revealEscapes ? this.escapedAtByPlayer.size : 0,
+      escapedPlayerIds: revealEscapes ? [...this.escapedAtByPlayer.keys()] : [],
       durationMs: this.finished ? this.secretDurationMs : null,
       results: this.finished ? [...this.resultsCache] : null,
       resultPoints: this.finished ? pointsView(this.miniScores) : null,
