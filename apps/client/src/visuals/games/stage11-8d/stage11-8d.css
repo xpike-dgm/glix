@@ -213,6 +213,38 @@
   }
 }
 
+.stage11d-negative-ack-card {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.95);
+  border: 1px solid #ef4444;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  animation: stage11dFadeIn 0.2s ease-out;
+  pointer-events: none;
+}
+
+@keyframes stage11dFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 @media (orientation: landscape) and (max-height: 620px) {
   .stage11d-stage {
     padding-top: 0.2rem;

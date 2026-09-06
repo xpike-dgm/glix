@@ -68,63 +68,60 @@ server.listen(PORT, "127.0.0.1", async () => {
 
   const captureTasks = [
     // Yazı Yaz
-    { name: "yazi-yaz-write-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=yazi-yaz&subPhase=write`, width: 390, height: 844 },
-    { name: "yazi-yaz-discussion-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=yazi-yaz&subPhase=discussion`, width: 390, height: 844 },
-    { name: "yazi-yaz-guess-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=yazi-yaz&subPhase=guess`, width: 390, height: 844 },
-    { name: "yazi-yaz-results-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=yazi-yaz&subPhase=results`, width: 390, height: 844 },
-    { name: "yazi-yaz-write-320x700.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=yazi-yaz&subPhase=write`, width: 320, height: 700 },
-    { name: "yazi-yaz-write-390x520.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=yazi-yaz&subPhase=write`, width: 390, height: 520 },
-    { name: "yazi-yaz-landscape-844x390.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=yazi-yaz&subPhase=write`, width: 844, height: 390 },
+    { name: "yazi-yaz-write-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=write`, width: 390, height: 844 },
+    { name: "yazi-yaz-discussion-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=discussion`, width: 390, height: 844 },
+    { name: "yazi-yaz-guess-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=guess`, width: 390, height: 844 },
+    { name: "yazi-yaz-results-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=results`, width: 390, height: 844 },
+    { name: "yazi-yaz-write-320x700.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=write`, width: 320, height: 700 },
+    { name: "yazi-yaz-write-390x520.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=write`, width: 390, height: 520 },
+    { name: "yazi-yaz-landscape-844x390.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=write`, width: 844, height: 390 },
 
     // Sözlük Blöfü
-    { name: "sozluk-blofu-write-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=sozluk-blofu&subPhase=write`, width: 390, height: 844 },
-    { name: "sozluk-blofu-choose-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=sozluk-blofu&subPhase=choose`, width: 390, height: 844 },
-    { name: "sozluk-blofu-results-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=sozluk-blofu&subPhase=results`, width: 390, height: 844 },
-    { name: "sozluk-blofu-choose-320x700.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=sozluk-blofu&subPhase=choose`, width: 320, height: 700 },
-    { name: "sozluk-blofu-write-390x520.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=sozluk-blofu&subPhase=write`, width: 390, height: 520 },
+    { name: "sozluk-blofu-write-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=sozluk-blofu&subPhase=write`, width: 390, height: 844 },
+    { name: "sozluk-blofu-choose-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=sozluk-blofu&subPhase=choose`, width: 390, height: 844 },
+    { name: "sozluk-blofu-results-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=sozluk-blofu&subPhase=results`, width: 390, height: 844 },
+    { name: "sozluk-blofu-choose-320x700.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=sozluk-blofu&subPhase=choose`, width: 320, height: 700 },
+    { name: "sozluk-blofu-write-390x520.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=sozluk-blofu&subPhase=write`, width: 390, height: 520 },
 
     // Çağrışım Ağı
-    { name: "cagrisim-agi-answer-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=cagrisim-agi&subPhase=answer`, width: 390, height: 844 },
-    { name: "cagrisim-agi-results-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=cagrisim-agi&subPhase=results`, width: 390, height: 844 },
-    { name: "cagrisim-agi-answer-320x700.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=cagrisim-agi&subPhase=answer`, width: 320, height: 700 },
-    { name: "cagrisim-agi-answer-390x520.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=cagrisim-agi&subPhase=answer`, width: 390, height: 520 },
+    { name: "cagrisim-agi-answer-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=cagrisim-agi&subPhase=answer`, width: 390, height: 844 },
+    { name: "cagrisim-agi-results-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=cagrisim-agi&subPhase=results`, width: 390, height: 844 },
+    { name: "cagrisim-agi-answer-320x700.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=cagrisim-agi&subPhase=answer`, width: 320, height: 700 },
+    { name: "cagrisim-agi-answer-390x520.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=cagrisim-agi&subPhase=answer`, width: 390, height: 520 },
 
     // Rüşvet ve Darbe
-    { name: "rusvet-darbe-election-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=rusvet-darbe&subPhase=election`, width: 390, height: 844 },
-    { name: "rusvet-darbe-distribution-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=rusvet-darbe&subPhase=distribution`, width: 390, height: 844 },
-    { name: "rusvet-darbe-results-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=rusvet-darbe&subPhase=results`, width: 390, height: 844 },
-    { name: "rusvet-darbe-distribution-320x700.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=rusvet-darbe&subPhase=distribution`, width: 320, height: 700 },
-    { name: "rusvet-darbe-distribution-390x520.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=rusvet-darbe&subPhase=distribution`, width: 390, height: 520 },
+    { name: "rusvet-darbe-election-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=rusvet-darbe&subPhase=election`, width: 390, height: 844 },
+    { name: "rusvet-darbe-distribution-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=rusvet-darbe&subPhase=distribution`, width: 390, height: 844 },
+    { name: "rusvet-darbe-results-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=rusvet-darbe&subPhase=results`, width: 390, height: 844 },
+    { name: "rusvet-darbe-distribution-320x700.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=rusvet-darbe&subPhase=distribution`, width: 320, height: 700 },
+    { name: "rusvet-darbe-distribution-390x520.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=rusvet-darbe&subPhase=distribution`, width: 390, height: 520 },
 
     // Karalama Defteri
-    { name: "karalama-defteri-draw-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=karalama-defteri&subPhase=draw`, width: 390, height: 844 },
-    { name: "karalama-defteri-vote-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=karalama-defteri&subPhase=vote`, width: 390, height: 844 },
-    { name: "karalama-defteri-results-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=karalama-defteri&subPhase=results`, width: 390, height: 844 },
-    { name: "karalama-defteri-draw-320x700.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=karalama-defteri&subPhase=draw`, width: 320, height: 700 },
-    { name: "karalama-defteri-draw-390x520.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=karalama-defteri&subPhase=draw`, width: 390, height: 520 },
-    { name: "karalama-defteri-landscape-844x390.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=karalama-defteri&subPhase=draw`, width: 844, height: 390 },
+    { name: "karalama-defteri-draw-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=karalama-defteri&subPhase=draw`, width: 390, height: 844 },
+    { name: "karalama-defteri-vote-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=karalama-defteri&subPhase=vote`, width: 390, height: 844 },
+    { name: "karalama-defteri-results-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=karalama-defteri&subPhase=results`, width: 390, height: 844 },
+    { name: "karalama-defteri-draw-320x700.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=karalama-defteri&subPhase=draw`, width: 320, height: 700 },
+    { name: "karalama-defteri-draw-390x520.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=karalama-defteri&subPhase=draw`, width: 390, height: 520 },
+    { name: "karalama-defteri-landscape-844x390.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=karalama-defteri&subPhase=draw`, width: 844, height: 390 },
 
     // İttifak
-    { name: "ittifak-bargain-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=ittifak&subPhase=bargain`, width: 390, height: 844 },
-    { name: "ittifak-vote-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=ittifak&subPhase=vote`, width: 390, height: 844 },
-    { name: "ittifak-results-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=ittifak&subPhase=results`, width: 390, height: 844 },
-    { name: "ittifak-bargain-320x700.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=ittifak&subPhase=bargain`, width: 320, height: 700 },
-    { name: "ittifak-vote-390x520.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=ittifak&subPhase=vote`, width: 390, height: 520 },
+    { name: "ittifak-bargain-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=ittifak&subPhase=bargain`, width: 390, height: 844 },
+    { name: "ittifak-vote-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=ittifak&subPhase=vote`, width: 390, height: 844 },
+    { name: "ittifak-results-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=ittifak&subPhase=results`, width: 390, height: 844 },
+    { name: "ittifak-bargain-320x700.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=ittifak&subPhase=bargain`, width: 320, height: 700 },
+    { name: "ittifak-vote-390x520.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=ittifak&subPhase=vote`, width: 390, height: 520 },
 
-    // Special states
-    { name: "spectator-mode-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=karalama-defteri&subPhase=draw&spectator=1`, width: 390, height: 844 },
-    { name: "density-8players-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=rusvet-darbe&subPhase=election&density=8`, width: 390, height: 844 },
-    { name: "action-accepted-390x844.png", url: `http://127.0.0.1:${PORT}/?stage11d_preview=yazi-yaz&subPhase=write&state=accepted`, width: 390, height: 844 }
+    // Special states: Spectator, 8-Player Density, Action Accepted, Action Pending, Action Rejected (Negative ACK)
+    { name: "spectator-mode-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=karalama-defteri&subPhase=draw&spectator=1`, width: 390, height: 844 },
+    { name: "density-8players-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=rusvet-darbe&subPhase=election&density=8`, width: 390, height: 844 },
+    { name: "action-accepted-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=write&state=accepted`, width: 390, height: 844 },
+    { name: "action-pending-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=write&state=pending`, width: 390, height: 844 },
+    { name: "action-rejected-390x844.png", url: `http://127.0.0.1:${PORT}/dev-stage11d.html?game=yazi-yaz&subPhase=guess&state=rejected`, width: 390, height: 844 }
   ];
 
   let successCount = 0;
   for (const task of captureTasks) {
     const destPath = path.resolve(OUT_DIR, task.name);
-    if (fs.existsSync(destPath) && fs.statSync(destPath).size > 1000) {
-      console.log(`[EXISTING] ${task.name} (${fs.statSync(destPath).size} bytes)`);
-      successCount++;
-      continue;
-    }
 
     const taskTempDir = fs.mkdtempSync(path.join(os.tmpdir(), "glix-edge-"));
     const args = [

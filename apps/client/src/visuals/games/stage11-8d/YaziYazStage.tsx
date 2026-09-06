@@ -649,7 +649,7 @@ export function YaziYazStage({
               <span>{isWriter ? "✍️ GİZLİ YAZAR" : "🛡️ MASUM OYUNCU"}</span>
               <span>
                 {isWriter
-                  ? "Sana gizli bir kelime verildi. Pusulana bir kelime yaz!"
+                  ? "Pusulana gizli bir kelime yaz! Tartışmada kelimeni belli etmemeye çalış."
                   : "Bu tur masumsun. Pusulanı onayla ve tartışmaya hazırlan."}
               </span>
             </div>

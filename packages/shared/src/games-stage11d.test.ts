@@ -502,3 +502,58 @@ test("Batch D Stage Components — Zero DOM leaks of secrets in className, id, d
     }
   }
 });
+
+// ---------------------------------------------------------------------------
+// 10. Regression — Production Application Graph Rejects Preview Harness / Routes
+// ---------------------------------------------------------------------------
+test("Regression — Production application graph strictly rejects Stage11DPreviewHarness and stage11d_preview", () => {
+  const prodFiles = [
+    resolve(__dirname, "../../../apps/client/src/App.tsx"),
+    resolve(__dirname, "../../../apps/client/src/main.tsx"),
+    resolve(__dirname, "../../../apps/client/index.html")
+  ];
+
+  for (const filePath of prodFiles) {
+    const content = readFileSync(filePath, "utf-8");
+    assert.ok(
+      !content.includes("Stage11DPreviewHarness"),
+      `Production file ${filePath} must not import or reference Stage11DPreviewHarness`
+    );
+    assert.ok(
+      !content.includes("stage11d_preview"),
+      `Production file ${filePath} must not reference query parameter or route stage11d_preview`
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 11. Privacy & Secret State Audit Across Stage Components
+// ---------------------------------------------------------------------------
+test("Batch D Privacy Audit — Secret roles, words, votes, and authors never leaked outside results", () => {
+  const stageFiles = [
+    "YaziYazStage.tsx",
+    "SozlukBlofuStage.tsx",
+    "CagrisimAgiStage.tsx",
+    "RusvetDarbeStage.tsx",
+    "KaralamaDefteriStage.tsx",
+    "IttifakStage.tsx"
+  ];
+
+  const clientDir = resolve(__dirname, "../../../apps/client/src/visuals/games/stage11-8d");
+
+  for (const file of stageFiles) {
+    const filePath = resolve(clientDir, file);
+    const content = readFileSync(filePath, "utf-8");
+
+    // Must not expose secrets via global window object or console
+    assert.ok(!content.includes("window.__"), `${file} must not write to window.__`);
+    assert.ok(!content.includes("console.log("), `${file} must not log to console`);
+
+    // Must not attach secrets as dataset attributes
+    assert.ok(!content.includes("data-role"), `${file} must not leak role in data-role`);
+    assert.ok(!content.includes("data-word"), `${file} must not leak word in data-word`);
+    assert.ok(!content.includes("data-author"), `${file} must not leak author in data-author`);
+    assert.ok(!content.includes("data-vote"), `${file} must not leak vote in data-vote`);
+  }
+});
+

@@ -18,6 +18,7 @@
     "test:engine": "npm run build --workspace @glix/shared && node --test packages/shared/dist/engine.test.js packages/shared/dist/contracts.test.js packages/shared/dist/games.test.js packages/shared/dist/games-stage7.test.js packages/shared/dist/games-stage8.test.js packages/shared/dist/games-stage9.test.js packages/shared/dist/catalog-stage10.test.js packages/shared/dist/games-stage11.test.js packages/shared/dist/lobby-availability-stage11.test.js packages/shared/dist/games-stage11d.test.js",
     "test:server": "npm run build --workspace @glix/shared && npm run build --workspace @glix/server && node --test apps/server/test/reconnect.integration.test.mjs",
     "test": "npm run test:engine && npm run test:server",
+    "smoke": "npm run smoke:realtime",
     "smoke:realtime": "node scripts/realtime-smoke.mjs",
     "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server"
   }

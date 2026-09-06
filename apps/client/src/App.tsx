@@ -44,7 +44,6 @@ import { PremiumStageHero } from "./visuals/stage/PremiumStageHero";
 import { KpkStage } from "./visuals/games/kontrol-paneli-kaosu/KpkStage";
 import { KendimStage } from "./visuals/games/kendim/KendimStage";
 import { isStage11DGameId, Stage11DStage } from "./visuals/games/stage11-8d/Stage11DStage";
-import { Stage11DPreviewHarness } from "./visuals/games/stage11-8d/Stage11DPreviewHarness";
 import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/visualAssetManifest";
 
 type ConnectionState = "connecting" | "connected" | "offline";
@@ -137,14 +136,6 @@ function isStage9GameId(gameId: GameId): gameId is Stage9GameId {
 }
 
 function App(): JSX.Element {
-  const previewGame = typeof window !== "undefined"
-    ? new URLSearchParams(window.location.search).get("stage11d_preview")
-    : null;
-
-  if (previewGame) {
-    return <Stage11DPreviewHarness gameId={previewGame} />;
-  }
-
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [serverVersion, setServerVersion] = useState("—");
   const [screen, setScreen] = useState<Screen>("home");

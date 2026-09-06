@@ -47,8 +47,8 @@ All six Batch D games adhere to the locked **Premium 2D Arcade / Neon Social Arc
 ### Sözlük Blöfü (`sozluk-blofu`)
 | Screenshot File | Subphase / State | Viewport | Visual Verification Details |
 |---|---|---|---|
-| `sozluk-blofu-write-390x844.png` | Write | 390x844 | Central dictionary word banner (`AGORA`), character counter, bluff input form |
-| `sozluk-blofu-choose-390x844.png` | Choose | 390x844 | Numbered definition cards (`#1` to `#4`), disabled own bluff card guard |
+| `sozluk-blofu-write-390x844.png` | Write | 390x844 | Central dictionary word banner (`MÜLHEM`), character counter, bluff input form |
+| `sozluk-blofu-choose-390x844.png` | Choose | 390x844 | Numbered definition cards (`definition-1` to `4`), disabled own bluff card guard |
 | `sozluk-blofu-results-390x844.png` | Results Reveal | 390x844 | Authentic dictionary definition reveal badge, bluff owner attributions |
 | `sozluk-blofu-choose-320x700.png` | Choose (Compact) | 320x700 | Compact layout with legible multiline definition typography |
 | `sozluk-blofu-write-390x520.png` | Write (Keyboard Safe) | 390x520 | Keyboard safe view ensuring bluff input and submit button stay in viewport |
@@ -56,8 +56,8 @@ All six Batch D games adhere to the locked **Premium 2D Arcade / Neon Social Arc
 ### Çağrışım Ağı (`cagrisim-agi`)
 | Screenshot File | Subphase / State | Viewport | Visual Verification Details |
 |---|---|---|---|
-| `cagrisim-agi-answer-390x844.png` | Answer | 390x844 | Glowing prompt node (`OKYANUS`), free-association input with submit CTA |
-| `cagrisim-agi-results-390x844.png` | Results Reveal | 390x844 | Cluster grouping nodes (`DERİNLİK` group vs `DALGA` solo), points calculation |
+| `cagrisim-agi-answer-390x844.png` | Answer | 390x844 | Glowing prompt node (`KÖPRÜ`), free-association input with submit CTA |
+| `cagrisim-agi-results-390x844.png` | Results Reveal | 390x844 | Cluster grouping nodes (`NEHİR` group vs `HALAT` solo), points calculation |
 | `cagrisim-agi-answer-320x700.png` | Answer (Compact) | 320x700 | Compressed node hierarchy on narrow viewports |
 | `cagrisim-agi-answer-390x520.png` | Answer (Keyboard Safe)| 390x520 | Safe area layout for fast virtual keyboard association submissions |
 
@@ -75,7 +75,7 @@ All six Batch D games adhere to the locked **Premium 2D Arcade / Neon Social Arc
 |---|---|---|---|
 | `karalama-defteri-draw-390x844.png` | Draw | 390x844 | Spiral sketchbook canvas, 6-color neon palette, brush size toggles, undo/clear |
 | `karalama-defteri-vote-390x844.png` | Vote | 390x844 | Suspect drawing gallery cards, anonymous stroke rendering |
-| `karalama-defteri-results-390x844.png` | Results Reveal | 390x844 | Outsider caught/escaped banner, secret word vs outsider word reveal |
+| `karalama-defteri-results-390x844.png` | Results Reveal | 390x844 | Outsider caught/escaped banner, secret word (`ELMA`) vs outsider word (`ARMUT`) reveal |
 | `karalama-defteri-draw-320x700.png` | Draw (Compact) | 320x700 | Responsive sketchbook canvas maintaining normalized 1:1 drawing coordinates |
 | `karalama-defteri-draw-390x520.png` | Draw (Keyboard Safe) | 390x520 | Drawing toolbar compact layout |
 | `karalama-defteri-landscape-844x390.png` | Draw (Landscape) | 844x390 | Contained canvas layout centered horizontally in landscape mode |
@@ -85,13 +85,15 @@ All six Batch D games adhere to the locked **Premium 2D Arcade / Neon Social Arc
 |---|---|---|---|
 | `ittifak-bargain-390x844.png` | Bargain | 390x844 | Roundtable diplomatic chamber, negotiation timer, strategic prompt |
 | `ittifak-vote-390x844.png` | Vote | 390x844 | Wax-sealed handshake vote cards, single-target selection |
-| `ittifak-results-390x844.png` | Results Reveal | 390x844 | Directed alliance network reveal, received vote tally and points |
+| `ittifak-results-390x844.png` | Results Reveal | 390x844 | Directed alliance network reveal, received vote tally (exact sum = 4) and points |
 | `ittifak-bargain-320x700.png` | Bargain (Compact) | 320x700 | Responsive roundtable table on 320px width |
 | `ittifak-vote-390x520.png` | Vote (Keyboard Safe) | 390x520 | Compact vote grid |
 
-### Cross-Cutting & Extreme States
+### Cross-Cutting & Protocol v3 Action States
 | Screenshot File | Description | Viewport | Visual Verification Details |
 |---|---|---|---|
 | `spectator-mode-390x844.png` | Spectator View | 390x844 | Read-only spectator badge, hidden action forms, secret state completely redacted |
 | `density-8players-390x844.png` | 8-Player Density | 390x844 | Maximum room capacity (8 players) in HUD roster without wrapping or truncation |
-| `action-accepted-390x844.png` | Action Confirmation | 390x844 | Protocol v3 action reducer feedback with sealed checkmark and disabled form |
+| `action-accepted-390x844.png` | Action Confirmation (Positive ACK) | 390x844 | Protocol v3 action reducer feedback with sealed checkmark and disabled form |
+| `action-pending-390x844.png` | Action Pending (In-Flight) | 390x844 | Action fence active with `aria-busy` and disabled controls during server roundtrip |
+| `action-rejected-390x844.png` | Negative ACK (Rejection Feedback) | 390x844 | Visible alert banner (`stage11d-negative-ack-card`) indicating invalid move/target |

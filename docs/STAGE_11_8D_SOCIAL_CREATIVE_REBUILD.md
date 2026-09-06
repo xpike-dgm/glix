@@ -129,35 +129,58 @@ Created comprehensive test suite in `packages/shared/src/games-stage11d.test.ts`
 7. **Disconnect Policies**: Verified `skip-disconnected` (Yazı Yaz, Rüşvet ve Darbe, Karalama Defteri) and `neutral-missing` (İttifak).
 8. **Protocol v3 Action Correlation**: Wire protocol version declaration assertions.
 9. **Static DOM Privacy Leak Scan**: Regex scan over all 6 stage files confirming zero leaks of `role`, `assignedWord`, `secretWord`, `isOutsider`, or `bluffText` into DOM attributes (`id`, `className`, `data-*`, `aria-label`).
+10. **Regression — Production Isolation**: Regression test asserting `App.tsx`, `main.tsx`, and `index.html` strictly reject `Stage11DPreviewHarness` and `stage11d_preview`.
+11. **Privacy & Secret State Audit**: Test verifying zero leaks to `window.__`, `console.log`, `data-role`, `data-word`, `data-author`, `data-vote`.
 
 ---
 
-## 4. Verification Results
+## 4. Corrective Pass Summary
+
+Prior to independent review, a comprehensive corrective pass was executed:
+1. **Production Graph Isolation**:
+   - Removed `Stage11DPreviewHarness` and `?stage11d_preview=` from `apps/client/src/App.tsx`.
+   - Added a permanent regression test in `packages/shared/src/games-stage11d.test.ts` ensuring production graph rejects preview harnesses and query params.
+   - Isolated dev visual QA to a dedicated dev entrypoint `apps/client/dev-stage11d.html` and `apps/client/src/dev-stage11d.tsx`.
+2. **Authoritative Fixture Integrity**:
+   - Cross-checked and corrected fixture values to match real authoritative adapters and pools:
+     - Sözlük Blöfü: `MÜLHEM` from `DICTIONARY_POOL`, `definition-1`..`4`, fixed `bluffText` ownState field.
+     - Çağrışım Ağı: `KÖPRÜ` from `ASSOCIATION_POOL`, matching cluster scoring.
+     - Karalama Defteri: `ELMA` (common) and `ARMUT` (outsider) from `DRAWING_POOL`.
+     - Rüşvet ve Darbe: exact 3-point budget matching 3 election votes, 1..2 point bounds.
+     - İttifak: exact 4 votes total across 4 players (sum = 4).
+     - Yazı Yaz: writer authors own word rather than receiving a pre-assigned word.
+3. **Protocol v3 Action States & Negative ACK**:
+   - Added `.stage11d-negative-ack-card` in `stage11-8d.css` and `Stage11DStage.tsx` with `role="alert"` for rejection feedback.
+   - Captured `action-pending-390x844.png` and `action-rejected-390x844.png` (total 37 screenshots).
+
+---
+
+## 5. Verification Results
 
 | Verification Item | Command | Result | Details |
 |---|---|---|---|
-| **Batch D Tests** | `node --test packages/shared/dist/games-stage11d.test.js` | **PASS (10/10)** | Subphases, privacy, targets, scoring, DOM scan |
-| **All Engine Tests** | `npm run test:engine` | **PASS (85/85)** | 75 baseline + 10 Batch D tests |
+| **Batch D Tests** | `node --test packages/shared/dist/games-stage11d.test.js` | **PASS (12/12)** | Subphases, privacy, targets, scoring, DOM scan, regression |
+| **All Engine Tests** | `npm run test:engine` | **PASS (87/87)** | 75 baseline + 12 Batch D tests |
 | **Server Tests** | `npm run test:server` | **PASS (10/10)** | Reconnect integration tests |
-| **Total Automated Tests** | `npm test` | **PASS (95/95)** | Zero failures across the repository |
+| **Total Automated Tests** | `npm test` | **PASS (97/97)** | Zero failures across the repository |
 | **TypeScript Typecheck** | `npm run typecheck` | **PASS (0 errors)** | Clean compilation for shared, client, server |
-| **Production Build** | `npm run build` | **PASS** | Shared tsc, Client Vite (433 kB), Server tsc |
-| **Realtime Smoke** | `npm run smoke:realtime` | **PASS** | Room creation, join, game select, start |
-| **Headless Browser QA** | `scripts/capture-stage11d-screenshots.mjs` | **PASS (35/35)** | Full matrix captured in `docs/screenshots/stage11d/` |
+| **Production Build** | `npm run build` | **PASS** | Shared tsc, Client Vite (125 kB main), Server tsc |
+| **Realtime Smoke** | `npm run smoke` | **PASS** | Room creation, join, game select, start |
+| **Headless Browser QA** | `scripts/capture-stage11d-screenshots.mjs` | **PASS (37/37)** | Full matrix captured in `docs/screenshots/stage11d/` |
 
 ---
 
-## 5. Viewport & Browser QA Matrix
+## 6. Viewport & Browser QA Matrix
 
-All 35 screenshots captured and saved to `docs/screenshots/stage11d/`:
-- **390 × 844 px (Standard Phone)**: Primary views for all 6 games, all subphases, spectator mode, and 8-player density.
+All 37 screenshots captured and saved to `docs/screenshots/stage11d/`:
+- **390 × 844 px (Standard Phone)**: Primary views for all 6 games, all subphases, spectator mode, 8-player density, accepted ACK, pending ACK, and negative ACK.
 - **320 × 700 px (Compact Phone)**: Verified no horizontal scrolling, hit targets >= 44px, legible typography.
 - **390 × 520 px (Keyboard Safe)**: Verified scroll containment and visible submit buttons when virtual keyboard opens.
 - **844 × 390 px (Landscape Smoke)**: Verified centered stage containment with 9:16 aspect ratio preserving gameplay geometry.
 
 ---
 
-## 6. Review & Acceptance Note
+## 7. Review & Acceptance Note
 
 **STATUS**: `INDEPENDENT REVIEW REQUIRED — NOT YET ACCEPTED`  
 All authoritative rules, contracts, and design criteria for Stage 11.8D have been strictly implemented and verified with zero regression to existing systems.

@@ -135,6 +135,12 @@ export function Stage11DStage({
         </div>
       ) : (
         <div className="stage11d-stage-surface" key={`${gameId}-${phase}`}>
+          {actionState?.status === "rejected" && (
+            <div className="stage11d-negative-ack-card" role="alert">
+              <span aria-hidden="true">⚠️</span>
+              <span>{actionState.reason ?? "Hamle geçersiz veya reddedildi."}</span>
+            </div>
+          )}
           <fieldset
             className="stage11d-action-fence"
             disabled={actionState?.status === "pending"}

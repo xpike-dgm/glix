@@ -97,11 +97,11 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           entries: subPhase === "results" ? [
             { playerId: "p1", role: "writer", word: "KÖPRÜ" },
             { playerId: "p2", role: "innocent", word: null },
-            { playerId: "p3", role: "writer", word: "KÖPRÜ" },
+            { playerId: "p3", role: "writer", word: "GÖKYÜZÜ" },
             { playerId: "p4", role: "innocent", word: null }
           ] : null,
           guesses: subPhase === "results" ? [
-            { playerId: "p1", targetWriterId: "p3", targetWord: "KÖPRÜ", personCorrect: true, wordCorrect: true, points: 2 },
+            { playerId: "p1", targetWriterId: "p3", targetWord: "GÖKYÜZÜ", personCorrect: true, wordCorrect: true, points: 2 },
             { playerId: "p2", targetWriterId: "p1", targetWord: "KÖPRÜ", personCorrect: true, wordCorrect: true, points: 2 },
             { playerId: "p3", targetWriterId: "p1", targetWord: "KÖPRÜ", personCorrect: true, wordCorrect: true, points: 2 },
             { playerId: "p4", targetWriterId: "p2", targetWord: "GEMİ", personCorrect: false, wordCorrect: false, points: 0 }
@@ -117,9 +117,9 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           gameId: "yazi-yaz",
           kind: "yazi-yaz",
           role: "writer",
-          assignedWord: "KÖPRÜ",
+          assignedWord: subPhase === "write" && stateStr !== "accepted" ? null : "KÖPRÜ",
           canGuess: subPhase === "guess",
-          hasWritten: stateStr === "accepted",
+          hasWritten: subPhase !== "write" || stateStr === "accepted",
           guessTargetPlayerIds: ["p2", "p3", "p4"],
           hasGuessed: subPhase === "results" || stateStr === "accepted",
           finished: subPhase === "results"
@@ -135,15 +135,15 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           subPhase,
           phaseEndsAt: now + 30_000,
           finished: subPhase === "results",
-          word: "AGORA",
+          word: "MÜLHEM",
           definitions: subPhase === "write" ? null : [
-            { id: "def-1", text: "Antik Yunan kentlerinde halk meydanı ve pazar yeri.", ownerId: null, isReal: subPhase === "results" ? true : null, selectedByPlayerIds: subPhase === "results" ? ["p1", "p3"] : [] },
-            { id: "def-2", text: "Deniz kabuklularından elde edilen kırmızı renkli boyar madde.", ownerId: subPhase === "results" ? "p1" : null, isReal: subPhase === "results" ? false : null, selectedByPlayerIds: subPhase === "results" ? ["p2"] : [] },
-            { id: "def-3", text: "Dağ yamaçlarında rüzgâr erozyonunu önleyen taş teras.", ownerId: subPhase === "results" ? "p2" : null, isReal: subPhase === "results" ? false : null, selectedByPlayerIds: subPhase === "results" ? ["p4"] : [] },
-            { id: "def-4", text: "Eski çağlarda zeytinyağı depolamak için kullanılan toprak kap.", ownerId: subPhase === "results" ? "p4" : null, isReal: subPhase === "results" ? false : null, selectedByPlayerIds: [] }
+            { id: "definition-1", text: "Bir düşünceyi veya sözü başka bir anlam katmanına taşıyan eski bir anlatım biçimi.", ownerId: null, isReal: subPhase === "results" ? true : null, selectedByPlayerIds: subPhase === "results" ? ["p1", "p3"] : [] },
+            { id: "definition-2", text: "Geceleri parıldayan narin bir süs eşyası türü.", ownerId: subPhase === "results" ? "p1" : null, isReal: subPhase === "results" ? false : null, selectedByPlayerIds: subPhase === "results" ? ["p2"] : [] },
+            { id: "definition-3", text: "Eski zamanlarda kumaş boyamak için kullanılan kök boya karışımı.", ownerId: subPhase === "results" ? "p2" : null, isReal: subPhase === "results" ? false : null, selectedByPlayerIds: subPhase === "results" ? ["p4"] : [] },
+            { id: "definition-4", text: "Taş binalarda pencereleri rüzgârdan koruyan dar ahşap çerçeve.", ownerId: subPhase === "results" ? "p4" : null, isReal: subPhase === "results" ? false : null, selectedByPlayerIds: [] }
           ],
           resultPoints: subPhase === "results" ? [
-            { playerId: "p1", points: 3 },
+            { playerId: "p1", points: 2 },
             { playerId: "p2", points: 1 },
             { playerId: "p3", points: 1 },
             { playerId: "p4", points: 0 }
@@ -153,9 +153,8 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           gameId: "sozluk-blofu",
           kind: "sozluk-blofu",
           hasWritten: subPhase !== "write" || stateStr === "accepted",
-          bluff: "Deniz kabuklularından elde edilen kırmızı renkli boyar madde.",
+          bluffText: "Geceleri parıldayan narin bir süs eşyası türü.",
           hasChosen: subPhase === "results" || stateStr === "accepted",
-          chosenDefinitionId: "def-1",
           finished: subPhase === "results"
         };
         return { publicState: pub, ownState: own, gameName: "Sözlük Blöfü" };
@@ -169,10 +168,10 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           subPhase,
           phaseEndsAt: now + 18_000,
           finished: subPhase === "results",
-          mainWord: "OKYANUS",
+          mainWord: "KÖPRÜ",
           groups: subPhase === "results" ? [
-            { answer: "DERİNLİK", playerIds: ["p1", "p2", "p3"], points: 3 },
-            { answer: "DALGA", playerIds: ["p4"], points: 0 }
+            { answer: "NEHİR", playerIds: ["p1", "p2", "p3"], points: 3 },
+            { answer: "HALAT", playerIds: ["p4"], points: 0 }
           ] : null,
           resultPoints: subPhase === "results" ? [
             { playerId: "p1", points: 3 },
@@ -185,7 +184,7 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           gameId: "cagrisim-agi",
           kind: "cagrisim-agi",
           hasSubmitted: subPhase === "results" || stateStr === "accepted",
-          answer: "DERİNLİK",
+          answer: "NEHİR",
           finished: subPhase === "results"
         };
         return { publicState: pub, ownState: own, gameName: "Çağrışım Ağı" };
@@ -260,8 +259,8 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
             { playerId: "p4", votes: 3 }
           ] : null,
           outsiderPlayerId: subPhase === "results" ? "p4" : null,
-          commonWord: subPhase === "results" ? "KAHVE" : null,
-          outsiderWord: subPhase === "results" ? "ÇAY" : null,
+          commonWord: subPhase === "results" ? "ELMA" : null,
+          outsiderWord: subPhase === "results" ? "ARMUT" : null,
           outsiderCaught: subPhase === "results" ? true : null,
           resultPoints: subPhase === "results" ? [
             { playerId: "p1", points: 1 },
@@ -274,7 +273,7 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           gameId: "karalama-defteri",
           kind: "karalama-defteri",
           role: "informed",
-          assignedWord: "KAHVE",
+          assignedWord: "ELMA",
           hasDrawing: true,
           hasVoted: subPhase === "results" || stateStr === "accepted",
           finished: subPhase === "results"
@@ -292,13 +291,13 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           finished: subPhase === "results",
           voteCounts: subPhase === "results" ? [
             { playerId: "p1", votes: 2 },
-            { playerId: "p2", votes: 2 },
+            { playerId: "p2", votes: 1 },
             { playerId: "p3", votes: 1 },
             { playerId: "p4", votes: 0 }
           ] : null,
           resultPoints: subPhase === "results" ? [
             { playerId: "p1", points: 2 },
-            { playerId: "p2", points: 2 },
+            { playerId: "p2", points: 1 },
             { playerId: "p3", points: 1 },
             { playerId: "p4", points: 0 }
           ] : null
@@ -335,7 +334,17 @@ export function Stage11DPreviewHarness({ gameId: rawGameId }: { readonly gameId:
           actionId: "act-1",
           ackStateVersion: 1
         } as ClientActionState)
-      : null;
+      : stateStr === "rejected"
+        ? ({
+            status: "rejected",
+            scope: { matchId: "m1", gameId: validGameId, phaseIndex: 1, actionScope: "subPhase", sessionId: "s1", spectator: isSpectator },
+            authoritativeVersion: 1,
+            mode: "single",
+            actionId: "act-1",
+            ackStateVersion: 1,
+            reason: "Hamle geçersiz veya hedef kural dışı."
+          } as ClientActionState)
+        : null;
 
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
