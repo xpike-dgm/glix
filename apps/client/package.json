@@ -12,13 +12,16 @@
   "dependencies": {
     "@glix/shared": "0.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "workbox-window": "^7.3.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vite-pwa/assets-generator": "^0.2.6",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.3",
-    "vite": "^6.1.0"
+    "vite": "^6.1.0",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

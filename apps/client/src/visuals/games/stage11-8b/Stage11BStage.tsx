@@ -1,11 +1,14 @@
+import { lazy, Suspense } from "react";
 import type { JSX } from "react";
 import type { ClientActionState, GameId, JsonValue, MatchPlayerState, RuntimePhaseId } from "@glix/shared";
-import { CaprazAtesStage } from "./CaprazAtesStage";
-import { KorBombaStage } from "./KorBombaStage";
-import { MemoryStage } from "./MemoryStage";
-import { RusRuletiStage } from "./RusRuletiStage";
-import { SizmaStage } from "./SizmaStage";
-import ZehirliKadehStage from "./ZehirliKadehStage";
+import { safeLazy, StageLoadingFallback } from "../../../lazyPreload";
+
+const LazyCaprazAtesStage = lazy(safeLazy(() => import("./CaprazAtesStage").then((m) => ({ default: m.CaprazAtesStage }))));
+const LazyKorBombaStage = lazy(safeLazy(() => import("./KorBombaStage").then((m) => ({ default: m.KorBombaStage }))));
+const LazyMemoryStage = lazy(safeLazy(() => import("./MemoryStage").then((m) => ({ default: m.MemoryStage }))));
+const LazyRusRuletiStage = lazy(safeLazy(() => import("./RusRuletiStage").then((m) => ({ default: m.RusRuletiStage }))));
+const LazySizmaStage = lazy(safeLazy(() => import("./SizmaStage").then((m) => ({ default: m.SizmaStage }))));
+const LazyZehirliKadehStage = lazy(safeLazy(() => import("./ZehirliKadehStage")));
 
 export type Stage11BGameId = Extract<
   GameId,
@@ -59,21 +62,33 @@ const PHASE_COPY: Readonly<Record<RuntimePhaseId, string>> = {
   finished: "Bu rota tamamlandı."
 };
 
-function gameSurface(props: Omit<Stage11BStageProps, "gameName" | "phase" | "isReady" | "onReady" | "actionState">): JSX.Element {
+function gameSurface(props: Omit<Stage11BStageProps, "phase" | "isReady" | "onReady" | "actionState">): JSX.Element {
+  let surface: JSX.Element;
   switch (props.gameId) {
     case "sizma":
-      return <SizmaStage {...props} />;
+      surface = <LazySizmaStage {...props} />;
+      break;
     case "rus-ruleti":
-      return <RusRuletiStage {...props} />;
+      surface = <LazyRusRuletiStage {...props} />;
+      break;
     case "kor-bomba":
-      return <KorBombaStage {...props} />;
+      surface = <LazyKorBombaStage {...props} />;
+      break;
     case "zehirli-kadeh":
-      return <ZehirliKadehStage {...props} />;
+      surface = <LazyZehirliKadehStage {...props} />;
+      break;
     case "capraz-ates":
-      return <CaprazAtesStage {...props} />;
+      surface = <LazyCaprazAtesStage {...props} />;
+      break;
     case "zaman-bombasi-hafizasi":
-      return <MemoryStage {...props} />;
+      surface = <LazyMemoryStage {...props} />;
+      break;
   }
+  return (
+    <Suspense fallback={<StageLoadingFallback gameName={props.gameName} />}>
+      {surface}
+    </Suspense>
+  );
 }
 
 export function Stage11BStage({
@@ -91,7 +106,7 @@ export function Stage11BStage({
   onReady,
   onSubmit
 }: Stage11BStageProps): JSX.Element {
-  const surfaceProps = { gameId, publicState, ownState, selfPlayerId, players, now, isSpectator, onSubmit };
+  const surfaceProps = { gameId, gameName, publicState, ownState, selfPlayerId, players, now, isSpectator, onSubmit };
   const actionKey = actionState === null
     ? "no-action"
     : `${actionState.status}-${actionState.status === "pending" ? actionState.actionId : actionState.status === "rejected" || actionState.status === "accepted" ? actionState.ackStateVersion : actionState.authoritativeVersion}`;
