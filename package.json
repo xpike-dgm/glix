@@ -19,6 +19,7 @@
     "test:server": "npm run build --workspace @glix/shared && npm run build --workspace @glix/server && node --test apps/server/test/reconnect.integration.test.mjs",
     "test:client-privacy": "node --test scripts/stage11a-privacy-sinks.test.mjs",
     "test": "npm run test:engine && npm run test:server && npm run test:client-privacy",
+    "smoke": "npm run smoke:realtime",
     "smoke:realtime": "node scripts/realtime-smoke.mjs",
     "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server"
   }
