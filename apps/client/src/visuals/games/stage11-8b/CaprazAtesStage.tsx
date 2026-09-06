@@ -71,7 +71,7 @@ const CROSSfire_STYLE = `
 .stage11b-crossfire__target-hint { color: var(--cf-dim); font-size: .43rem; font-weight: 900; letter-spacing: .12em; }
 .stage11b-crossfire__target.is-confirmed { border-color: rgba(255, 95, 207, .78); background: rgba(79, 24, 75, .4); box-shadow: 0 0 .9rem rgba(255, 95, 207, .14); }
 .stage11b-crossfire__target.is-confirmed .stage11b-crossfire__target-hint { color: var(--cf-pink); }
-.stage11b-crossfire__miss { min-height: 2.45rem; border: 1px dashed rgba(143, 155, 184, .38); border-radius: .72rem; color: var(--cf-dim); background: rgba(5, 9, 25, .42); cursor: pointer; font-size: .56rem; font-weight: 950; letter-spacing: .14em; }
+.stage11b-crossfire__miss { min-height: 44px; border: 1px dashed rgba(143, 155, 184, .38); border-radius: .72rem; color: var(--cf-dim); background: rgba(5, 9, 25, .42); cursor: pointer; font-size: .56rem; font-weight: 950; letter-spacing: .14em; }
 .stage11b-crossfire__miss:hover:not(:disabled), .stage11b-crossfire__miss:focus-visible:not(:disabled) { border-color: var(--cf-gold); color: var(--cf-gold); outline: none; }
 .stage11b-crossfire__miss:disabled { cursor: not-allowed; opacity: .5; }
 .stage11b-crossfire__status { min-height: 1.05rem; margin: 0; color: var(--cf-dim); font-size: .55rem; font-weight: 800; line-height: 1.35; }
@@ -180,10 +180,10 @@ function ResultArena({ publicState, players }: { readonly publicState: CaprazAte
     <div className="stage11b-crossfire__result-shell">
       <div className="stage11b-crossfire__result-heading">
         <div>
-          <span className="stage11b-crossfire__eyebrow">ATEŞ HATTI AÇILDI</span>
+          <span className="stage11b-crossfire__eyebrow">NEON BAĞLAR AÇILDI</span>
           <strong>Çapraz bağlantılar çözüldü.</strong>
         </div>
-        <small>{results.length} OYUNCU · SONUÇ ARENASI</small>
+          <small>{results.length} OYUNCU · BAĞLANTI ARENASI</small>
       </div>
 
       <div className="stage11b-crossfire__arena" aria-label="Çapraz Ateş sonuç arenası">
@@ -223,18 +223,18 @@ function ResultArena({ publicState, players }: { readonly publicState: CaprazAte
           if (result.targetPlayerId !== null) return null;
           const point = positions.get(result.playerId) ?? pointFor(index, results.length);
           const style = { left: `${point.x + (point.x < 50 ? -7 : 7)}%`, top: `${point.y + (point.y < 50 ? -4 : 4)}%` } satisfies CSSProperties;
-          return <span key={`miss-label-${result.playerId}`} className="stage11b-crossfire__miss-ray-label" style={style}>BOŞ ATIŞ</span>;
+          return <span key={`miss-label-${result.playerId}`} className="stage11b-crossfire__miss-ray-label" style={style}>BOŞ HAT</span>;
         })}
       </div>
 
       <div className="stage11b-crossfire__result-list">
         {results.map((result) => {
           const kind = resultKind(result, resultByPlayer);
-          const targetText = result.targetPlayerId === null ? "BOŞ ATIŞ" : `HEDEF · ${playerName(players, result.targetPlayerId)}`;
+          const targetText = result.targetPlayerId === null ? "BOŞ HAT" : `BAĞ · ${playerName(players, result.targetPlayerId)}`;
           const scoreClass = result.points > 0 ? "is-positive" : result.points < 0 ? "is-negative" : "";
           return (
             <div key={`result-${result.playerId}`} className={`stage11b-crossfire__result-card is-${kind}`}>
-              <span className="stage11b-crossfire__result-card-name"><strong>{playerName(players, result.playerId)}</strong><small>{kind === "mutual" ? "KARŞILIKLI · SÖNÜMLENDİ" : kind === "penalty" ? "GELEN ATEŞ · CEZA" : kind === "reward" ? "HAT TEMİZ · ÖDÜL" : `${targetText} · GÜVENLİK ÖDÜLÜ`}</small></span>
+              <span className="stage11b-crossfire__result-card-name"><strong>{playerName(players, result.playerId)}</strong><small>{kind === "mutual" ? "KARŞILIKLI BAĞ · SÖNÜMLENDİ" : kind === "penalty" ? "ÜZERİNE GELEN BAĞ · CEZA" : kind === "reward" ? "DÜĞÜM TEMİZ · ÖDÜL" : `${targetText} · GÜVENLİ HAT`}</small></span>
               <b className={`stage11b-crossfire__result-points ${scoreClass}`}>{signedPoints(result.points)}</b>
             </div>
           );
@@ -293,8 +293,8 @@ export function CaprazAtesStage({ publicState, ownState, players, selfPlayerId, 
   const timerCritical = remaining !== null && remaining <= 5;
   const timerLabel = remaining === null ? "—" : String(remaining).padStart(2, "0");
   const targetLabel = serverHasSubmitted
-    ? authoritativeTarget ? playerName(players, authoritativeTarget) : "BOŞ ATIŞ"
-    : visibleTarget ? playerName(players, visibleTarget) : localChoice?.targetPlayerId === null ? "BOŞ ATIŞ" : null;
+     ? authoritativeTarget ? playerName(players, authoritativeTarget) : "BOŞ HAT"
+     : visibleTarget ? playerName(players, visibleTarget) : localChoice?.targetPlayerId === null ? "BOŞ HAT" : null;
 
   const submitChoice = (targetPlayerId: string | null): void => {
     if (!canEdit) return;
@@ -311,9 +311,9 @@ export function CaprazAtesStage({ publicState, ownState, players, selfPlayerId, 
       <style>{CROSSfire_STYLE}</style>
       <header className="stage11b-crossfire__header">
         <div>
-          <span className="stage11b-crossfire__eyebrow">STAGE 11.8B · ÇAPRAZ ATEŞ</span>
-          <strong className="stage11b-crossfire__title">Hattını seç. İzini sakla.</strong>
-          <span className="stage11b-crossfire__subline">Bağlantılar sonuç açılana kadar görünmez. Sadece canlı, oyunda ve kendin olmayan oyuncular seçilebilir.</span>
+          <span className="stage11b-crossfire__eyebrow">NEON DÜĞÜM · ÇAPRAZ ATEŞ</span>
+          <strong className="stage11b-crossfire__title">Bir düğüm seç. İzini sakla.</strong>
+          <span className="stage11b-crossfire__subline">Bağlar sonuç açılana kadar görünmez. Canlı oyunculardan birini ya da boş hattı seç.</span>
         </div>
         <div className={`stage11b-crossfire__timer${timerCritical ? " is-critical" : ""}`}>
           <strong>{timerLabel}</strong>
@@ -332,18 +332,18 @@ export function CaprazAtesStage({ publicState, ownState, players, selfPlayerId, 
             <span className="stage11b-crossfire__reticle-corner" aria-hidden="true" />
             <span className="stage11b-crossfire__reticle-lines" aria-hidden="true" />
             <div className="stage11b-crossfire__reticle-core">
-              <div className="stage11b-crossfire__reticle-label"><strong>{isSpectator ? "GÖZLEM" : visibleTarget ? "KİLİTLİ" : "HEDEF"}</strong><small>{isSpectator ? "ÖZEL NİYETLER GİZLİ" : "AĞ GİZLİ"}</small></div>
+              <div className="stage11b-crossfire__reticle-label"><strong>{isSpectator ? "İZLEME" : visibleTarget ? "SEÇİLDİ" : "DÜĞÜM"}</strong><small>{isSpectator ? "ÖZEL SEÇİMLER GİZLİ" : "İZİN GİZLİ"}</small></div>
             </div>
           </div>
 
           {isSpectator ? (
             <div className="stage11b-crossfire__controls">
-              <div className="stage11b-crossfire__control-heading"><strong>GİZLİ ATIŞ FAZI</strong><small>PUBLIC VIEW</small></div>
+              <div className="stage11b-crossfire__control-heading"><strong>GİZLİ BAĞLAR</strong><small>İZLEMEDE</small></div>
               <StatusLine kind="spectator">Oyuncu hedefleri sonuç açılana kadar gizlidir.</StatusLine>
             </div>
           ) : (
             <div className="stage11b-crossfire__controls">
-              <div className="stage11b-crossfire__control-heading"><strong>HEDEF MATRİSİ</strong><small>{eligibleTargets.length} CANLI HEDEF</small></div>
+              <div className="stage11b-crossfire__control-heading"><strong>DÜĞÜM SEÇ</strong><small>{eligibleTargets.length} CANLI OYUNCU</small></div>
               <div className="stage11b-crossfire__targets">
                 {eligibleTargets.map((player) => {
                   const isCurrent = visibleTarget === player.id;
@@ -352,17 +352,17 @@ export function CaprazAtesStage({ publicState, ownState, players, selfPlayerId, 
                     <button key={player.id} className="stage11b-crossfire__target" type="button" disabled={!canEdit} style={style} onClick={() => submitChoice(player.id)}>
                       <span className="stage11b-crossfire__target-mark">{initials(player.nickname)}</span>
                       <strong className="stage11b-crossfire__target-name">{player.nickname}</strong>
-                      <small className="stage11b-crossfire__target-hint">{isCurrent ? "HEDEF GEÇİCİ KİLİTLİ" : "HEDEFLE"}</small>
+                      <small className="stage11b-crossfire__target-hint">{isCurrent ? "SEÇİM BEKLENİYOR" : "BAĞLA"}</small>
                     </button>
                   );
                 })}
               </div>
-              <button className="stage11b-crossfire__miss" type="button" disabled={!canEdit} onClick={() => submitChoice(null)}>BOŞA SIK · İZ BIRAKMA</button>
-              {isPending && <StatusLine kind="pending">Seçimin iletiliyor… Bu panel eski ağ yanıtında yeniden düzenlenebilir.</StatusLine>}
+              <button className="stage11b-crossfire__miss" type="button" disabled={!canEdit} onClick={() => submitChoice(null)}>BOŞ HAT · İZ BIRAKMA</button>
+              {isPending && <StatusLine kind="pending">Seçimin iletiliyor… Birazdan tekrar değiştirebilirsin.</StatusLine>}
               {isRejected && <StatusLine kind="rejected">Seçim kabul edilmedi veya eskidi. Hedefleri yeniden seçebilirsin.</StatusLine>}
-              {serverHasSubmitted && <StatusLine kind="confirmed">Atış kaydedildi. Sonuç açılana kadar hedefin gizli.</StatusLine>}
-              {!isPending && !isRejected && !serverHasSubmitted && <StatusLine kind="neutral">Bir hedef seçebilir veya güvenli bir boşa atış yapabilirsin.</StatusLine>}
-              {targetLabel && <p className="stage11b-crossfire__selection">Geçerli özel seçim: <strong>{targetLabel}</strong></p>}
+              {serverHasSubmitted && <StatusLine kind="confirmed">Seçimin kaydedildi. Sonuç açılana kadar hedefin gizli.</StatusLine>}
+              {!isPending && !isRejected && !serverHasSubmitted && <StatusLine kind="neutral">Bir düğüm seçebilir veya hattını boş bırakabilirsin.</StatusLine>}
+              {targetLabel && <p className="stage11b-crossfire__selection">Seçimin: <strong>{targetLabel}</strong></p>}
             </div>
           )}
         </>

@@ -41,22 +41,13 @@ interface Stage11BStageProps {
   readonly onSubmit: (payload: JsonValue) => void;
 }
 
-const PHASE_LABELS: Readonly<Record<RuntimePhaseId, string>> = {
-  tutorial: "KISA TANITIM",
-  preparing: "HAZIRLIK KAPISI",
-  playing: "CANLI TUR",
-  results: "SONUÇ KİLİDİ",
-  transition: "GEÇİŞ",
-  finished: "ROTA SONU"
-};
-
 const PHASE_COPY: Readonly<Record<RuntimePhaseId, string>> = {
-  tutorial: "Nesne, ritim ve güvenlik sınırı burada görünür.",
-  preparing: "Hazır olduğunda kendi cihazından kapıyı aç.",
-  playing: "Hamle sunucunun güncel sahne durumuyla doğrulanır.",
-  results: "Sonuçlar açıldı; özel bilgiler yalnızca izin verilen sınırda görünür.",
-  transition: "Bir sonraki yüzey kuruluyor.",
-  finished: "Bu rota tamamlandı."
+  tutorial: "Oyunun ritmini ve ana nesnesini tanı.",
+  preparing: "Hazır olduğunda kendi cihazından oyuna katıl.",
+  playing: "Sıran geldiğinde hamleni kendi cihazından yap.",
+  results: "Turun sonucu açık; puanlar şimdi sahnede.",
+  transition: "Sıradaki oyun hazırlanıyor.",
+  finished: "Bu oyun tamamlandı."
 };
 
 function gameSurface(props: Omit<Stage11BStageProps, "gameName" | "phase" | "isReady" | "onReady" | "actionState">): JSX.Element {
@@ -97,25 +88,15 @@ export function Stage11BStage({
     : `${actionState.status}-${actionState.status === "pending" ? actionState.actionId : actionState.status === "rejected" || actionState.status === "accepted" ? actionState.ackStateVersion : actionState.authoritativeVersion}`;
 
   return (
-    <div className={`stage11b-stage stage11b-stage-${gameId} stage11b-stage-phase-${phase}`}>
-      <header className="stage11b-stage-header">
-        <div>
-          <span className="stage11b-stage-kicker">GLIX / STAGE 11.8B · HIDDEN RISK TARGET</span>
-          <h1>{gameName}</h1>
-        </div>
-        <div className="stage11b-stage-phase">
-          <span>{PHASE_LABELS[phase]}</span>
-          <small>{PHASE_COPY[phase]}</small>
-        </div>
-      </header>
+    <div className={`stage11b-stage stage11b-stage-${gameId} stage11b-stage-phase-${phase}`} role="region" aria-label={`${gameName} oyun alanı`}>
 
       {phase === "preparing" && (
         <section className="stage11b-ready-card" aria-live="polite">
           <div className="stage11b-ready-seal" aria-hidden="true">{isReady ? "✓" : "→"}</div>
           <div>
-            <span>{isSpectator ? "PUBLIC WATCH" : isReady ? "GATE OPEN" : "READY BARRIER"}</span>
-            <strong>{isSpectator ? "Hazırlık bariyerini izliyorsun." : isReady ? "Hazırsın." : "Sahneye katıl."}</strong>
-            <small>{isSpectator ? "Sadece kamusal sahne akışı gösterilir." : isReady ? "Diğer oyuncuların hazır olmasını bekliyoruz." : "Kendi cihazındaki hazır düğmesiyle kilidi aç."}</small>
+            <span>{isSpectator ? "İZLEMEDE" : isReady ? "HAZIR" : "OYUNA KATIL"}</span>
+            <strong>{isSpectator ? "Bu turu izliyorsun." : isReady ? "Hazırsın." : "Sahneye katıl."}</strong>
+            <small>{isSpectator ? "Ortak oyun akışı burada görünür." : isReady ? "Diğer oyuncuların hazır olması bekleniyor." : "Hazır olduğunda oyuna katıl."}</small>
           </div>
           {!isSpectator && (
             <button type="button" className="stage11b-ready-button" disabled={isReady} onClick={onReady}>

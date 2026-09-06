@@ -254,6 +254,7 @@ const stageStyles = `
   gap: 0 8px;
   align-items: center;
   min-width: 0;
+  min-height: 44px;
   padding: 9px;
   border-radius: 12px;
   background: rgba(15, 35, 44, .78);
@@ -307,7 +308,7 @@ const stageStyles = `
 }
 
 .stage11b-poison-submit {
-  min-height: 40px;
+  min-height: 44px;
   padding: 9px 14px;
   border-color: rgba(112, 231, 230, .55);
   border-radius: 11px;
@@ -595,7 +596,7 @@ function ResultGraph({ publicState, players }: { readonly publicState: ZehirliKa
   return (
     <section className="stage11b-poison-results" aria-label="Tur sonuçları">
       <div className="stage11b-poison-results-title">
-        <h3>Sonuç grafiği</h3>
+        <h3>Kadehlerin izi</h3>
         <p>{publicPoisoned.size} işaretli kadeh</p>
       </div>
       <div className="stage11b-poison-score-list">
@@ -608,7 +609,7 @@ function ResultGraph({ publicState, players }: { readonly publicState: ZehirliKa
         ))}
       </div>
       {publicState.trades && publicState.trades.length > 0 && (
-        <div className="stage11b-poison-route" aria-label="Kamuya açık kadeh rotası">
+        <div className="stage11b-poison-route" aria-label="Açık kadeh rotası">
           {publicState.trades.map((trade, index) => (
             <span className="stage11b-poison-route-chip" key={`${trade.fromPlayerId}-${trade.toPlayerId}-${index}`}>
               {playerLabel(players, trade.fromPlayerId)} → {playerLabel(players, trade.toPlayerId)}
@@ -705,8 +706,8 @@ export function ZehirliKadehStage({
       <style>{stageStyles}</style>
       <header className="stage11b-poison-head">
         <div>
-          <p className="stage11b-poison-kicker">kapalı devre · sahne 11.8B</p>
-          <h2 className="stage11b-poison-title">Zehirli Kadeh</h2>
+          <p className="stage11b-poison-kicker">KAPALI DEVRE · ZEHİRLİ KADEH</p>
+          <h2 className="stage11b-poison-title">Kadehini bağla.</h2>
         </div>
         <span className="stage11b-poison-phase">
           {isFinished ? "tur tamamlandı" : timeRemaining === null ? "bağlantı açık" : `${timeRemaining}s kaldı`}
@@ -719,11 +720,11 @@ export function ZehirliKadehStage({
         <section className="stage11b-poison-panel" aria-label="Kadeh seçimi">
           <div className="stage11b-poison-panel-heading">
             <h3>Manyetik takas</h3>
-            <p>{isAccepted ? "sunucu onayladı" : `${targets.length} uygun hedef`}</p>
+            <p>{isAccepted ? "takas tamam" : `${targets.length} uygun hedef`}</p>
           </div>
 
           {isAccepted ? (
-            <p className="stage11b-poison-message">Takas kabul edildi. Sunucu tur süresini uzattı.</p>
+            <p className="stage11b-poison-message">Takas tamamlandı. Tur biraz daha uzadı.</p>
           ) : targets.length === 0 ? (
             <p className="stage11b-poison-empty">Şu an bağlı ve oyunda olan başka oyuncu yok.</p>
           ) : (

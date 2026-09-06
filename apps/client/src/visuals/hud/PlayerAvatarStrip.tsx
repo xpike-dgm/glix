@@ -16,7 +16,7 @@ interface AvatarStyle extends CSSProperties {
 function playerState(player: MatchPlayerState, isReady: boolean, isSelf: boolean, ownHasSubmitted: boolean): string {
   if (player.eliminated) return "ELENDİ";
   if (!player.currentGameParticipant) return "İZLEYİCİ";
-  if (!player.connected) return "KOPTU";
+  if (!player.connected) return "BAĞLANTI YOK";
   if (isReady || (isSelf && ownHasSubmitted)) return "HAZIR";
   return "BEKLİYOR";
 }

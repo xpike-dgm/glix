@@ -6514,8 +6514,8 @@ body {
 }
 
 .glix-hud-exit {
-  min-width: 42px;
-  min-height: 34px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0 0.48rem;
   border: 1px solid rgba(255, 111, 145, 0.32);
   border-radius: 8px;

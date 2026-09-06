@@ -10,7 +10,7 @@ export function SpectatorOverlay({ roomCode, connected, eliminated }: SpectatorO
   return (
     <div className="glix-spectator-overlay" role="status">
       <span className="glix-spectator-mark" aria-hidden="true">◌</span>
-      <span><strong>{eliminated ? "ELENDİN" : "İZLEYİCİ MODU"}</strong><small>{eliminated ? "Bu turu izliyorsun." : "Bu oyuna sonraki turda katılabilirsin."} · ODA {roomCode} · {connected ? "BAĞLI" : "KOPTU"}</small></span>
+      <span><strong>{eliminated ? "ELENDİN" : "İZLEYİCİ MODU"}</strong><small>{eliminated ? "Bu turu izliyorsun." : "Bu oyuna sonraki turda katılabilirsin."} · ODA {roomCode} · {connected ? "BAĞLI" : "BAĞLANTI YOK"}</small></span>
     </div>
   );
 }

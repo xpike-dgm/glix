@@ -711,7 +711,7 @@ function resultSummary(publicState: MemoryPublicState, players: readonly MatchPl
 
 function MemorySequence({ sequence, result = false }: { readonly sequence: readonly MemoryColor[]; readonly result?: boolean }): JSX.Element {
   if (sequence.length === 0) {
-    return <div className="stage11b-memory-covered" aria-label={result ? "Son dizi özeti bu public snapshot'ta bulunmuyor" : "Dizi kapalı"}><span>{result ? "SON DİZİ ÖZETİ YOK" : "DİZİ KAPALI"}</span></div>;
+    return <div className="stage11b-memory-covered" aria-label={result ? "Son dizi özeti hazır değil" : "Dizi gizli"}><span>{result ? "SON DİZİ YOK" : "DİZİ GİZLİ"}</span></div>;
   }
 
   return (
@@ -834,13 +834,13 @@ export function MemoryStage({
         <header className="stage11b-memory-header">
           <h1 className="stage11b-memory-title">
             ZAMAN BOMBASI HAFIZASI
-            <span>MEMORY WALL / PROTOCOL 3</span>
+            <span>IŞIK DUVARI</span>
           </h1>
           <span className="stage11b-memory-phase-pill">{heading}</span>
         </header>
 
         <div className="stage11b-memory-phase-row">
-          <span className="stage11b-memory-kicker">DİZİ UZUNLUĞU <strong>{state.sequenceLength}</strong></span>
+          <span className="stage11b-memory-kicker">ADIM SAYISI <strong>{state.sequenceLength}</strong></span>
           <span className="stage11b-memory-timer">
             {state.subPhase === "display" ? formatTimer(displaySeconds) : formatTimer(inputSeconds)}
           </span>
@@ -848,7 +848,7 @@ export function MemoryStage({
 
         <section className="stage11b-memory-wall" aria-label={displayIsLegal ? "Gösterilen renk dizisi" : "Kapalı hafıza duvarı"}>
           <div className="stage11b-memory-wall-label">
-            <strong>{displayIsLegal ? "DİZİYİ KAYDET" : "HAFIZA KAPAĞI"}</strong>
+            <strong>{displayIsLegal ? "DİZİYİ İZLE" : "HAFIZA KAPAĞI"}</strong>
             <span>{displayIsLegal ? "Sıra ve renkleri takip et" : "Giriş sırasında dizi gizlidir"}</span>
           </div>
           {displayIsLegal ? <MemorySequence sequence={state.sequence} /> : <MemorySequence sequence={[]} />}
@@ -861,25 +861,25 @@ export function MemoryStage({
           <section className="stage11b-memory-results" aria-label="Hafıza sonucu">
             <div className="stage11b-memory-result-heading">
               <div>
-                <span className="stage11b-memory-kicker">SONUÇ / PUBLIC RECAP</span>
+                <span className="stage11b-memory-kicker">TUR ÖZETİ</span>
                 <strong>Son dizi ve hayatta kalanlar</strong>
-                <p>Özet yalnızca public oyun durumundan okunur.</p>
+                <p>Son diziyi ve kalan oyuncuları gör.</p>
               </div>
               <span className="stage11b-memory-timer">{result.mistakeCount} HATA</span>
             </div>
             <div className="stage11b-memory-result-grid">
               <div className="stage11b-memory-result-card">
-                <strong>DİZİ RECAP</strong>
+                <strong>SON DİZİ</strong>
                 <MemorySequence sequence={result.sequence} result />
               </div>
               <div className="stage11b-memory-result-card">
                 <strong>HATALAR</strong>
                 <span className="stage11b-memory-mistake-count">{result.mistakeCount}</span>
-                <span className="stage11b-memory-empty-result">Yanlış giriş yapanlar public elenme kaydıyla işaretlenir.</span>
+                <span className="stage11b-memory-empty-result">Yanlış giriş yapanlar elenme işaretiyle gösterilir.</span>
               </div>
             </div>
             <div className="stage11b-memory-result-card">
-              <strong>SURVIVOR LADDER</strong>
+              <strong>HAYATTA KALANLAR</strong>
               <div className="stage11b-memory-ladder">
                 {roster.length === 0 ? <span className="stage11b-memory-empty-result">Oyuncu listesi bekleniyor.</span> : roster.map((player, index) => {
                   const eliminated = state.eliminatedPlayerIds.includes(player.id);
@@ -899,7 +899,7 @@ export function MemoryStage({
           <section className="stage11b-memory-input" aria-label="Renk giriş pedi">
             <div className="stage11b-memory-input-heading">
               <div>
-                <span className="stage11b-memory-kicker">KAPALI GİRİŞ PEDİ</span>
+                <span className="stage11b-memory-kicker">GİZLİ RENK PEDİ</span>
                 <strong>{own?.isActive && !isSpectator ? "Aynı sırayı bas" : "Aktif oyuncuyu bekle"}</strong>
                 <p>{own?.isActive && !isSpectator ? "1–4 tuşları veya renk pedleriyle diziyi kur." : "Bu panel yalnızca aktif oyuncunun girişini kabul eder."}</p>
               </div>
@@ -917,15 +917,15 @@ export function MemoryStage({
               {isPending ? "DİZİ GÖNDERİLİYOR..." : "DİZİYİ KİLİTLE"}
             </button>
 
-            {isSpectator && <div className="stage11b-memory-spectator">SEYİRCİ MODU · Giriş pedi kapalı. Yalnızca izin verilen gösterim ve public sonuç görünür.</div>}
+            {isSpectator && <div className="stage11b-memory-spectator">SEYİRCİ MODU · Giriş pedi kapalı. Yalnızca izin verilen gösterim ve açık sonuç görünür.</div>}
             {own?.eliminated && <div className="stage11b-memory-spectator">BU OYUNCU ELENDİ · Aktif oyuncunun hamlesini izliyorsun.</div>}
-            {isPending && <div className="stage11b-memory-notice" role="status">Dizi sunucuya iletiliyor; onay gelene kadar ped kilitli.</div>}
+            {isPending && <div className="stage11b-memory-notice" role="status">Dizi gönderiliyor; onay gelene kadar ped kilitli.</div>}
             {localError && <div className="stage11b-memory-error" role="alert">{localError}</div>}
           </section>
         )}
 
         <div className="stage11b-memory-roster">
-          <span className="stage11b-memory-roster-label">AKTİF SIRA / DÖNGÜSEL OYUNCU LİSTESİ</span>
+          <span className="stage11b-memory-roster-label">SIRA KİMDE?</span>
           <div className="stage11b-memory-roster-list">
             {roster.map((player) => <span className={`stage11b-memory-player ${player.id === activePlayerId ? "is-active" : ""} ${player.id === selfPlayerId ? "is-self" : ""} ${player.eliminated || state.eliminatedPlayerIds.includes(player.id) ? "is-eliminated" : ""}`} key={player.id}><strong>{player.nickname}</strong>{player.id === activePlayerId ? <span>AKTİF</span> : player.eliminated || state.eliminatedPlayerIds.includes(player.id) ? <span>ELENDİ</span> : null}</span>)}
           </div>

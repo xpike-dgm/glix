@@ -10,7 +10,7 @@ interface ConnectionStateBadgeProps {
 const LABELS: Record<VisualConnectionState, string> = {
   connected: "BAĞLI",
   connecting: "BAĞLANIYOR",
-  offline: "KOPTU"
+  offline: "BAĞLANTI YOK"
 };
 
 export function ConnectionStateBadge({ connection, compact = false }: ConnectionStateBadgeProps): JSX.Element {

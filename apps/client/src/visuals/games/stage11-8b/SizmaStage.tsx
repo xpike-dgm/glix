@@ -96,11 +96,11 @@ function secondsLeft(deadline: number | null, now: number): number {
 }
 
 function phaseLabel(publicState: SizmaPublicState): string {
-  if (!publicState.started) return "SİSTEM BEKLEMEDE";
+  if (!publicState.started) return "BORU AĞI BEKLİYOR";
   if (publicState.subPhase === "clue") return `İPUCU TURU ${publicState.clueRound}/2`;
-  if (publicState.subPhase === "ready-for-vote") return "OYLAMA BARRIER'I";
-  if (publicState.subPhase === "vote") return "30 SN OYLAMA";
-  return "SONUÇ REVEAL";
+  if (publicState.subPhase === "ready-for-vote") return "OYLAMAYA HAZIRLIK";
+  if (publicState.subPhase === "vote") return "OYLAMA · 30 SN";
+  return "SONUÇ";
 }
 
 const STYLES = `
@@ -366,7 +366,7 @@ export function SizmaStage({
     if (pendingAction?.kind === "clue" && publicState.subPhase !== "clue") {
       setPendingAction(null);
       setClueDraft("");
-      setStatusMessage("İpucun kaydedildi. Oylama barrier'ı açıldı.");
+      setStatusMessage("İpucun kaydedildi. Oylama hazırlığı başladı.");
     } else if (pendingAction?.kind === "ready" && publicState.subPhase === "vote") {
       setPendingAction(null);
       setStatusMessage("Hazır sinyalin alındı. Oylama başladı.");
@@ -473,7 +473,7 @@ export function SizmaStage({
         <div className="stage11b-sizma-shell">
           <div className="stage11b-sizma-empty" aria-live="polite">
             <div>
-              <span className="stage11b-sizma-kicker">SIZMA / SYNC</span>
+              <span className="stage11b-sizma-kicker">BORU AĞI / BAĞLANTI</span>
               <p>Sahne sinyali bekleniyor. Oyun verisi geldiğinde boru ağı açılacak.</p>
             </div>
           </div>
@@ -502,8 +502,8 @@ export function SizmaStage({
       <div className="stage11b-sizma-shell">
         <header className="stage11b-sizma-topbar">
           <div className="stage11b-sizma-brand">
-            <span className="stage11b-sizma-kicker">STAGE 11.8B · SOCIAL DEDUCTION</span>
-            <h1 className="stage11b-sizma-title">Sızma / Boru Ağı</h1>
+            <span className="stage11b-sizma-kicker">ŞÜPHELİ FREKANS</span>
+            <h1 className="stage11b-sizma-title">Sızma</h1>
           </div>
           <span className="stage11b-sizma-phase-chip">{phaseLabel(publicState)}</span>
         </header>
@@ -520,7 +520,7 @@ export function SizmaStage({
           </svg>
           <div className="stage11b-sizma-board-copy">
             <div>
-              <span className="stage11b-sizma-micro">NETWORK STATUS</span>
+              <span className="stage11b-sizma-micro">BORU AĞI</span>
               <strong>{publicState.subPhase === "results" ? "Gizli bağlantı çözüldü" : "Bütün sinyaller dinleniyor"}</strong>
             </div>
             <div className="stage11b-sizma-board-copy-right">
@@ -588,7 +588,7 @@ export function SizmaStage({
                 </div>
                 <div className="stage11b-sizma-clue-stream" aria-label="Açık ipucu akışı">
                   {publicState.clueTokens.length === 0 ? <span>İlk ipucu açık kanala düşecek.</span> : publicState.clueTokens.slice(-6).map((token) => (
-                    <span key={`${token.playerId}-${token.round}`}><b>{playerName(players, token.playerId)}</b><small>R{token.round}</small>{token.text}</span>
+                    <span key={`${token.playerId}-${token.round}`}><b>{playerName(players, token.playerId)}</b><small>TUR {token.round}</small>{token.text}</span>
                   ))}
                 </div>
               </>
@@ -597,12 +597,12 @@ export function SizmaStage({
             {publicState.subPhase === "ready-for-vote" && (
               <>
                 <div className="stage11b-sizma-panel-heading">
-                  <div><span className="stage11b-sizma-kicker">BARRIER AÇILDI</span><h2>Oylamaya hazırlan</h2></div>
+                  <div><span className="stage11b-sizma-kicker">İPUÇLARI TAMAM</span><h2>Oylamaya hazırlan</h2></div>
                   <span className="stage11b-sizma-round-badge">✓</span>
                 </div>
-                <p className="stage11b-sizma-instruction">İki ipucu turu tamamlandı. Masadaki tartışmayı bitirince kendi hazır sinyalini ver; tüm bağlı oyuncular hazır olduğunda oylama başlar.</p>
+                <p className="stage11b-sizma-instruction">İki ipucu turu tamamlandı. Masadaki tartışmayı bitirince kendi hazır sinyalini ver; herkes hazır olduğunda oylama başlar.</p>
                 {isSpectator ? (
-                  <p className="stage11b-sizma-lock-note"><span aria-hidden="true">◌</span>İzleyici olarak barrier durumunu görüyorsun; hazır sinyali gönderemezsin.</p>
+                  <p className="stage11b-sizma-lock-note"><span aria-hidden="true">◌</span>İzleyici olarak hazırlık durumunu görüyorsun; hazır sinyali gönderemezsin.</p>
                 ) : (
                   <button className="stage11b-sizma-button" type="button" disabled={isReadyLocked || !isInteractive} onClick={handleReady}>
                     {pendingAction?.kind === "ready" ? "HAZIR SİNYALİ GÖNDERİLİYOR…" : ownState?.canReadyForVote ? "OYLAMAYA HAZIRIM" : "HAZIR SİNYALİ ALINDI"}
@@ -661,7 +661,7 @@ export function SizmaStage({
             )}
 
             {statusMessage && <p className="stage11b-sizma-status" role="status">{statusMessage}</p>}
-            {isDisconnected && <p className="stage11b-sizma-status" role="alert">Bağlantın koptu. Yeniden bağlanınca bu panel otomatik olarak güncellenecek.</p>}
+            {isDisconnected && <p className="stage11b-sizma-status" role="alert">Bağlantı yok. Yeniden bağlanınca bu panel otomatik olarak güncellenecek.</p>}
           </section>
 
           <aside className="stage11b-sizma-side-column">
@@ -688,7 +688,7 @@ export function SizmaStage({
                 {participants.map((player) => (
                   <div className="stage11b-sizma-ready-row" key={player.id}>
                     <span>{player.nickname}{player.id === selfPlayerId ? " · sen" : ""}</span>
-                    <span className={`stage11b-sizma-ready-state ${player.connected ? "is-ready" : ""}`}>{player.connected ? "BAĞLI" : "KOPTU"}</span>
+                    <span className={`stage11b-sizma-ready-state ${player.connected ? "is-ready" : ""}`}>{player.connected ? "BAĞLI" : "BAĞLANTI YOK"}</span>
                   </div>
                 ))}
               </div>
