@@ -36,6 +36,12 @@ const gameLoaders: Partial<Record<GameId, () => Promise<unknown>>> = {
   "kor-kronometre": () => import("./visuals/games/Stage11ATimingPressureStage"),
   "asiri-yukleme": () => import("./visuals/games/Stage11ATimingPressureStage"),
   "son-kisi": () => import("./visuals/games/Stage11ATimingPressureStage"),
+  // Stage 11.8C numeric density games
+  "acgozluluk-limiti": () => import("./visuals/games/stage11c/Stage11CStage"),
+  "ortalamanin-yarisi": () => import("./visuals/games/stage11c/Stage11CStage"),
+  "gizli-kareler": () => import("./visuals/games/stage11c/Stage11CStage"),
+  "cizgiyi-gecme": () => import("./visuals/games/stage11c/Stage11CStage"),
+  "gizli-alisveris": () => import("./visuals/games/stage11c/Stage11CStage"),
   // Immersive games
   "kontrol-paneli-kaosu": () => import("./visuals/games/kontrol-paneli-kaosu/KpkStage"),
   "kendim": () => import("./visuals/games/kendim/KendimStage")
