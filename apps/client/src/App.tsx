@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
 import {
   GAME_CATALOG,
@@ -29,10 +29,6 @@ import {
   type ClientActionState,
   type SubmissionStatus
 } from "@glix/shared";
-import { Stage6GameControls } from "./games/Stage6GameControls";
-import { Stage7GameControls } from "./games/Stage7GameControls";
-import { Stage8GameControls } from "./games/Stage8GameControls";
-import { Stage9GameControls } from "./games/Stage9GameControls";
 import { GameHUD } from "./visuals/hud/GameHUD";
 import { HomeScreen } from "./visuals/home/HomeScreen";
 import { ResultOverlay } from "./visuals/overlays/ResultOverlay";
@@ -40,10 +36,18 @@ import { SpectatorOverlay } from "./visuals/overlays/SpectatorOverlay";
 import { TutorialOverlay } from "./visuals/overlays/TutorialOverlay";
 import { GameViewport } from "./visuals/viewport/GameViewport";
 import { PremiumStageHero } from "./visuals/stage/PremiumStageHero";
-import { KpkStage } from "./visuals/games/kontrol-paneli-kaosu/KpkStage";
-import { KendimStage } from "./visuals/games/kendim/KendimStage";
 import { isStage11BGameId, Stage11BStage } from "./visuals/games/stage11-8b/Stage11BStage";
 import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/visualAssetManifest";
+import { pwaService } from "./pwa";
+import { safeLazy, preloadGameStage, preloadNextScheduledGame, StageLoadingFallback } from "./lazyPreload";
+
+const LazyKpkStage = lazy(safeLazy(() => import("./visuals/games/kontrol-paneli-kaosu/KpkStage").then((m) => ({ default: m.KpkStage }))));
+const LazyKendimStage = lazy(safeLazy(() => import("./visuals/games/kendim/KendimStage").then((m) => ({ default: m.KendimStage }))));
+const LazyStage6GameControls = lazy(safeLazy(() => import("./games/Stage6GameControls").then((m) => ({ default: m.Stage6GameControls }))));
+const LazyStage7GameControls = lazy(safeLazy(() => import("./games/Stage7GameControls").then((m) => ({ default: m.Stage7GameControls }))));
+const LazyStage8GameControls = lazy(safeLazy(() => import("./games/Stage8GameControls").then((m) => ({ default: m.Stage8GameControls }))));
+const LazyStage9GameControls = lazy(safeLazy(() => import("./games/Stage9GameControls").then((m) => ({ default: m.Stage9GameControls }))));
+
 
 type ConnectionState = "connecting" | "connected" | "offline";
 type Screen = "home" | "create" | "join" | "lobby" | "match";
@@ -151,8 +155,16 @@ function App(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionState, setActionState] = useState<ClientActionState | null>(null);
+  const [protocolMismatch, setProtocolMismatch] = useState<{
+    serverProtocol: number;
+    clientProtocol: number;
+    serverVersion: string;
+  } | null>(null);
+  const [hasPwaUpdate, setHasPwaUpdate] = useState(() => pwaService.hasUpdate);
+  const [isOffline, setIsOffline] = useState(() => pwaService.isOffline);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | undefined>(undefined);
+  const handshakeTimeoutRef = useRef<number | undefined>(undefined);
   const reconnectAttemptRef = useRef(0);
   const nicknameRef = useRef(nickname);
   const roomCodeRef = useRef(roomCodeInput);
@@ -161,6 +173,15 @@ function App(): JSX.Element {
   const actionClientInstanceRef = useRef(crypto.randomUUID());
   const sessionScopeRef = useRef("boot");
   const latestMatchRef = useRef<{ matchId: string; stateVersion: number; actionScope: string } | null>(null);
+  const protocolMismatchRef = useRef(false);
+  const pongSamplesRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    return pwaService.subscribe(() => {
+      setHasPwaUpdate(pwaService.hasUpdate);
+      setIsOffline(pwaService.isOffline);
+    });
+  }, []);
 
   useEffect(() => {
     void preloadPremiumBrandAssets();
@@ -169,8 +190,10 @@ function App(): JSX.Element {
   useEffect(() => {
     if (matchState?.currentGameId) {
       void preloadPremiumGamePack(matchState.currentGameId);
+      preloadGameStage(matchState.currentGameId);
+      preloadNextScheduledGame(matchState.gameIds, matchState.currentGameIndex);
     }
-  }, [matchState?.currentGameId]);
+  }, [matchState?.currentGameId, matchState?.currentGameIndex, matchState?.gameIds]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockNow(Date.now()), 100);
@@ -189,7 +212,7 @@ function App(): JSX.Element {
     let active = true;
 
     const scheduleReconnect = (): void => {
-      if (!active || reconnectTimerRef.current !== undefined) {
+      if (!active || protocolMismatchRef.current || reconnectTimerRef.current !== undefined) {
         return;
       }
 
@@ -203,7 +226,7 @@ function App(): JSX.Element {
     };
 
     const openSocket = (): void => {
-      if (!active) {
+      if (!active || protocolMismatchRef.current) {
         return;
       }
 
@@ -212,29 +235,23 @@ function App(): JSX.Element {
       socketRef.current = socket;
 
       socket.addEventListener("open", () => {
-        if (!active) {
+        if (!active || protocolMismatchRef.current) {
           return;
         }
 
         reconnectAttemptRef.current = 0;
-        setConnection("connected");
         setError(null);
-        socket.send(JSON.stringify({ type: "client:hello", clientVersion: CLIENT_VERSION }));
 
-        const storedRoomCode = roomCodeRef.current.trim();
-        const storedNickname = nicknameRef.current.trim();
-        const storedResumeToken = resumeTokenRef.current;
-
-        if (storedRoomCode && storedNickname && storedResumeToken) {
-          socket.send(
-            JSON.stringify({
-              type: "client:room:join",
-              roomCode: storedRoomCode,
-              nickname: storedNickname,
-              resumeToken: storedResumeToken
-            })
-          );
-        }
+        // Handshake timeout: wait up to 5000ms for server:ready
+        handshakeTimeoutRef.current = window.setTimeout(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            console.warn("[glix-client] Handshake timeout waiting for server:ready");
+            socket.close(1000, "handshake_timeout");
+            setConnection("offline");
+            setError("Sunucu el sıkışma zaman aşımı.");
+            scheduleReconnect();
+          }
+        }, 5000);
       });
 
       socket.addEventListener("message", (event) => {
@@ -247,6 +264,74 @@ function App(): JSX.Element {
           }
 
           if (value.type === "server:ready") {
+            if (handshakeTimeoutRef.current !== undefined) {
+              window.clearTimeout(handshakeTimeoutRef.current);
+              handshakeTimeoutRef.current = undefined;
+            }
+
+            const readyMsg = value as { serverVersion?: unknown; protocolVersion?: unknown };
+            const serverProto = typeof readyMsg.protocolVersion === "number" ? readyMsg.protocolVersion : -1;
+            const srvVer = typeof readyMsg.serverVersion === "string" ? readyMsg.serverVersion : "—";
+
+            if (serverProto !== PROTOCOL_VERSION) {
+              console.warn(`[glix-client] Protocol mismatch: server v${serverProto} !== client v${PROTOCOL_VERSION}`);
+              setProtocolMismatch({
+                serverProtocol: serverProto,
+                clientProtocol: PROTOCOL_VERSION,
+                serverVersion: srvVer
+              });
+              protocolMismatchRef.current = true;
+              if (reconnectTimerRef.current !== undefined) {
+                window.clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = undefined;
+              }
+              socket.close(1000, "protocol_mismatch");
+              setConnection("offline");
+              return;
+            }
+
+            // Compatible protocol!
+            setConnection("connected");
+            setServerVersion(srvVer);
+            socket.send(JSON.stringify({ type: "client:hello", clientVersion: CLIENT_VERSION }));
+
+            const storedRoomCode = roomCodeRef.current.trim();
+            const storedNickname = nicknameRef.current.trim();
+            const storedResumeToken = resumeTokenRef.current;
+
+            if (storedRoomCode && storedNickname && storedResumeToken) {
+              socket.send(
+                JSON.stringify({
+                  type: "client:room:join",
+                  roomCode: storedRoomCode,
+                  nickname: storedNickname,
+                  resumeToken: storedResumeToken
+                })
+              );
+            }
+            return;
+          }
+
+          if (value.type === "server:pong") {
+            const clientTime = typeof value.clientTime === "number" ? value.clientTime : 0;
+            const serverTime = typeof value.serverTime === "number" ? value.serverTime : 0;
+            if (clientTime > 0 && serverTime > 0) {
+              const now = Date.now();
+              const rtt = now - clientTime;
+              if (rtt >= 0 && rtt < 1500) {
+                const sampleOffset = serverTime + (rtt / 2) - now;
+                pongSamplesRef.current.push(sampleOffset);
+                if (pongSamplesRef.current.length > 7) {
+                  pongSamplesRef.current.shift();
+                }
+                const sorted = [...pongSamplesRef.current].sort((a, b) => a - b);
+                const medianOffset = sorted[Math.floor(sorted.length / 2)];
+                if (typeof medianOffset === "number") {
+                  setClockOffset(medianOffset);
+                }
+              }
+            }
+
             return;
           }
 
@@ -363,19 +448,29 @@ function App(): JSX.Element {
       });
 
       socket.addEventListener("error", () => {
+        if (handshakeTimeoutRef.current !== undefined) {
+          window.clearTimeout(handshakeTimeoutRef.current);
+          handshakeTimeoutRef.current = undefined;
+        }
         if (active) {
           setConnection("offline");
         }
       });
 
       socket.addEventListener("close", () => {
+        if (handshakeTimeoutRef.current !== undefined) {
+          window.clearTimeout(handshakeTimeoutRef.current);
+          handshakeTimeoutRef.current = undefined;
+        }
         if (socketRef.current === socket) {
           socketRef.current = null;
         }
 
         if (active) {
           setConnection("offline");
-          scheduleReconnect();
+          if (!protocolMismatchRef.current) {
+            scheduleReconnect();
+          }
         }
       });
     };
@@ -403,6 +498,11 @@ function App(): JSX.Element {
       active = false;
       window.clearInterval(heartbeatTimer);
       window.removeEventListener("online", handleOnline);
+
+      if (handshakeTimeoutRef.current !== undefined) {
+        window.clearTimeout(handshakeTimeoutRef.current);
+        handshakeTimeoutRef.current = undefined;
+      }
 
       if (reconnectTimerRef.current !== undefined) {
         window.clearTimeout(reconnectTimerRef.current);
@@ -666,17 +766,63 @@ function App(): JSX.Element {
       <div className="ambient ambient-one" aria-hidden="true" />
       <div className="ambient ambient-two" aria-hidden="true" />
 
-      {screen !== "lobby" && screen !== "match" && screen !== "home" && (
-        <header className="site-header">
-          <button className="wordmark" type="button" onClick={() => { clearFormError(); setScreen("home"); }}>
-            GLIX
-          </button>
-          <div className="header-meta">
-            <span className="catalog-chip">24 MİNİ OYUN</span>
-            <ConnectionPill connection={connection} />
-          </div>
-        </header>
+      {isOffline && !protocolMismatch && (
+        <div className="glix-offline-notice" role="status">
+          <span>Bağlantı yok. GLIX çok oyunculu çalışır; oynamak için internete bağlan.</span>
+        </div>
       )}
+
+      {hasPwaUpdate && !protocolMismatch && screen !== "match" && (
+        <aside className="glix-update-toast" role="status" aria-live="polite">
+          <span>GLIX'in yeni bir sürümü hazır.</span>
+          <button
+            type="button"
+            className="glix-update-toast-action"
+            onClick={() => void pwaService.update()}
+          >
+            GÜNCELLE
+          </button>
+        </aside>
+      )}
+
+      {protocolMismatch ? (
+        <section className="glix-update-gate" role="alert" aria-live="assertive">
+          <div className="glix-update-gate-card">
+            <div className="glix-update-gate-badge">GÜNCELLEME GEREKLİ</div>
+            <h1 className="glix-update-gate-title">GLIX güncellendi.</h1>
+            <p className="glix-update-gate-message">
+              Oyuna devam etmek için uygulamayı yenile.
+            </p>
+            <button
+              type="button"
+              className="glix-update-gate-button"
+              onClick={() => void pwaService.update()}
+            >
+              YENİLE
+            </button>
+            <details className="glix-protocol-diagnostic">
+              <summary>Teknik Detaylar</summary>
+              <div className="glix-protocol-diagnostic-content">
+                <span>Sunucu Protokolü: v{protocolMismatch.serverProtocol}</span>
+                <span>İstemci Protokolü: v{protocolMismatch.clientProtocol}</span>
+                <span>Sunucu Sürümü: {protocolMismatch.serverVersion}</span>
+              </div>
+            </details>
+          </div>
+        </section>
+      ) : (
+        <>
+          {screen !== "lobby" && screen !== "match" && screen !== "home" && (
+            <header className="site-header">
+              <button className="wordmark" type="button" onClick={() => { clearFormError(); setScreen("home"); }}>
+                GLIX
+              </button>
+              <div className="header-meta">
+                <span className="catalog-chip">24 MİNİ OYUN</span>
+                <ConnectionPill connection={connection} />
+              </div>
+            </header>
+          )}
 
       {screen === "home" && (
         <HomeScreen
@@ -886,6 +1032,8 @@ function App(): JSX.Element {
 
       {screen !== "lobby" && screen !== "match" && error && <div className="toast-message error-message" role="alert">{error}</div>}
       {screen !== "lobby" && screen !== "match" && notice && <div className="toast-message notice-message" role="status">{notice}</div>}
+        </>
+      )}
     </main>
   );
 }
@@ -1002,45 +1150,53 @@ function MatchScreen({
   const tutorialSteps = tutorialStepsForGame(game);
 
   const stageControls = stage6GameId ? (
-    <Stage6GameControls
-      gameId={stage6GameId}
-      publicState={state.gameState}
-      ownState={ownGameState}
-      selfPlayerId={selfPlayerId}
-      players={state.players}
-      now={now}
-      onSubmit={onSubmit}
-    />
+    <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
+      <LazyStage6GameControls
+        gameId={stage6GameId}
+        publicState={state.gameState}
+        ownState={ownGameState}
+        selfPlayerId={selfPlayerId}
+        players={state.players}
+        now={now}
+        onSubmit={onSubmit}
+      />
+    </Suspense>
   ) : stage7GameId ? (
-    <Stage7GameControls
-      gameId={stage7GameId}
-      publicState={state.gameState}
-      ownState={ownGameState}
-      selfPlayerId={selfPlayerId}
-      players={state.players}
-      now={now}
-      onSubmit={onSubmit}
-    />
+    <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
+      <LazyStage7GameControls
+        gameId={stage7GameId}
+        publicState={state.gameState}
+        ownState={ownGameState}
+        selfPlayerId={selfPlayerId}
+        players={state.players}
+        now={now}
+        onSubmit={onSubmit}
+      />
+    </Suspense>
   ) : stage8GameId ? (
-    <Stage8GameControls
-      gameId={stage8GameId}
-      publicState={state.gameState}
-      ownState={ownGameState}
-      selfPlayerId={selfPlayerId}
-      players={state.players}
-      now={now}
-      onSubmit={onSubmit}
-    />
+    <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
+      <LazyStage8GameControls
+        gameId={stage8GameId}
+        publicState={state.gameState}
+        ownState={ownGameState}
+        selfPlayerId={selfPlayerId}
+        players={state.players}
+        now={now}
+        onSubmit={onSubmit}
+      />
+    </Suspense>
   ) : stage9GameId ? (
-    <Stage9GameControls
-      gameId={stage9GameId}
-      publicState={state.gameState}
-      ownState={ownGameState}
-      selfPlayerId={selfPlayerId}
-      players={state.players}
-      now={now}
-      onSubmit={onSubmit}
-    />
+    <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
+      <LazyStage9GameControls
+        gameId={stage9GameId}
+        publicState={state.gameState}
+        ownState={ownGameState}
+        selfPlayerId={selfPlayerId}
+        players={state.players}
+        now={now}
+        onSubmit={onSubmit}
+      />
+    </Suspense>
   ) : (
     <div className="glix-default-action">
       <button className="glix-default-action-button" type="button" disabled={ownHasSubmitted} onClick={() => onSubmit({ action: "motor-provasi" })}>
@@ -1053,9 +1209,9 @@ function MatchScreen({
   );
 
   const resultControls = state.phase === "results" && !isSpectator ? (
-    <>
+    <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
       {stage6GameId && (
-        <Stage6GameControls
+        <LazyStage6GameControls
           gameId={stage6GameId}
           publicState={state.gameState}
           ownState={ownGameState}
@@ -1066,7 +1222,7 @@ function MatchScreen({
         />
       )}
       {stage7GameId && (
-        <Stage7GameControls
+        <LazyStage7GameControls
           gameId={stage7GameId}
           publicState={state.gameState}
           ownState={ownGameState}
@@ -1077,7 +1233,7 @@ function MatchScreen({
         />
       )}
       {stage8GameId && (
-        <Stage8GameControls
+        <LazyStage8GameControls
           gameId={stage8GameId}
           publicState={state.gameState}
           ownState={ownGameState}
@@ -1088,7 +1244,7 @@ function MatchScreen({
         />
       )}
       {stage9GameId && (
-        <Stage9GameControls
+        <LazyStage9GameControls
           gameId={stage9GameId}
           publicState={state.gameState}
           ownState={ownGameState}
@@ -1098,7 +1254,7 @@ function MatchScreen({
           onSubmit={onSubmit}
         />
       )}
-    </>
+    </Suspense>
   ) : null;
 
   const isKpk = game.id === "kontrol-paneli-kaosu";
@@ -1147,31 +1303,35 @@ function MatchScreen({
         }
         stage={
           isKpk ? (
-            <KpkStage
-              publicState={state.gameState as unknown as KontrolPaneliPublicState}
-              ownState={ownGameState as unknown as KontrolPaneliOwnState | null | undefined}
-              phase={state.phase}
-              isSpectator={isSpectator}
-              selfPlayerId={selfPlayerId}
-              players={sortedPlayers}
-              isReady={ready}
-              onReady={onReady}
-              actionState={actionState}
-              onSubmitAction={onSubmit}
-            />
+            <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
+              <LazyKpkStage
+                publicState={state.gameState as unknown as KontrolPaneliPublicState}
+                ownState={ownGameState as unknown as KontrolPaneliOwnState | null | undefined}
+                phase={state.phase}
+                isSpectator={isSpectator}
+                selfPlayerId={selfPlayerId}
+                players={sortedPlayers}
+                isReady={ready}
+                onReady={onReady}
+                actionState={actionState}
+                onSubmitAction={onSubmit}
+              />
+            </Suspense>
           ) : isKendim ? (
-            <KendimStage
-              publicState={state.gameState as unknown as KendimPublicState}
-              ownState={ownGameState as unknown as KendimOwnState | null | undefined}
-              phase={state.phase}
-              isSpectator={isSpectator}
-              selfPlayerId={selfPlayerId}
-              players={sortedPlayers}
-              isReady={ready}
-              actionState={actionState}
-              onReady={onReady}
-              onSubmitAction={onSubmit}
-            />
+            <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
+              <LazyKendimStage
+                publicState={state.gameState as unknown as KendimPublicState}
+                ownState={ownGameState as unknown as KendimOwnState | null | undefined}
+                phase={state.phase}
+                isSpectator={isSpectator}
+                selfPlayerId={selfPlayerId}
+                players={sortedPlayers}
+                isReady={ready}
+                actionState={actionState}
+                onReady={onReady}
+                onSubmitAction={onSubmit}
+              />
+            </Suspense>
           ) : stage11BGameId ? (
             <Stage11BStage
               gameId={stage11BGameId}

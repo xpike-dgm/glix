@@ -7212,3 +7212,211 @@ body {
   padding: 0;
   border: 0;
 }
+
+/* ==========================================================================
+   Release Hardening: Protocol Gate, PWA Lifecycle & Lazy Fallback Styles
+   ========================================================================== */
+
+.glix-update-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: radial-gradient(circle at center, #16133b 0%, #080b18 100%);
+  color: #fff;
+}
+
+.glix-update-gate-card {
+  width: min(100%, 28rem);
+  padding: 2rem 1.75rem;
+  border: 1px solid rgba(124, 247, 255, 0.35);
+  border-radius: 1.25rem;
+  background: rgba(15, 19, 43, 0.95);
+  box-shadow: 0 0 35px rgba(124, 247, 255, 0.15), inset 0 0 20px rgba(124, 247, 255, 0.05);
+  text-align: center;
+  backdrop-filter: blur(12px);
+}
+
+.glix-update-gate-badge {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid rgba(255, 204, 102, 0.4);
+  border-radius: 999px;
+  background: rgba(255, 204, 102, 0.1);
+  color: #ffcc66;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.glix-update-gate-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.65rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 0 15px rgba(255, 79, 216, 0.4);
+}
+
+.glix-update-gate-message {
+  margin: 0 0 1.75rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.glix-update-gate-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #7cf7ff;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #7cf7ff 0%, #ff4fd8 100%);
+  color: #080b18;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 0 20px rgba(124, 247, 255, 0.35);
+}
+
+.glix-update-gate-button:active {
+  transform: scale(0.98);
+}
+
+.glix-protocol-diagnostic {
+  margin-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 1rem;
+  text-align: left;
+}
+
+.glix-protocol-diagnostic summary {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.glix-protocol-diagnostic summary:hover {
+  color: #7cf7ff;
+}
+
+.glix-protocol-diagnostic-content {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(8, 11, 24, 0.7);
+  color: rgba(255, 255, 255, 0.7);
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.glix-update-toast {
+  position: fixed;
+  bottom: calc(var(--glix-safe-bottom, 1rem) + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: min(92vw, 26rem);
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(124, 247, 255, 0.45);
+  border-radius: 999px;
+  background: rgba(15, 19, 43, 0.95);
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(124, 247, 255, 0.25);
+  backdrop-filter: blur(10px);
+}
+
+.glix-update-toast span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.glix-update-toast-action {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #7cf7ff;
+  border-radius: 999px;
+  background: #7cf7ff;
+  color: #080b18;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.glix-offline-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 204, 102, 0.12);
+  border-bottom: 1px solid rgba(255, 204, 102, 0.3);
+  color: #ffcc66;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.glix-stage-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 14rem;
+  padding: 2rem;
+  border: 1px dashed rgba(124, 247, 255, 0.25);
+  border-radius: 1rem;
+  background: rgba(15, 19, 43, 0.4);
+  text-align: center;
+}
+
+.glix-stage-loading-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid rgba(124, 247, 255, 0.15);
+  border-top-color: #7cf7ff;
+  border-radius: 50%;
+  animation: glix-ring-spin 800ms linear infinite;
+}
+
+.glix-stage-loading-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.glix-stage-loading-kicker {
+  color: #7cf7ff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.glix-stage-loading-info strong {
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.glix-stage-loading-info small {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+}
+
