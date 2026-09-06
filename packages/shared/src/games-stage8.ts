@@ -1430,6 +1430,7 @@ class ZehirliKadehAdapter extends Stage8AdapterBase {
   private readonly traded = new Set<string>();
   private readonly trades: ZehirliKadehTradeView[] = [];
   private phaseEndsAt: number | null = null;
+  private allDisconnectedAt: number | null = null;
 
   constructor(playerIds: readonly string[], random: Stage8RandomSource) { super(playerIds); this.random = random; }
 
@@ -1441,6 +1442,19 @@ class ZehirliKadehAdapter extends Stage8AdapterBase {
     this.phaseEndsAt = now + GLASS_TWENTY_SECONDS;
   }
 
+  override setConnectedPlayerIds(playerIds: readonly string[], now = Date.now()): void {
+    const hadConnected = this.connectedPlayerIds.size > 0;
+    super.setConnectedPlayerIds(playerIds);
+    if (this.connectedPlayerIds.size === 0) {
+      if (hadConnected) this.allDisconnectedAt = now;
+      return;
+    }
+    if (this.allDisconnectedAt !== null) {
+      if (this.phaseEndsAt !== null) this.phaseEndsAt += Math.max(0, now - this.allDisconnectedAt);
+      this.allDisconnectedAt = null;
+    }
+  }
+
   private resolve(): void {
     if (this.finished) return;
     this.playerIds.forEach((playerId) => { if (!this.poisoned.has(playerId)) this.addDirect(playerId, 1, "zehirli-kadeh:temiz"); });
@@ -1448,7 +1462,7 @@ class ZehirliKadehAdapter extends Stage8AdapterBase {
     this.finish();
   }
 
-  advance(now: number): boolean { assertNow(now); if (!this.isStarted || this.finished || this.phaseEndsAt === null || now < this.phaseEndsAt) return false; this.resolve(); return true; }
+  advance(now: number): boolean { assertNow(now); if (!this.isStarted || this.finished || this.connectedPlayerIds.size === 0 || this.phaseEndsAt === null || now < this.phaseEndsAt) return false; this.resolve(); return true; }
 
   submit(playerId: string, payload: JsonValue | null, now: number): Stage8SubmitResult {
     assertNow(now);
@@ -1473,6 +1487,7 @@ class ZehirliKadehAdapter extends Stage8AdapterBase {
     return { accepted: true };
   }
 
+  /** Permanent leave removes the seat and its poison marker; remaining seats are not rebalanced. */
   override removePlayer(playerId: string): void { super.removePlayer(playerId); this.poisoned.delete(playerId); this.traded.delete(playerId); }
   getPublicState(_now: number): ZehirliKadehPublicState { return { gameId: this.gameId, kind: this.gameId, phaseEndsAt: this.phaseEndsAt, finished: this.finished, tradeCount: this.trades.length, poisonedPlayerIds: this.finished ? [...this.poisoned] : null, trades: this.finished ? [...this.trades] : null, resultPoints: this.finished ? pointsView(this.miniScores) : null }; }
   getOwnState(playerId: string, _now: number): ZehirliKadehOwnState { return { gameId: this.gameId, kind: this.gameId, poisoned: this.finished ? this.poisoned.has(playerId) : null, hasTraded: this.traded.has(playerId), canTrade: !this.finished && !this.traded.has(playerId), finished: this.finished }; }

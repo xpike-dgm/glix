@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import type { JSX } from "react";
 import type {
   ButonaBasOwnState,
   ButonaBasPublicState,
   JsonValue,
   MatchPlayerState,
+  MemoryColor,
   MemoryOwnState,
   MemoryPublicState,
   SizmaOwnState,
@@ -262,8 +264,13 @@ function MemoryControls({
 }): JSX.Element {
   const activeName = playerName(players, publicState.activePlayerId);
   const isOwnTurn = publicState.activePlayerId === selfPlayerId && ownState.isActive;
-  const visibleInputIndex = isOwnTurn ? ownState.inputIndex : 0;
-  const progress = publicState.sequenceLength === 0 ? 0 : Math.round((visibleInputIndex / publicState.sequenceLength) * 100);
+  const [selectedSequence, setSelectedSequence] = useState<MemoryColor[]>([]);
+
+  useEffect(() => {
+    setSelectedSequence([]);
+  }, [publicState.activePlayerId, publicState.sequenceLength, publicState.subPhase]);
+
+  const progress = publicState.sequenceLength === 0 ? 0 : Math.round((selectedSequence.length / publicState.sequenceLength) * 100);
 
   return (
     <div className={`stage6-controls stage6-memory-controls memory-${publicState.subPhase}`} aria-live="polite">
@@ -291,16 +298,17 @@ function MemoryControls({
             <b className="memory-countdown">{secondsLeft(ownState.inputDeadline ?? publicState.inputDeadline, now)}<small>sn</small></b>
           </div>
           <div className="memory-masked-sequence" aria-label="Hatırlanacak dizi">
-            {Array.from({ length: publicState.sequenceLength }, (_, index) => <span className={index < visibleInputIndex ? "is-done" : index === visibleInputIndex && isOwnTurn ? "is-current" : ""} key={index}>{index < visibleInputIndex ? "✓" : "•"}</span>)}
+            {Array.from({ length: publicState.sequenceLength }, (_, index) => <span className={index < selectedSequence.length ? "is-done" : index === selectedSequence.length && isOwnTurn ? "is-current" : ""} key={index}>{index < selectedSequence.length ? MEMORY_COLOR_LABELS[selectedSequence[index]!] : "•"}</span>)}
           </div>
           <div className="memory-pad-grid">
             {MEMORY_COLORS.map((color) => (
-              <button className={`memory-pad memory-${color}`} type="button" key={color} disabled={!isOwnTurn} onClick={() => onSubmit({ kind: "memory-color", color })}>
+              <button className={`memory-pad memory-${color}`} type="button" key={color} disabled={!isOwnTurn || selectedSequence.length >= publicState.sequenceLength} onClick={() => setSelectedSequence((current) => current.length >= publicState.sequenceLength ? current : [...current, color])}>
                 <span /><strong>{MEMORY_COLOR_LABELS[color]}</strong>
               </button>
             ))}
           </div>
           {!isOwnTurn && <small className="phase-panel-progress">Telefonlar aynı sahneyi izliyor. Sıra sende değil.</small>}
+          {isOwnTurn && <button className="memory-submit-button" type="button" disabled={selectedSequence.length !== publicState.sequenceLength} onClick={() => onSubmit({ kind: "memory-sequence", sequence: selectedSequence })}>DİZİYİ KİLİTLE</button>}
           {isOwnTurn && <div className="memory-input-progress"><span style={{ width: `${progress}%` }} /></div>}
         </div>
       )}

@@ -222,12 +222,12 @@ test("Aşırı Yükleme taşma tıklamasını patlatır ve patlamayanları sıra
   assert.equal(score(adapter, "b"), -1);
 });
 
-test("Çapraz Ateş karşılıklı hedefleri sıfırlar, diğer hedeflenmeyen saldırganı ödüllendirir", () => {
+test("Çapraz Ateş karşılıklı hedefleri sıfırlar, ıskalayan oyuncuyu ödüllendirir", () => {
   const adapter = createStage7GameAdapter("capraz-ates", ["a", "b", "c"]);
   adapter.start(0);
   submit(adapter, "a", { kind: "crossfire-target", targetPlayerId: "b" }, 1_000);
   submit(adapter, "b", { kind: "crossfire-target", targetPlayerId: "a" }, 1_000);
-  submit(adapter, "c", { kind: "crossfire-target", targetPlayerId: "a" }, 1_000);
+  submit(adapter, "c", { kind: "crossfire-miss" }, 1_000);
   adapter.advance(25_000);
   assert.equal(score(adapter, "a"), 0);
   assert.equal(score(adapter, "b"), 0);

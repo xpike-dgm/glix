@@ -1,5 +1,6 @@
 @import "./visuals/games/kontrol-paneli-kaosu/kpk.css";
 @import "./visuals/games/kendim/kendim.css";
+@import "./visuals/games/stage11-8b/stage11-8b.css";
 
 :root {
   color-scheme: dark;
@@ -4296,6 +4297,24 @@ h2 {
 
 .memory-pad:disabled {
   cursor: default;
+}
+
+.memory-submit-button {
+  min-height: 44px;
+  border: 1px solid rgba(114, 244, 255, 0.52);
+  border-radius: 8px;
+  color: #06111b;
+  background: linear-gradient(135deg, #72f4ff, #d7ffff);
+  cursor: pointer;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.memory-submit-button:disabled {
+  cursor: default;
+  color: var(--text-muted);
+  background: rgba(114, 244, 255, 0.08);
+  opacity: 0.65;
 }
 
 .memory-pad span {
