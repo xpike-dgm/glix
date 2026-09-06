@@ -56,6 +56,8 @@ export interface StopwatchResultView {
   readonly elapsedMs: number;
   readonly distanceMs: number;
   readonly tapped: boolean;
+  readonly rank: number;
+  readonly points: number;
 }
 
 export interface KorKronometrePublicState {
@@ -246,7 +248,16 @@ export interface AsiriYuklemePublicState {
   readonly finished: boolean;
   readonly explodedPlayerId: string | null;
   readonly clickCounts: Readonly<Record<string, number>> | null;
+  readonly results: readonly AsiriYuklemeResultView[] | null;
   readonly resultPoints: readonly Stage7PointsView[] | null;
+}
+
+export interface AsiriYuklemeResultView {
+  readonly playerId: string;
+  readonly clickCount: number;
+  readonly rank: number | null;
+  readonly points: number;
+  readonly exploded: boolean;
 }
 
 export interface AsiriYuklemeOwnState {
@@ -494,6 +505,7 @@ class GizliHirsizAdapter implements Stage7GameAdapter {
   private readonly pressed = new Set<string>();
   private readonly miniScores: Map<string, number>;
   private readonly deltas: ScoreDelta[] = [];
+  private connectedPlayerIds: Set<string>;
   private startedAt: number | null = null;
   private finished = false;
   private scoreApplied = false;
@@ -501,6 +513,7 @@ class GizliHirsizAdapter implements Stage7GameAdapter {
   constructor(playerIds: readonly string[]) {
     this.playerIds = uniquePlayerIds(playerIds);
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
   }
 
   get isStarted(): boolean { return this.startedAt !== null; }
@@ -534,6 +547,7 @@ class GizliHirsizAdapter implements Stage7GameAdapter {
   submit(playerId: string, payload: JsonValue | null, now: number): Stage7SubmitResult {
     assertNow(now);
     if (!this.playerIds.includes(playerId)) return { accepted: false, reason: "invalid" };
+    if (!this.connectedPlayerIds.has(playerId)) return { accepted: false, reason: "invalid" };
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (now >= this.startedAt! + THIRTY_SECONDS) {
       this.advance(now);
@@ -547,7 +561,12 @@ class GizliHirsizAdapter implements Stage7GameAdapter {
 
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     this.pressed.delete(playerId);
+  }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((playerId) => playerIds.includes(playerId)));
   }
 
   getPublicState(now: number): GizliHirsizPublicState {
@@ -577,6 +596,7 @@ class KorKronometreAdapter implements Stage7GameAdapter {
   private readonly taps = new Map<string, number>();
   private readonly miniScores: Map<string, number>;
   private readonly deltas: ScoreDelta[] = [];
+  private connectedPlayerIds: Set<string>;
   private startedAt: number | null = null;
   private finished = false;
   private results: StopwatchResultView[] | null = null;
@@ -584,6 +604,7 @@ class KorKronometreAdapter implements Stage7GameAdapter {
   constructor(playerIds: readonly string[]) {
     this.playerIds = uniquePlayerIds(playerIds);
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
   }
 
   get isStarted(): boolean { return this.startedAt !== null; }
@@ -597,9 +618,20 @@ class KorKronometreAdapter implements Stage7GameAdapter {
 
   private resolve(): void {
     if (this.finished) return;
-    this.results = this.playerIds.map((playerId) => {
+    const unorderedResults = this.playerIds.map((playerId) => {
       const elapsedMs = Math.max(0, Math.min(EIGHTEEN_SECONDS, this.taps.get(playerId) ?? EIGHTEEN_SECONDS));
       return { playerId, elapsedMs, distanceMs: Math.abs(elapsedMs - 10_000), tapped: this.taps.has(playerId) };
+    });
+    const orderedResults = [...unorderedResults].sort(
+      (left, right) => left.distanceMs - right.distanceMs || left.playerId.localeCompare(right.playerId)
+    );
+    let previousDistance: number | null = null;
+    let previousRank = 0;
+    this.results = orderedResults.map((result, index) => {
+      const rank = previousDistance === result.distanceMs ? previousRank : index + 1;
+      previousDistance = result.distanceMs;
+      previousRank = rank;
+      return { ...result, rank, points: 0 };
     });
     awardMetricRanks(
       this.results.map((entry) => ({ playerId: entry.playerId, metric: entry.distanceMs })),
@@ -611,6 +643,10 @@ class KorKronometreAdapter implements Stage7GameAdapter {
       2,
       1
     );
+    this.results = this.results.map((result) => ({
+      ...result,
+      points: this.miniScores.get(result.playerId) ?? 0
+    }));
     this.finished = true;
   }
 
@@ -624,6 +660,7 @@ class KorKronometreAdapter implements Stage7GameAdapter {
   submit(playerId: string, payload: JsonValue | null, now: number): Stage7SubmitResult {
     assertNow(now);
     if (!this.playerIds.includes(playerId)) return { accepted: false, reason: "invalid" };
+    if (!this.connectedPlayerIds.has(playerId)) return { accepted: false, reason: "invalid" };
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (now >= this.startedAt! + EIGHTEEN_SECONDS) {
       this.advance(now);
@@ -637,7 +674,12 @@ class KorKronometreAdapter implements Stage7GameAdapter {
 
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     this.taps.delete(playerId);
+  }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((playerId) => playerIds.includes(playerId)));
   }
 
   getPublicState(_now: number): KorKronometrePublicState {
@@ -645,7 +687,9 @@ class KorKronometreAdapter implements Stage7GameAdapter {
       gameId: this.gameId,
       kind: this.gameId,
       started: this.isStarted,
-      endsAt: this.startedAt === null ? null : this.startedAt + EIGHTEEN_SECONDS,
+      // The shared phase motor keeps the authoritative deadline server-side;
+      // exposing it here would turn the blind stopwatch into a countdown.
+      endsAt: null,
       finished: this.finished,
       targetMs: this.finished ? 10_000 : null,
       results: this.finished ? this.results : null,
@@ -1425,15 +1469,18 @@ class AsiriYuklemeAdapter implements Stage7GameAdapter {
   private readonly miniScores: Map<string, number>;
   private readonly deltas: ScoreDelta[] = [];
   private readonly clicks = new Map<string, number>();
+  private connectedPlayerIds: Set<string>;
   private startedAt: number | null = null;
   private energy = 0;
   private armingEndsAt: number | null = null;
   private explodedPlayerId: string | null = null;
+  private results: AsiriYuklemeResultView[] | null = null;
   private finished = false;
 
   constructor(playerIds: readonly string[]) {
     this.playerIds = uniquePlayerIds(playerIds);
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
     this.playerIds.forEach((playerId) => this.clicks.set(playerId, 0));
   }
 
@@ -1447,6 +1494,18 @@ class AsiriYuklemeAdapter implements Stage7GameAdapter {
     if (this.finished) return;
     this.explodedPlayerId = explodedPlayerId;
     const eligible = this.playerIds.filter((playerId) => playerId !== explodedPlayerId);
+    const orderedEligible = [...eligible].sort(
+      (left, right) => (this.clicks.get(right) ?? 0) - (this.clicks.get(left) ?? 0) || left.localeCompare(right)
+    );
+    let previousClickCount: number | null = null;
+    let previousRank = 0;
+    const eligibleResults = orderedEligible.map((playerId, index) => {
+      const clickCount = this.clicks.get(playerId) ?? 0;
+      const rank = previousClickCount === clickCount ? previousRank : index + 1;
+      previousClickCount = clickCount;
+      previousRank = rank;
+      return { playerId, clickCount, rank, points: 0, exploded: false };
+    });
     if (explodedPlayerId !== null) scoreDelta(this.miniScores, this.deltas, explodedPlayerId, -1, "asiri-yukleme:patlama");
     awardMetricRanks(
       eligible.map((playerId) => ({ playerId, metric: this.clicks.get(playerId) ?? 0 })),
@@ -1458,6 +1517,21 @@ class AsiriYuklemeAdapter implements Stage7GameAdapter {
       2,
       1
     );
+    this.results = [
+      ...(explodedPlayerId === null
+        ? []
+        : [{
+            playerId: explodedPlayerId,
+            clickCount: this.clicks.get(explodedPlayerId) ?? 0,
+            rank: null,
+            points: this.miniScores.get(explodedPlayerId) ?? 0,
+            exploded: true
+          }]),
+      ...eligibleResults.map((result) => ({
+        ...result,
+        points: this.miniScores.get(result.playerId) ?? 0
+      }))
+    ];
     this.finished = true;
   }
 
@@ -1471,6 +1545,7 @@ class AsiriYuklemeAdapter implements Stage7GameAdapter {
   submit(playerId: string, payload: JsonValue | null, now: number): Stage7SubmitResult {
     assertNow(now);
     if (!this.playerIds.includes(playerId)) return { accepted: false, reason: "invalid" };
+    if (!this.connectedPlayerIds.has(playerId)) return { accepted: false, reason: "invalid" };
     if (!this.isStarted || this.finished) return { accepted: false, reason: "phase-locked" };
     if (inputKind(payload) !== "overload-click") return { accepted: false, reason: "invalid" };
     if (this.armingEndsAt !== null && now >= this.armingEndsAt) {
@@ -1489,8 +1564,13 @@ class AsiriYuklemeAdapter implements Stage7GameAdapter {
 
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     this.clicks.delete(playerId);
     if (this.explodedPlayerId === playerId) this.explodedPlayerId = null;
+  }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((playerId) => playerIds.includes(playerId)));
   }
 
   getPublicState(_now: number): AsiriYuklemePublicState {
@@ -1503,6 +1583,7 @@ class AsiriYuklemeAdapter implements Stage7GameAdapter {
       finished: this.finished,
       explodedPlayerId: this.explodedPlayerId,
       clickCounts: this.finished ? scoresAsRecord(this.clicks) : null,
+      results: this.finished ? this.results : null,
       resultPoints: this.finished ? resultPoints(this.miniScores) : null
     };
   }

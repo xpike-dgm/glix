@@ -30,10 +30,17 @@ const gameLoaders: Partial<Record<GameId, () => Promise<unknown>>> = {
   "zehirli-kadeh": () => import("./visuals/games/stage11-8b/ZehirliKadehStage"),
   "capraz-ates": () => import("./visuals/games/stage11-8b/CaprazAtesStage"),
   "zaman-bombasi-hafizasi": () => import("./visuals/games/stage11-8b/MemoryStage"),
+  // Stage 11.8A timing pressure games
+  "butona-bas": () => import("./visuals/games/Stage11ATimingPressureStage"),
+  "gizli-hirsiz": () => import("./visuals/games/Stage11ATimingPressureStage"),
+  "kor-kronometre": () => import("./visuals/games/Stage11ATimingPressureStage"),
+  "asiri-yukleme": () => import("./visuals/games/Stage11ATimingPressureStage"),
+  "son-kisi": () => import("./visuals/games/Stage11ATimingPressureStage"),
   // Immersive games
   "kontrol-paneli-kaosu": () => import("./visuals/games/kontrol-paneli-kaosu/KpkStage"),
   "kendim": () => import("./visuals/games/kendim/KendimStage")
 };
+
 
 const preloadedGames = new Set<string>();
 

@@ -2,9 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createStage6GameAdapter,
+  type ButonaBasOwnState,
+  type ButonaBasPublicState,
   type SizmaPublicState,
   type Stage6GameAdapter
 } from "./games.js";
+import {
+  createStage7GameAdapter,
+  type AsiriYuklemePublicState,
+  type GizliHirsizPublicState,
+  type KorKronometreOwnState,
+  type KorKronometrePublicState,
+  type Stage7GameAdapter
+} from "./games-stage7.js";
+import {
+  createStage9GameAdapter,
+  type SonKisiOwnState,
+  type SonKisiPublicState,
+  type Stage9GameAdapter
+} from "./games-stage9.js";
 
 function publicState(adapter: Stage6GameAdapter, now = 0): SizmaPublicState {
   return adapter.getPublicState(now) as SizmaPublicState;
@@ -198,4 +214,162 @@ test("R7 — Sızma hazır bariyerindeki oyuncu çıkarılınca kalan hazır oyu
 
   adapter.advance((afterRemoval.voteEndsAt ?? now) + 1);
   assert.equal(adapter.isFinished, true);
+});
+
+test("Stage 11.8A timing adapters preserve their single/repeatable contracts", () => {
+  const button = createStage6GameAdapter("butona-bas", ["a", "b"]);
+  button.start(0);
+  assert.deepEqual(button.submit("a", { kind: "button-tap" }, 1), { accepted: true });
+  assert.deepEqual(button.submit("a", { kind: "button-tap" }, 2), { accepted: true });
+  assert.deepEqual(button.submit("a", { kind: "button-tap" }, 45_000), { accepted: false, reason: "late" });
+  assert.equal((button.getPublicState(45_000) as ButonaBasPublicState).finished, true);
+
+  const thief = createStage7GameAdapter("gizli-hirsiz", ["a", "b"]);
+  thief.start(0);
+  assert.deepEqual(thief.submit("a", { kind: "steal" }, 100), { accepted: true });
+  assert.deepEqual(thief.submit("a", { kind: "steal" }, 101), { accepted: false, reason: "duplicate" });
+  const privateThiefState = thief.getPublicState(101) as GizliHirsizPublicState;
+  assert.equal(privateThiefState.pressCount, null);
+  assert.equal(privateThiefState.pressedPlayerIds, null);
+
+  const stopwatch = createStage7GameAdapter("kor-kronometre", ["a", "b"]);
+  stopwatch.start(0);
+  assert.deepEqual(stopwatch.submit("a", { kind: "stopwatch-stop" }, 9_500), { accepted: true });
+  assert.equal((stopwatch.getOwnState("a", 9_500) as KorKronometreOwnState).elapsedMs, 9_500);
+  const privateStopwatchState = stopwatch.getPublicState(9_500) as KorKronometrePublicState;
+  assert.equal(privateStopwatchState.endsAt, null);
+  assert.equal(privateStopwatchState.targetMs, null);
+  assert.equal(privateStopwatchState.results, null);
+
+  const overload = createStage7GameAdapter("asiri-yukleme", ["a", "b"]);
+  overload.start(0);
+  for (let click = 0; click < 100; click += 1) {
+    assert.deepEqual(overload.submit("a", { kind: "overload-click" }, click), { accepted: true });
+  }
+  const armed = overload.getPublicState(100) as AsiriYuklemePublicState;
+  assert.equal(armed.armed, true);
+  assert.doesNotMatch(JSON.stringify(armed), /armingEndsAt|arm.*time|3000/);
+  assert.equal(overload.advance(3_099), true);
+  assert.equal((overload.getPublicState(3_099) as AsiriYuklemePublicState).finished, true);
+});
+
+test("Stage 11.8A Butona Bas publishes an authoritative window and combo summary", () => {
+  const adapter = createStage6GameAdapter("butona-bas", ["a", "b"]);
+  adapter.start(0);
+
+  assert.deepEqual(adapter.submit("a", { kind: "button-tap" }, 1), { accepted: true });
+  assert.deepEqual(adapter.submit("a", { kind: "button-tap" }, 2), { accepted: true });
+  assert.deepEqual(adapter.submit("a", { kind: "button-tap" }, 301), { accepted: true });
+  assert.deepEqual(adapter.submit("b", { kind: "button-tap" }, 302), { accepted: true });
+
+  adapter.advance(45_000);
+  const result = adapter.getPublicState(45_000) as ButonaBasPublicState;
+  assert.deepEqual(result.resultSummary, {
+    acceptedWindowCount: 2,
+    singletonWindowCount: 1,
+    multiPlayerWindowCount: 1,
+    emptyWindowCount: 148,
+    longestWindowCombo: 2
+  });
+
+  const ownResult = adapter.getOwnState("a", 45_000) as ButonaBasOwnState;
+  assert.equal(ownResult.acceptedWindowCount, 2);
+  assert.equal(ownResult.longestWindowCombo, 2);
+});
+
+test("Stage 11.8A result views expose server ordering and rank without client re-ranking", () => {
+  const button = createStage6GameAdapter("butona-bas", ["a", "b"]);
+  button.start(0);
+  assert.deepEqual(button.submit("a", { kind: "button-tap" }, 1), { accepted: true });
+  assert.deepEqual(button.submit("b", { kind: "button-tap" }, 2), { accepted: true });
+  assert.deepEqual(button.submit("a", { kind: "button-tap" }, 301), { accepted: true });
+  button.advance(45_000);
+  assert.deepEqual((button.getPublicState(45_000) as ButonaBasPublicState).results, [
+    { playerId: "b", score: 1, rank: 1 },
+    { playerId: "a", score: 0, rank: 2 }
+  ]);
+
+  const stopwatch = createStage7GameAdapter("kor-kronometre", ["a", "b"]);
+  stopwatch.start(0);
+  assert.deepEqual(stopwatch.submit("a", { kind: "stopwatch-stop" }, 9_500), { accepted: true });
+  stopwatch.advance(18_000);
+  assert.deepEqual((stopwatch.getPublicState(18_000) as KorKronometrePublicState).results, [
+    { playerId: "a", elapsedMs: 9_500, distanceMs: 500, tapped: true, rank: 1, points: 2 },
+    { playerId: "b", elapsedMs: 18_000, distanceMs: 8_000, tapped: false, rank: 2, points: 1 }
+  ]);
+
+  const overload = createStage7GameAdapter("asiri-yukleme", ["a", "b"]);
+  overload.start(0);
+  for (let click = 0; click < 100; click += 1) {
+    assert.deepEqual(overload.submit("a", { kind: "overload-click" }, click), { accepted: true });
+  }
+  overload.advance(3_099);
+  assert.deepEqual((overload.getPublicState(3_099) as AsiriYuklemePublicState).results, [
+    { playerId: "a", clickCount: 100, rank: 1, points: 2, exploded: false },
+    { playerId: "b", clickCount: 0, rank: 2, points: 1, exploded: false }
+  ]);
+
+  const lastPerson = createStage9GameAdapter("son-kisi", ["a", "b"], () => 0.99);
+  lastPerson.start(0);
+  assert.deepEqual(lastPerson.submit("b", { kind: "escape" }, 1_000), { accepted: true });
+  assert.deepEqual(lastPerson.submit("a", { kind: "escape" }, 2_000), { accepted: true });
+  lastPerson.advance(20_000);
+  assert.deepEqual((lastPerson.getPublicState(20_000) as SonKisiPublicState).results, [
+    { playerId: "b", escaped: true, elapsedMs: 1_000, points: 0 },
+    { playerId: "a", escaped: true, elapsedMs: 2_000, points: 1 }
+  ]);
+});
+
+function assertStage11ALiveRoster(
+  adapter: Stage6GameAdapter | Stage7GameAdapter | Stage9GameAdapter,
+  payload: { readonly kind: string }
+): void {
+  adapter.start(0);
+  adapter.setConnectedPlayerIds?.(["a"], 1);
+  assert.deepEqual(adapter.submit("b", payload, 2), { accepted: false, reason: "invalid" });
+  assert.deepEqual(adapter.submit("outsider", payload, 2), { accepted: false, reason: "invalid" });
+
+  adapter.setConnectedPlayerIds?.(["a", "b"], 3);
+  assert.deepEqual(adapter.submit("b", payload, 4), { accepted: true });
+}
+
+test("Stage 11.8A action adapters reject disconnected seats and accept them after reconnect", () => {
+  assertStage11ALiveRoster(
+    createStage6GameAdapter("butona-bas", ["a", "b"]),
+    { kind: "button-tap" }
+  );
+  assertStage11ALiveRoster(
+    createStage7GameAdapter("gizli-hirsiz", ["a", "b"]),
+    { kind: "steal" }
+  );
+  assertStage11ALiveRoster(
+    createStage7GameAdapter("kor-kronometre", ["a", "b"]),
+    { kind: "stopwatch-stop" }
+  );
+  assertStage11ALiveRoster(
+    createStage7GameAdapter("asiri-yukleme", ["a", "b"]),
+    { kind: "overload-click" }
+  );
+  assertStage11ALiveRoster(
+    createStage9GameAdapter("son-kisi", ["a", "b"], () => 0.99),
+    { kind: "escape" }
+  );
+});
+
+test("Stage 11.8A Son Kişi keeps escape choices private until the authoritative result", () => {
+  const adapter = createStage9GameAdapter("son-kisi", ["a", "b"], () => 0.99);
+  adapter.start(0);
+  assert.deepEqual(adapter.submit("a", { kind: "escape" }, 2_000), { accepted: true });
+
+  const publicDuringPlay = adapter.getPublicState(2_000) as SonKisiPublicState;
+  assert.equal(publicDuringPlay.escapeCount, 0);
+  assert.deepEqual(publicDuringPlay.escapedPlayerIds, []);
+  assert.equal(publicDuringPlay.durationMs, null);
+  assert.equal((adapter.getOwnState("a", 2_000) as SonKisiOwnState).escapedAt, 2_000);
+
+  adapter.advance(20_000);
+  const result = adapter.getPublicState(20_000) as SonKisiPublicState;
+  assert.equal(result.escapeCount, 1);
+  assert.deepEqual(result.escapedPlayerIds, ["a"]);
+  assert.equal(result.durationMs, 20_000);
 });

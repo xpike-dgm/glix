@@ -2,6 +2,7 @@ import type { GameId, JsonValue } from "./index.js";
 import {
   awardMapToDeltas,
   createRankAwards,
+  rankScores,
   type ScoreDelta
 } from "./engine.js";
 
@@ -29,6 +30,25 @@ export interface SizmaClueToken {
   readonly text: string;
 }
 
+export interface ButonaBasResultSummary {
+  /** Windows with one or more unique participants. */
+  readonly acceptedWindowCount: number;
+  /** Windows with exactly one unique participant; each received the -1 penalty. */
+  readonly singletonWindowCount: number;
+  /** Windows with at least two unique participants; each received +1. */
+  readonly multiPlayerWindowCount: number;
+  /** Windows in which nobody submitted a tap. */
+  readonly emptyWindowCount: number;
+  /** Longest consecutive run of windows containing at least one participant. */
+  readonly longestWindowCombo: number;
+}
+
+export interface ButonaBasResultView {
+  readonly playerId: string;
+  readonly score: number;
+  readonly rank: number;
+}
+
 export interface ButonaBasPublicState {
   readonly gameId: "butona-bas";
   readonly kind: "butona-bas";
@@ -38,6 +58,10 @@ export interface ButonaBasPublicState {
   readonly windowCount: 150;
   readonly windowIndex: number;
   readonly currentWindowEndsAt: number | null;
+  /** Revealed only after all 150 timing windows have resolved. */
+  readonly resultSummary: ButonaBasResultSummary | null;
+  /** Server-ordered final scores, revealed only after the timing windows resolve. */
+  readonly results: readonly ButonaBasResultView[] | null;
   readonly finished: boolean;
 }
 
@@ -47,6 +71,8 @@ export interface ButonaBasOwnState {
   readonly miniScore: number;
   readonly currentWindowIndex: number;
   readonly lastTapWindowIndex: number | null;
+  readonly acceptedWindowCount: number;
+  readonly longestWindowCombo: number;
   readonly finished: boolean;
 }
 
@@ -296,6 +322,14 @@ function scoresAsRecord(scores: ReadonlyMap<string, number>): Record<string, num
   return Object.fromEntries(scores.entries());
 }
 
+function rankedButonaResults(scores: ReadonlyMap<string, number>): ButonaBasResultView[] {
+  return rankScores(scoresAsRecord(scores)).map(({ playerId, score, rank }) => ({
+    playerId,
+    score,
+    rank
+  }));
+}
+
 function scoreDelta(
   scores: Map<string, number>,
   deltas: ScoreDelta[],
@@ -313,6 +347,8 @@ class ButonaBasAdapter implements Stage6GameAdapter {
   private readonly miniScores: Map<string, number>;
   private readonly deltas: ScoreDelta[] = [];
   private readonly windowPlayers = new Map<number, Set<string>>();
+  private readonly resolvedWindowParticipants = new Map<number, ReadonlySet<string>>();
+  private connectedPlayerIds: Set<string>;
   private startedAt: number | null = null;
   private lastResolvedWindow = 0;
   private lastTapByPlayer = new Map<string, number>();
@@ -322,6 +358,7 @@ class ButonaBasAdapter implements Stage6GameAdapter {
   constructor(playerIds: readonly string[], random: RandomSource) {
     this.playerIds = [...new Set(playerIds)];
     this.miniScores = copyScores(this.playerIds);
+    this.connectedPlayerIds = new Set(this.playerIds);
   }
 
   get isStarted(): boolean {
@@ -349,6 +386,7 @@ class ButonaBasAdapter implements Stage6GameAdapter {
 
     while (this.lastResolvedWindow < exclusiveEnd && this.lastResolvedWindow < 150) {
       const participants = this.windowPlayers.get(this.lastResolvedWindow) ?? new Set<string>();
+      this.resolvedWindowParticipants.set(this.lastResolvedWindow, new Set(participants));
 
       if (participants.size >= 2) {
         participants.forEach((playerId) => {
@@ -366,6 +404,66 @@ class ButonaBasAdapter implements Stage6GameAdapter {
     }
 
     return changed;
+  }
+
+  private getResultSummary(): ButonaBasResultSummary {
+    let acceptedWindowCount = 0;
+    let singletonWindowCount = 0;
+    let multiPlayerWindowCount = 0;
+    let emptyWindowCount = 0;
+    let longestWindowCombo = 0;
+    let currentWindowCombo = 0;
+
+    for (let windowIndex = 0; windowIndex < 150; windowIndex += 1) {
+      const participantCount = this.resolvedWindowParticipants.get(windowIndex)?.size ?? 0;
+
+      if (participantCount === 0) {
+        emptyWindowCount += 1;
+        currentWindowCombo = 0;
+        continue;
+      }
+
+      acceptedWindowCount += 1;
+      currentWindowCombo += 1;
+      longestWindowCombo = Math.max(longestWindowCombo, currentWindowCombo);
+
+      if (participantCount === 1) {
+        singletonWindowCount += 1;
+      } else {
+        multiPlayerWindowCount += 1;
+      }
+    }
+
+    return {
+      acceptedWindowCount,
+      singletonWindowCount,
+      multiPlayerWindowCount,
+      emptyWindowCount,
+      longestWindowCombo
+    };
+  }
+
+  private getPlayerWindowSummary(playerId: string): Pick<ButonaBasOwnState, "acceptedWindowCount" | "longestWindowCombo"> {
+    let acceptedWindowCount = 0;
+    let longestWindowCombo = 0;
+    let currentWindowCombo = 0;
+
+    for (let windowIndex = 0; windowIndex < 150; windowIndex += 1) {
+      const resolvedParticipants = this.resolvedWindowParticipants.get(windowIndex);
+      const currentParticipants = this.windowPlayers.get(windowIndex);
+      const participated = resolvedParticipants?.has(playerId) ?? currentParticipants?.has(playerId) ?? false;
+
+      if (!participated) {
+        currentWindowCombo = 0;
+        continue;
+      }
+
+      acceptedWindowCount += 1;
+      currentWindowCombo += 1;
+      longestWindowCombo = Math.max(longestWindowCombo, currentWindowCombo);
+    }
+
+    return { acceptedWindowCount, longestWindowCombo };
   }
 
   private finishGame(): boolean {
@@ -416,6 +514,10 @@ class ButonaBasAdapter implements Stage6GameAdapter {
       return { accepted: false, reason: "invalid" };
     }
 
+    if (!this.connectedPlayerIds.has(playerId)) {
+      return { accepted: false, reason: "invalid" };
+    }
+
     if (!this.isStarted || this.finished) {
       return { accepted: false, reason: "phase-locked" };
     }
@@ -439,10 +541,15 @@ class ButonaBasAdapter implements Stage6GameAdapter {
 
   removePlayer(playerId: string): void {
     this.playerIds = this.playerIds.filter((candidate) => candidate !== playerId);
+    this.connectedPlayerIds.delete(playerId);
     for (const participants of this.windowPlayers.values()) {
       participants.delete(playerId);
     }
     this.lastTapByPlayer.delete(playerId);
+  }
+
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerIds = new Set(this.playerIds.filter((playerId) => playerIds.includes(playerId)));
   }
 
   getPublicState(now: number): ButonaBasPublicState {
@@ -462,18 +569,23 @@ class ButonaBasAdapter implements Stage6GameAdapter {
       currentWindowEndsAt: this.startedAt === null || this.finished
         ? null
         : Math.min(this.startedAt + 45_000, this.startedAt + (windowIndex + 1) * 300),
+      resultSummary: this.finished ? this.getResultSummary() : null,
+      results: this.finished ? rankedButonaResults(this.miniScores) : null,
       finished: this.finished
     };
   }
 
   getOwnState(playerId: string, now: number): ButonaBasOwnState {
     const publicState = this.getPublicState(now);
+    const windowSummary = this.getPlayerWindowSummary(playerId);
     return {
       gameId: this.gameId,
       kind: this.gameId,
       miniScore: this.miniScores.get(playerId) ?? 0,
       currentWindowIndex: publicState.windowIndex,
       lastTapWindowIndex: this.lastTapByPlayer.get(playerId) ?? null,
+      acceptedWindowCount: windowSummary.acceptedWindowCount,
+      longestWindowCombo: windowSummary.longestWindowCombo,
       finished: this.finished
     };
   }

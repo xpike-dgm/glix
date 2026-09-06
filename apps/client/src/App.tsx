@@ -35,11 +35,14 @@ import { ResultOverlay } from "./visuals/overlays/ResultOverlay";
 import { SpectatorOverlay } from "./visuals/overlays/SpectatorOverlay";
 import { TutorialOverlay } from "./visuals/overlays/TutorialOverlay";
 import { GameViewport } from "./visuals/viewport/GameViewport";
-import { PremiumStageHero } from "./visuals/stage/PremiumStageHero";
 import { isStage11BGameId, Stage11BStage } from "./visuals/games/stage11-8b/Stage11BStage";
+import { isStage11AGameId } from "./visuals/games/Stage11ATimingPressureStage";
 import { preloadPremiumBrandAssets, preloadPremiumGamePack } from "./visuals/visualAssetManifest";
 import { pwaService } from "./pwa";
 import { safeLazy, preloadGameStage, preloadNextScheduledGame, StageLoadingFallback } from "./lazyPreload";
+
+const LazyStage11AStage = lazy(safeLazy(() => import("./visuals/games/Stage11ATimingPressureStage").then((m) => ({ default: m.Stage11ATimingPressureStage }))));
+
 
 const LazyKpkStage = lazy(safeLazy(() => import("./visuals/games/kontrol-paneli-kaosu/KpkStage").then((m) => ({ default: m.KpkStage }))));
 const LazyKendimStage = lazy(safeLazy(() => import("./visuals/games/kendim/KendimStage").then((m) => ({ default: m.KendimStage }))));
@@ -112,7 +115,7 @@ function isServerMessage(value: unknown): value is ServerMessage {
 
 function connectionLabel(connection: ConnectionState): string {
   if (connection === "connected") {
-    return "SUNUCU HAZIR";
+    return "BAĞLANTI HAZIR";
   }
 
   if (connection === "connecting") {
@@ -259,7 +262,7 @@ function App(): JSX.Element {
           const value: unknown = JSON.parse(String(event.data));
 
           if (!isServerMessage(value)) {
-            setError("Sunucudan beklenmeyen bir yanıt geldi.");
+            setError("Oyun bağlantısından beklenmeyen bir yanıt geldi.");
             return;
           }
 
@@ -443,7 +446,7 @@ function App(): JSX.Element {
             }
           }
         } catch {
-          setError("Sunucudan okunamayan bir yanıt geldi.");
+          setError("Oyun bağlantısından okunamayan bir yanıt geldi.");
         }
       });
 
@@ -518,7 +521,7 @@ function App(): JSX.Element {
     const socket = socketRef.current;
 
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      setError("Sunucu bağlantısı hazır değil. Birkaç saniye sonra tekrar dene.");
+      setError("Oyun bağlantısı hazır değil. Birkaç saniye sonra tekrar dene.");
       return false;
     }
 
@@ -605,7 +608,7 @@ function App(): JSX.Element {
     }
 
     setError(null);
-    setNotice("Gerçek mini oyun rotası hazırlanıyor.");
+    setNotice("Mini oyun rotası hazırlanıyor.");
     sendMessage({ type: "client:room:start" });
   };
 
@@ -996,6 +999,7 @@ function App(): JSX.Element {
           <div className="lobby-footer">
             <span>BAĞLANTI KODU İLE OYNA</span>
             <span>BAĞLANTI HAZIR · ODA KODUNU PAYLAŞ</span>
+
             <button
               className="button button-start"
               type="button"
@@ -1080,6 +1084,7 @@ function matchPhaseDescription(phase: MatchState["phase"]): string {
     finished: "Seçilen rota tamamlandı. Genel skor tablosu hazır."
   };
 
+
   return descriptions[phase];
 }
 
@@ -1132,7 +1137,9 @@ function MatchScreen({
   const stage7GameId = isStage7GameId(state.currentGameId) ? state.currentGameId : null;
   const stage8GameId = isStage8GameId(state.currentGameId) ? state.currentGameId : null;
   const stage9GameId = isStage9GameId(state.currentGameId) ? state.currentGameId : null;
+  const stage11AGameId = isStage11AGameId(state.currentGameId) ? state.currentGameId : null;
   const stage11BGameId = isStage11BGameId(state.currentGameId) ? state.currentGameId : null;
+
   const remaining = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - now);
   const duration = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - state.phaseStartedAt);
   const progress = state.phase === "finished"
@@ -1148,6 +1155,7 @@ function MatchScreen({
     (left, right) => right.score - left.score || right.miniGameScore - left.miniGameScore
   );
   const tutorialSteps = tutorialStepsForGame(game);
+  const locksForAck = actionState?.status === "pending" && submissionStatus.mode !== "repeatable";
 
   const stageControls = stage6GameId ? (
     <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
@@ -1204,7 +1212,7 @@ function MatchScreen({
         <strong>{ownHasSubmitted ? "HAMLE ALINDI" : "HAMLE GÖNDER"}</strong>
         <small>{ownHasSubmitted ? "SONUCU BEKLE" : "TEK DOKUNUŞ"}</small>
       </button>
-      <p>Hamleni sahnedeki ana nesne üzerinden gönder. Skoru sunucu hesaplar.</p>
+      <p>Hamleni sahnedeki ana nesne üzerinden gönder. Puanlar oyun sonunda hesaplanır.</p>
     </div>
   );
 
@@ -1259,6 +1267,7 @@ function MatchScreen({
 
   const isKpk = game.id === "kontrol-paneli-kaosu";
   const isKendim = game.id === "kendim";
+  const hidesKorKronometreClock = stage11AGameId === "kor-kronometre" && state.phase === "playing";
   const kendimPublicState = isKendim ? (state.gameState as unknown as KendimPublicState) : null;
   const kendimOwnState = isKendim ? (ownGameState as unknown as KendimOwnState) : null;
   const kendimSelfStatusLabel = isKendim
@@ -1287,7 +1296,7 @@ function MatchScreen({
             gameTotal={state.gameIds.length}
             phase={state.phase}
             phaseLabel={matchPhaseLabel(state.phase)}
-            deadline={state.phaseEndsAt}
+            deadline={hidesKorKronometreClock ? null : state.phaseEndsAt}
             now={now}
             totalDurationSeconds={totalDurationSeconds}
             players={state.players}
@@ -1348,10 +1357,29 @@ function MatchScreen({
               onReady={onReady}
               onSubmit={onSubmit}
             />
+          ) : stage11AGameId ? (
+            <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
+              <LazyStage11AStage
+                gameId={stage11AGameId}
+                gameName={game.name}
+                phase={state.phase}
+                publicState={state.gameState}
+                ownState={ownGameState}
+                selfPlayerId={selfPlayerId}
+                players={sortedPlayers}
+                now={now}
+                isSpectator={isSpectator}
+                actionState={actionState}
+                ready={ready}
+                connection={connection}
+                onReady={onReady}
+                onSubmit={onSubmit}
+              />
+            </Suspense>
           ) : undefined
         }
         hero={
-          isKpk || isKendim ? undefined : (
+          isKpk || isKendim || stage11AGameId || stage11BGameId ? undefined : (
             <PremiumStageHero
               game={game}
               phase={state.phase}
@@ -1371,7 +1399,7 @@ function MatchScreen({
                 remainingLabel={formatRemaining(remaining)}
               />
             )}
-            {state.phase === "results" && !isKpk && !isKendim && !stage11BGameId && (
+            {state.phase === "results" && !isKpk && !isKendim && !stage11AGameId && !stage11BGameId && (
               <ResultOverlay gameName={game.name} disableInteraction>
                 {resultControls}
               </ResultOverlay>
@@ -1393,7 +1421,7 @@ function MatchScreen({
                 )}
               </ResultOverlay>
             )}
-            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && !stage11BGameId && (
+            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && !stage11AGameId && !stage11BGameId && (
               <SpectatorOverlay
                 roomCode={roomCode}
                 connected={Boolean(self?.connected)}
@@ -1403,7 +1431,7 @@ function MatchScreen({
           </>
         }
       >
-        {!isKpk && !isKendim && !stage11BGameId && (
+        {!isKpk && !isKendim && !stage11AGameId && !stage11BGameId && (
           <>
             <div className="glix-stage-context">
               <div>
@@ -1423,7 +1451,7 @@ function MatchScreen({
 
             {state.phase === "playing" && !isSpectator && (
               <div className="glix-control-slot" aria-label={`${game.name} hamle alanı`}>
-                <fieldset className="glix-action-fence" disabled={actionState?.status === "pending"} aria-busy={actionState?.status === "pending"}>
+                <fieldset className="glix-action-fence" disabled={locksForAck}>
                   {stageControls}
                 </fieldset>
               </div>
@@ -1446,6 +1474,7 @@ function MatchScreen({
           <span>ODA {roomCode}</span>
           <span>{connection === "connected" ? "BAĞLANTI HAZIR" : "BAĞLANTI BEKLENİYOR"}</span>
         </footer>
+
       </GameViewport>
     </section>
   );
