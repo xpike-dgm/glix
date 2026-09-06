@@ -161,6 +161,56 @@ kullanılmalıdır.
    hedeflenmektedir; bu deploy tasarımının doğru çalışması için
    `deploy/nginx.conf` içindeki backend adı korunmalıdır.
 
+## Güvenlik ve sıkılaştırma (Server Hardening)
+
+Glix sunucusu, açık internete maruz kalma durumunda bellek tükenmesi (OOM),
+DoS, JSON payload şişirme ve sahte replay saldırılarına karşı aşağıdaki
+katmanlarla korunmaktadır:
+
+### Ortam değişkenleri
+
+| Değişken | Varsayılan | Açıklama |
+| --- | --- | --- |
+| `ALLOWED_ORIGINS` / `GLIX_ALLOWED_ORIGINS` | Boş (dev'de her yer serbest) | İzin verilen Origin listesi (virgülle ayrılmış, örn. `https://glix.example.com`). Production'da boş bırakılırsa origin uyuşmazlığı durumunda WebSocket bağlantısı 403 ile reddedilir. |
+| `ALLOW_NO_ORIGIN` / `GLIX_ALLOW_NO_ORIGIN` | `false` (prod), `true` (dev) | Origin başlığı bulunmayan bağlantılara (örn. curl, CLI scriptleri) izin verilip verilmeyeceği. Public prod'da `false` önerilir. |
+| `TRUSTED_PROXY_HOPS` / `GLIX_TRUSTED_PROXY_HOPS` | `1` (Compose), `0` (doğrudan Node) | Güvenilen ters vekil sayısı. İstemci IP'si, `X-Forwarded-For` listesinin sağdan `trustedProxyHops` kadar önceki elemanından alınır; bu sayede istemcinin gönderdiği sahte XFF başlıkları yok sayılır. |
+| `MAX_PAYLOAD_BYTES` / `GLIX_MAX_PAYLOAD_BYTES` | `2097152` (2 MiB) | İzin verilen en büyük WebSocket mesaj boyutu (byte). Karalama Defteri oyunundaki ölçülen en ağır yasal çizim (~1.21 MiB) dikkate alınarak ayarlanmıştır. |
+
+### Ters vekil (Reverse Proxy) ve `TRUSTED_PROXY_HOPS` seçimi
+
+- **Doğrudan Node çalıştırılıyorsa (`npm run dev:server` vb.)**: `TRUSTED_PROXY_HOPS=0`. İstemci IP'si doğrudan socket adresinden okunur.
+- **Yalnızca Compose Nginx varsa**: `GLIX_TRUSTED_PROXY_HOPS=1`. Nginx istemcinin IP'sini `X-Forwarded-For`'a ekler; sağdaki son eleman güvenilir istemci IP'sidir.
+- **Host üzerinde ikinci bir vekil (Caddy / Host Nginx) + Compose Nginx varsa**: `GLIX_TRUSTED_PROXY_HOPS=2`. Zincir: `İstemci -> Host Proxy -> Compose Nginx -> Node`. Sağdan 2. atlama gerçek istemci IP'sini verir.
+
+### Güvenlik bütçeleri ve hız limitleri
+
+1. **WebSocket taşıma bütçesi**: ws seviyesinde `maxPayload: 2097152` (2 MiB). 2 MiB üzeri paketler Node belleğine alınmadan ws tarafından `1009 (Message Too Big)` koduyla sonlandırılır.
+2. **JSON AST karmaşıklık bütçesi**: JSON.parse sonrası nesne ağacı taranır:
+   - Maksimum 120.000 düğüm (legal en yoğun çizim 76.330 düğümdür; %57 tolerans).
+   - Maksimum 1.000 karakter dize uzunluğu (en uzun yasal actionScope ~240 karakterdir).
+   - Dizi boyutu sınırı: 300 eleman (çizim strokeleri en fazla 180'dir).
+   - Nesne anahtar sayısı: En fazla 32 anahtar.
+   - Derinlik sınırı: En fazla 8 katman.
+3. **Replay Action Fence**: Oyuncu başına 2.048 işlem kimliği (`actionId`) sınırıyla sınırlandırılmış Ring/LRU çit. Yalnızca başarıyla kabul edilen hamleler saklanır; geçersiz/reddedilen hamleler hafızayı dolduramaz. Yeni oyun başladığında veya oyuncu ayrıldığında temizlenir.
+4. **Hız sınırlamaları (Token Bucket)**:
+   - IP başına bağlantı: 100 burst, saniyede 2 yenileme (aynı NAT arkasında 8 oyuncunun eşzamanlı bağlanmasını destekler).
+   - IP başına oda açma: 10 burst, 6 saniyede 1 yenileme.
+   - IP başına odaya katılma: 40 burst, saniyede 1 yenileme.
+   - Socket toplam mesaj: 250 burst, saniyede 60 yenileme (yüksek tempolu mini oyunları destekler).
+   - Socket oyun hamlesi (submit): 150 burst, saniyede 35 yenileme (Aşırı Yükleme ve Butona Bas oyunlarında 100 tıklamaya kadar yasal seri tıklamaları destekler).
+   - Hatalı/malformed mesaj seli: 5 hatalı mesaj gönderen socket `1008 (Policy Violation)` ile kapatılır.
+
+### Public yayına çıkış kontrol listesi (Production Checklist)
+
+1. [ ] Host üzerinde TLS sertifikası tanımlandı ve SSL `listen 443 ssl` ile sonlandırıldı.
+2. [ ] `deploy/.env` dosyası oluşturuldu (`cp deploy/.env.example deploy/.env`).
+3. [ ] `GLIX_ALLOWED_ORIGINS` gerçek prod alan adına (`https://glix.ornekdomain.com`) ayarlandı.
+4. [ ] `GLIX_ALLOW_NO_ORIGIN` değeri `false` olarak bırakıldı.
+5. [ ] `GLIX_TRUSTED_PROXY_HOPS` vekil zincirine göre (Host Proxy + Compose ise `2`, yalnızca Compose ise `1`) ayarlandı.
+6. [ ] `docker compose -f deploy/docker-compose.yml config` ile sözdizimi doğrulandı.
+7. [ ] `curl --fail http://127.0.0.1:18080/health` ile servis sağlığı doğrulandı.
+8. [ ] `npm run smoke:realtime` veya WebSocket testi ile gerçek zamanlı akış doğrulandı.
+
 ## Operasyonel sınır
 
 Bu klasör dağıtım artefaktlarını ve operasyon komutlarını taşır. Gerçek public
@@ -168,3 +218,4 @@ domain/SSL bilgisi kesinleşmeden host Caddy yapılandırmasına route eklenmeme
 önce `docker compose ... config`, ardından loopback healthcheck ve
 HTTPS/WebSocket smoke testi yapılmalıdır. Mevcut Lynrax servisleri ayrı
 kalmalıdır.
+
