@@ -6,7 +6,6 @@ import {
   MAX_NICKNAME_LENGTH,
   MAX_PLAYERS,
   MIN_PLAYERS,
-  PROTOCOL_VERSION,
   ROOM_CODE_LENGTH,
   getAvailableGames,
   getConnectedPlayerCount,
@@ -116,7 +115,7 @@ function connectionLabel(connection: ConnectionState): string {
     return "BAĞLANIYOR";
   }
 
-  return "BAĞLANTI KOPTU";
+  return "BAĞLANTI YOK";
 }
 
 function isStage6GameId(gameId: GameId): gameId is Stage6GameId {
@@ -137,7 +136,6 @@ function isStage9GameId(gameId: GameId): gameId is Stage9GameId {
 
 function App(): JSX.Element {
   const [connection, setConnection] = useState<ConnectionState>("connecting");
-  const [serverVersion, setServerVersion] = useState("—");
   const [screen, setScreen] = useState<Screen>("home");
   const [nickname, setNickname] = useState(() => readStoredValue(STORAGE_KEYS.nickname));
   const [roomCodeInput, setRoomCodeInput] = useState(() => readStoredValue(STORAGE_KEYS.roomCode));
@@ -249,7 +247,6 @@ function App(): JSX.Element {
           }
 
           if (value.type === "server:ready") {
-            setServerVersion(value.serverVersion);
             return;
           }
 
@@ -852,7 +849,7 @@ function App(): JSX.Element {
 
           <div className="lobby-footer">
             <span>BAĞLANTI KODU İLE OYNA</span>
-            <span>PROTOKOL v{PROTOCOL_VERSION} / SUNUCU {serverVersion}</span>
+            <span>BAĞLANTI HAZIR · ODA KODUNU PAYLAŞ</span>
             <button
               className="button button-start"
               type="button"
@@ -914,7 +911,7 @@ interface MatchScreenProps {
 
 function matchPhaseLabel(phase: MatchState["phase"]): string {
   const labels: Record<MatchState["phase"], string> = {
-    tutorial: "TUTORİAL",
+    tutorial: "KISA ANLATIM",
     preparing: "HAZIRLIK",
     playing: "OYNA",
     results: "SONUÇLAR",
@@ -929,8 +926,8 @@ function matchPhaseDescription(phase: MatchState["phase"]): string {
   const descriptions: Record<MatchState["phase"], string> = {
     tutorial: "On saniyelik görsel anlatımı izle; oyunun ritmi ve hamlesi burada gösterilir.",
     preparing: "Herkes hazır olduğunda gerçek mini oyun başlar.",
-    playing: "Kuralın gerektirdiği hamleyi kendi telefonundan yap. Skoru sunucu hesaplar.",
-    results: "Bu oyunun puanları ve varsa elenme sonucu işleniyor.",
+    playing: "Sıran geldiğinde hamleni kendi telefonundan yap. Puanın tur sonunda görünür.",
+    results: "Bu oyunun puanları ve varsa elenme sonucu birazdan görünür.",
     transition: "Sıradaki mini oyun sahnesi hazırlanıyor.",
     finished: "Seçilen rota tamamlandı. Genel skor tablosu hazır."
   };
@@ -1287,7 +1284,7 @@ function MatchScreen({
 
         <footer className="glix-match-footer">
           <span>ODA {roomCode}</span>
-          <span>{connection === "connected" ? "SYNC AKTİF" : "BAĞLANTI BEKLENİYOR"}</span>
+          <span>{connection === "connected" ? "BAĞLANTI HAZIR" : "BAĞLANTI BEKLENİYOR"}</span>
         </footer>
       </GameViewport>
     </section>

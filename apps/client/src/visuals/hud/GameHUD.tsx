@@ -38,7 +38,7 @@ function selfState(
   if (!player) return "OTURUM ARANIYOR";
   if (player.eliminated) return "ELENDİ";
   if (!player.currentGameParticipant) return "İZLEYİCİ";
-  if (!player.connected) return "KOPTU";
+  if (!player.connected) return "BAĞLANTI YOK";
   if (selfStatusLabel) return selfStatusLabel;
   if (gameId === "kontrol-paneli-kaosu") {
     return ownHasSubmitted ? "KABLO KESİLDİ" : "SENİN PANELİN";
@@ -48,7 +48,7 @@ function selfState(
     return ownHasSubmitted ? "SEÇİMLER KİLİTLİ" : "EŞLEŞTİR";
   }
   if (submissionStatus.mode === "repeatable") return submissionStatus.canAct ? "HAMLEYE DEVAM" : "BEKLİYOR";
-  return submissionStatus.completed ? "HAMLE GÖNDERDİ" : submissionStatus.canAct ? "SENİN SIRAN" : "BEKLİYOR";
+  return submissionStatus.completed ? "HAMLE GÖNDERİLDİ" : submissionStatus.canAct ? "SENİN SIRAN" : "BEKLİYOR";
 }
 
 export function GameHUD({

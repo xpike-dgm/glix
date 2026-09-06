@@ -16,7 +16,7 @@ export function TutorialOverlay({
   return (
     <div className="glix-tutorial-overlay" aria-live="polite">
       <div className="glix-tutorial-panel">
-        <div className="glix-overlay-kicker"><span /> SAHNE PROVASI <b>{remainingLabel}</b></div>
+        <div className="glix-overlay-kicker"><span /> KISA ANLATIM <b>{remainingLabel}</b></div>
         <div className="glix-tutorial-heading">
           <span className="glix-tutorial-seal" aria-hidden="true">01</span>
           <div><span>KURAL ÖNİZLEMESİ</span><h2>{gameName}</h2></div>

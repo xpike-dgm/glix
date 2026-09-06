@@ -83,7 +83,7 @@ function RailToken({
       <span className="rr-token__avatar" aria-hidden="true">{initials(player.nickname)}</span>
       <span className="rr-token__copy">
         <strong>{player.nickname}</strong>
-        <small>{isHolder ? "TUTUCU" : isSelf ? "KENDİN" : isAlive ? "CANLI" : "ELENDİ"}</small>
+        <small>{isHolder ? "TAŞIYICI" : isSelf ? "KENDİN" : isAlive ? "CANLI" : "ELENDİ"}</small>
       </span>
       {isSelected && <span className="rr-token__check" aria-hidden="true">✓</span>}
     </>
@@ -99,7 +99,7 @@ function RailToken({
       type="button"
       disabled={disabled}
       aria-pressed={isSelected}
-      aria-label={`${player.nickname}${isSelf ? ", kendin" : ""}${isHolder ? ", silah tutucusu" : ""}`}
+      aria-label={`${player.nickname}${isSelf ? ", kendin" : ""}${isHolder ? ", silahı taşıyor" : ""}`}
       onClick={() => onSelect(player.id)}
     >
       {content}
@@ -540,10 +540,10 @@ const RUS_RULES = `
     .rr-stage { gap: 0.48rem; padding: 0.55rem 0.7rem; }
     .rr-stage__visual { min-height: 10.4rem; }
     .rr-stage__interaction { gap: 0.45rem; padding: 0.58rem; }
-    .rr-token { min-height: 2.38rem; padding: 0.28rem; }
+    .rr-token { min-height: 44px; padding: 0.28rem; }
     .rr-token__avatar { width: 1.45rem; height: 1.45rem; }
     .rr-target-head small { display: none; }
-    .rr-fire-button { min-height: 2.35rem; }
+    .rr-fire-button { min-height: 44px; }
   }
 
   @media (max-width: 560px) {
@@ -626,34 +626,34 @@ export function RusRuletiStage({
   }, [isHolder, isResults, isSpectator, livePlayerIds, onSubmit, ownState?.canShoot, publicState?.shotCount, selectedTarget]);
 
   if (!publicState) {
-    return <div className="rr-stage rr-stage--loading" aria-label="Rus Ruleti sahnesi hazırlanıyor"><style>{RUS_RULES}</style><span>SİLİNDİR KALİBRE EDİLİYOR…</span></div>;
+    return <div className="rr-stage rr-stage--loading" aria-label="Rus Ruleti sahnesi hazırlanıyor"><style>{RUS_RULES}</style><span>HAZNE HAZIRLANIYOR…</span></div>;
   }
 
   const status = isSpectator
     ? { kind: "spectator" as const, icon: "◌", title: "CANLI İZLEME", detail: "Risk bilgisi ve kararlar yalnızca ilgili oyuncuya açıktır." }
     : submission.status === "pending"
-      ? { kind: "pending" as const, icon: "…", title: "ATIŞ GÖNDERİLİYOR", detail: "Sunucu kararı bekleniyor." }
+      ? { kind: "pending" as const, icon: "…", title: "ATIŞ GÖNDERİLİYOR", detail: "Karar sahneye işleniyor." }
       : submission.status === "accepted"
-        ? { kind: "accepted" as const, icon: "✓", title: "ATIŞ KABUL EDİLDİ", detail: "Yeni holder ve sonuçlar senkronize ediliyor." }
+        ? { kind: "accepted" as const, icon: "✓", title: "ATIŞ GÖNDERİLDİ", detail: "Yeni taşıyıcı ve sonuçlar hazırlanıyor." }
         : submission.status === "rejected"
-          ? { kind: "rejected" as const, icon: "!", title: "SEÇİM REDDEDİLDİ", detail: "Hedef artık canlı olmayabilir; canlı token seç." }
+          ? { kind: "rejected" as const, icon: "!", title: "SEÇİM REDDEDİLDİ", detail: "Bu oyuncu artık oyunda olmayabilir; canlı birini seç." }
           : isResults
             ? { kind: "accepted" as const, icon: "✦", title: "SONUÇLAR AÇIK", detail: "Atış izi ve hayatta kalanlar aşağıda." }
             : isHolder
               ? { kind: "ready" as const, icon: "◎", title: "HEDEF SEÇ", detail: "Kendin dahil canlı bir oyuncu seçebilirsin." }
-              : { kind: "ready" as const, icon: "◉", title: `${holderName.toUpperCase()} KARAR VERİYOR`, detail: "Silah sana geçtiğinde hedef seçebilirsin." };
+              : { kind: "ready" as const, icon: "◉", title: `${holderName.toUpperCase()} KARAR VERİYOR`, detail: "Silah sana geçtiğinde bir hedef seçebilirsin." };
 
   const lastShot = publicState.lastShot;
   const lastShotTarget = lastShot ? playerName(players, lastShot.targetPlayerId) : null;
   const results = publicState.results ?? [];
 
   return (
-    <div className={`rr-stage ${lastShot?.exploded ? "rr-stage--exploded" : ""}`} aria-label="Rus Ruleti premium risk sahnesi" aria-live="polite">
+    <div className={`rr-stage ${lastShot?.exploded ? "rr-stage--exploded" : ""}`} aria-label="Rus Ruleti kapalı hazne sahnesi" aria-live="polite">
       <style>{RUS_RULES}</style>
 
       <header className="rr-stage__header">
         <div className="rr-stage__header-copy">
-          <span className="rr-eyebrow">STAGE 11.8B / RUS RULETİ</span>
+          <span className="rr-eyebrow">KAPALI HAZNE / RUS RULETİ</span>
           <h2>{isResults ? "Risk açıldı. İz bırakıldı." : isHolder ? "Silah sende." : `${holderName} karar veriyor.`}</h2>
           <p>Kapalı hazne, tek karar, herkese açık sonuç.</p>
         </div>
@@ -664,10 +664,10 @@ export function RusRuletiStage({
       </header>
 
       <div className="rr-stage__body">
-        <section className="rr-stage__visual" aria-label="Kapalı risk haznesi ve holder durumu">
+        <section className="rr-stage__visual" aria-label="Kapalı risk haznesi ve taşıyıcı durumu">
           <div className="rr-stage__holder">
             <div className="rr-stage__holder-copy">
-              <small>SİLAH TUTUCUSU</small>
+              <small>SİLAH KİMDE?</small>
               <strong>{publicState.finished ? "Tur tamamlandı" : holderName}</strong>
             </div>
             <span className="rr-holder-badge">{publicState.finished ? "KİLİTLİ" : isHolder ? "SIRA SENDE" : "BEKLE"}</span>
@@ -687,26 +687,26 @@ export function RusRuletiStage({
             </svg>
             <div className="rr-chamber" aria-label="Risk haznesi mühürlü">
               <span className="rr-chamber__lock" aria-hidden="true">▣</span>
-              <span className="rr-chamber__label">RİSK HAZNESİ</span>
+              <span className="rr-chamber__label">KAPALI RİSK</span>
               {canShowRisk ? <strong>%{ownState?.riskPercent}</strong> : <strong>MÜHÜRLÜ</strong>}
-              <small>{canShowRisk ? "Bu bilgi yalnızca holder ekranında görünür." : "İçerik sonuç anına kadar kapalı."}</small>
+              <small>{canShowRisk ? "Bu bilgi yalnızca senin ekranında görünür." : "İçerik sonuç anına kadar kapalı."}</small>
             </div>
           </div>
 
           <div className="rr-stage__stats" aria-label="Tur istatistikleri">
             <div className="rr-stat rr-stat--safe"><span>HAYATTA</span><b>{publicState.alivePlayerIds.length} / {players.length}</b></div>
             <div className="rr-stat"><span>ATIŞ</span><b>{publicState.shotCount}</b></div>
-            <div className={`rr-stat ${lastShot?.exploded ? "rr-stat--danger" : ""}`}><span>HAZNE</span><b>{lastShot ? lastShot.exploded ? "AÇILDI" : "KAPALI" : "SEALED"}</b></div>
+            <div className={`rr-stat ${lastShot?.exploded ? "rr-stat--danger" : ""}`}><span>HAZNE</span><b>{lastShot ? lastShot.exploded ? "AÇILDI" : "KAPALI" : "MÜHÜRLÜ"}</b></div>
           </div>
         </section>
 
         <section className="rr-stage__interaction" aria-label={isSpectator ? "Rus Ruleti canlı durum" : "Rus Ruleti hedef seçimi"}>
           <div className="rr-target-head">
-            <div><span>HAYATTA KALANLAR</span><strong>Hedef tokenları</strong></div>
+            <div><span>HAYATTA KALANLAR</span><strong>Oyuncu seç</strong></div>
             <small>{hasLiveTarget ? `${livePlayers.length} canlı seçenek` : "Seçenek yok"}</small>
           </div>
 
-          <div className="rr-token-list" role="list" aria-label="Canlı oyuncu tokenları">
+          <div className="rr-token-list" role="list" aria-label="Canlı oyuncu kartları">
             {players.map((player) => {
               const alive = livePlayerIds.has(player.id);
               return (
@@ -741,7 +741,7 @@ export function RusRuletiStage({
       </div>
 
       <section className="rr-stage__timeline" aria-label="Atış sonuç zaman çizelgesi">
-        <div className="rr-timeline__head"><div><span>SHOT TIMELINE</span><strong>Patlamalar ve hayatta kalanlar</strong></div><small>{results.length > 0 ? `${results.length} sonuç` : "İlk atış bekleniyor"}</small></div>
+        <div className="rr-timeline__head"><div><span>ATIŞ İZİ</span><strong>Patlamalar ve hayatta kalanlar</strong></div><small>{results.length > 0 ? `${results.length} sonuç` : "İlk karar bekleniyor"}</small></div>
         <div className="rr-timeline-track" role="list" aria-label="Atış ve sonuç olayları">
           {lastShot && (
             <div className={`rr-timeline-event ${lastShot.exploded ? "rr-timeline-event--explosion" : ""}`} role="listitem">

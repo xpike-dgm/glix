@@ -96,7 +96,7 @@ function BombIllustration({ tense, exploded }: { readonly tense: boolean; readon
       </svg>
       <div className="stage11b-kor-sealed-label">
         <span className="stage11b-kor-sealed-lock" aria-hidden="true">▣</span>
-        <span><small>{exploded ? "CHAMBER STATUS" : "FUSE CHAMBER"}</small><strong>{exploded ? "AÇILDI" : "SEALED / GİZLİ"}</strong></span>
+        <span><small>{exploded ? "KAPAK DURUMU" : "SİGORTA KAPAĞI"}</small><strong>{exploded ? "AÇILDI" : "MÜHÜRLÜ / GİZLİ"}</strong></span>
       </div>
     </div>
   );
@@ -253,14 +253,14 @@ function StageStyles(): JSX.Element {
       .stage11b-kor-action-heading strong { font-size: 17px; }
       .stage11b-kor-action-heading small { color: var(--kor-accent-bright); }
       .stage11b-kor-target-tray { display: flex; flex-wrap: wrap; gap: 7px; }
-      .stage11b-kor-target-chip { appearance: none; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: var(--kor-ink); border-radius: 10px; padding: 9px 11px; cursor: pointer; min-width: 88px; text-align: left; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+      .stage11b-kor-target-chip { appearance: none; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: var(--kor-ink); border-radius: 10px; padding: 9px 11px; cursor: pointer; min-width: 88px; min-height: 44px; text-align: left; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
       .stage11b-kor-target-chip:hover { transform: translateY(-1px); border-color: rgba(255,186,104,.62); }
       .stage11b-kor-target-chip.is-selected { border-color: var(--kor-accent-bright); background: rgba(172, 74, 45, .35); box-shadow: inset 0 0 0 1px rgba(255,186,104,.18); }
       .stage11b-kor-target-chip strong, .stage11b-kor-target-chip small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .stage11b-kor-target-chip strong { font-size: 12px; }
       .stage11b-kor-target-chip small { color: var(--kor-muted); font-size: 8px; letter-spacing: .1em; margin-top: 3px; }
-      .stage11b-kor-target-select { display: none; width: 100%; border: 1px solid rgba(255,255,255,.16); background: #242730; color: var(--kor-ink); border-radius: 10px; padding: 10px; }
-      .stage11b-kor-pass-button { appearance: none; border: 0; border-radius: 12px; cursor: pointer; color: #21150e; background: linear-gradient(135deg, #ffce7a, #e66f48); padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; box-shadow: 0 7px 20px rgba(226, 88, 54, .2); }
+      .stage11b-kor-target-select { display: none; width: 100%; min-height: 44px; border: 1px solid rgba(255,255,255,.16); background: #242730; color: var(--kor-ink); border-radius: 10px; padding: 10px; }
+      .stage11b-kor-pass-button { appearance: none; border: 0; border-radius: 12px; cursor: pointer; color: #21150e; background: linear-gradient(135deg, #ffce7a, #e66f48); padding: 12px 14px; min-height: 44px; display: flex; justify-content: space-between; align-items: center; gap: 10px; box-shadow: 0 7px 20px rgba(226, 88, 54, .2); }
       .stage11b-kor-pass-button:hover:not(:disabled) { filter: brightness(1.08); }
       .stage11b-kor-pass-button:disabled { cursor: not-allowed; opacity: .42; filter: saturate(.55); }
       .stage11b-kor-pass-button strong { font-size: 13px; letter-spacing: .04em; }
@@ -418,13 +418,13 @@ export function KorBombaStage({
       <div className="stage11b-kor-layout">
         <main className="stage11b-kor-left">
           <div className="stage11b-kor-title-row">
-            <div><span className="stage11b-kor-kicker">STAGE 11.8B / KOR BOMBA</span><h1>Fısıltıyla pasla.</h1></div>
-            <div className="stage11b-kor-status"><strong>{isFinished ? "PATLAMA KİLİTLENDİ" : "SÜRE GİZLİ"}</strong>{isFinished ? "Son taşıyıcı açıklandı." : "Gerilim görünür, fuse zamanı değil."}</div>
+            <div><span className="stage11b-kor-kicker">KAPALI SİGORTA / KÖR BOMBA</span><h1>Fısıltıyla pasla.</h1></div>
+            <div className="stage11b-kor-status"><strong>{isFinished ? "PATLAMA AÇILDI" : "SİGORTA GİZLİ"}</strong>{isFinished ? "Son taşıyıcı açıklandı." : "Gerilim görünür, gizli süre görünmez."}</div>
           </div>
           <section className="stage11b-kor-bomb-deck" aria-label={isFinished ? "Patlama sonucu" : "Kapalı bomba ve kablo"}>
             <BombIllustration tense={!isFinished && tensionPulse} exploded={isFinished} />
           </section>
-          <div className="stage11b-kor-tension-line"><span>SEALED CHAMBER</span><strong>{isFinished ? "RESULT LOCK" : "NO COUNTDOWN"}</strong></div>
+          <div className="stage11b-kor-tension-line"><span>MÜHÜRLÜ BOMBA</span><strong>{isFinished ? "TUR SONUCU" : "SÜRE GİZLİ"}</strong></div>
           <PassTimeline passCount={typedPassCount} holderName={holderName} />
         </main>
 
@@ -432,12 +432,12 @@ export function KorBombaStage({
           <HolderBadge name={holderName} active={!isFinished && Boolean(holderId)} exploded={isFinished} />
           {isFinished ? <ResultsPanel publicState={publicState} players={players} passCount={typedPassCount} /> : isSpectator ? (
             <section className="stage11b-kor-action-card" aria-live="polite">
-              <div className="stage11b-kor-action-heading"><strong>İzleyici modu</strong><small>PUBLIC VIEW</small></div>
+              <div className="stage11b-kor-action-heading"><strong>İzleyici modu</strong><small>ORTAK GÖRÜNÜM</small></div>
               <p className="stage11b-kor-spectator-note">Bomba taşıyıcısı ve pas ritmi görünür. Hedef seçimi yalnızca aktif taşıyıcının özel ekranında açılır.</p>
             </section>
           ) : hasBomb ? (
             <section className="stage11b-kor-action-card" aria-live="polite">
-              <div className="stage11b-kor-action-heading"><strong>Hedef tepsisi</strong><small>{pendingTargetId ? "PASS PENDING" : "REPEATABLE PASS"}</small></div>
+              <div className="stage11b-kor-action-heading"><strong>Pas tepsisi</strong><small>{pendingTargetId ? "GÖNDERİLİYOR" : "PAS HAZIR"}</small></div>
               <p className="stage11b-kor-spectator-note">Kendini seçemezsin. Bağlantısı kopan veya elenen hedefler otomatik çıkarılır.</p>
               <div className="stage11b-kor-target-tray" role="listbox" aria-label="Canlı hedefler">
                 {validTargets.map((player) => (
@@ -466,8 +466,8 @@ export function KorBombaStage({
             </section>
           ) : (
             <section className="stage11b-kor-action-card" aria-live="polite">
-              <div className="stage11b-kor-action-heading"><strong>Bekle ve izle.</strong><small>NOT YOUR TURN</small></div>
-              <p className="stage11b-kor-spectator-note">Aktif taşıyıcı hedef tepsisini görür. Senin ekranında fuse süresi veya özel değer yok.</p>
+              <div className="stage11b-kor-action-heading"><strong>Bekle ve izle.</strong><small>SIRA BAŞKASINDA</small></div>
+              <p className="stage11b-kor-spectator-note">Aktif taşıyıcı hedef tepsisini görür. Senin ekranında sigortanın gizli süresi görünmez.</p>
             </section>
           )}
         </aside>

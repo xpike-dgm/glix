@@ -54,7 +54,7 @@ export function GameViewport({
           )}
           {overlays}
           <span className="glix-viewport-connection-note" aria-hidden="true">
-            {connection === "connected" ? "SYNC" : connection === "connecting" ? "RECONNECT" : "OFFLINE"}
+            {connection === "connected" ? "BAĞLI" : connection === "connecting" ? "YENİDEN BAĞLANIYOR" : "ÇEVRİMDIŞI"}
           </span>
         </div>
       </OrientationGate>
