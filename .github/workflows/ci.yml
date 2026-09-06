@@ -34,14 +34,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run test suite
-        run: npm test
-
       - name: Run TypeScript typecheck
         run: npm run typecheck
 
       - name: Run build
         run: npm run build
+
+      - name: Run test suite
+        run: npm test
 
       - name: Run realtime smoke test
         run: |
@@ -89,7 +89,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### Verified Quality Gates" >> $GITHUB_STEP_SUMMARY
           echo "1. [PASS] \`npm ci\` (clean dependency install)" >> $GITHUB_STEP_SUMMARY
-          echo "2. [PASS] \`npm test\` (engine & reconnect integration test suite)" >> $GITHUB_STEP_SUMMARY
-          echo "3. [PASS] \`npm run typecheck\` (client & server TypeScript validation)" >> $GITHUB_STEP_SUMMARY
-          echo "4. [PASS] \`npm run build\` (shared, client & server production bundles)" >> $GITHUB_STEP_SUMMARY
+          echo "2. [PASS] \`npm run typecheck\` (client & server TypeScript validation)" >> $GITHUB_STEP_SUMMARY
+          echo "3. [PASS] \`npm run build\` (shared, client & server production bundles)" >> $GITHUB_STEP_SUMMARY
+          echo "4. [PASS] \`npm test\` (engine, client-pwa, privacy & server test suites)" >> $GITHUB_STEP_SUMMARY
           echo "5. [PASS] \`npm run smoke:realtime\` (live HTTP health & WebSocket match smoke)" >> $GITHUB_STEP_SUMMARY
