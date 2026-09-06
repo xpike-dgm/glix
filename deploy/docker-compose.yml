@@ -16,6 +16,10 @@ services:
       NODE_ENV: production
       HOST: ${GLIX_SERVER_HOST:-0.0.0.0}
       PORT: ${GLIX_SERVER_PORT:-8787}
+      ALLOWED_ORIGINS: ${GLIX_ALLOWED_ORIGINS:-}
+      ALLOW_NO_ORIGIN: ${GLIX_ALLOW_NO_ORIGIN:-false}
+      TRUSTED_PROXY_HOPS: ${GLIX_TRUSTED_PROXY_HOPS:-1}
+      MAX_PAYLOAD_BYTES: ${GLIX_MAX_PAYLOAD_BYTES:-2097152}
     expose:
       - "8787"
     init: true

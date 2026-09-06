@@ -48,6 +48,19 @@ import {
   type Stage9GameAdapter,
   type Stage9InputRejection
 } from "@glix/shared";
+import {
+  BoundedIpRateLimiter,
+  DEFAULT_MAX_PAYLOAD_BYTES,
+  MatchReplayFence,
+  REPLAY_FENCE_CAPACITY_PER_PLAYER,
+  SocketRateLimiter,
+  createOriginPolicy,
+  logSecurity,
+  parseTrustedProxyHops,
+  resolveClientIp,
+  validateJsonComplexity,
+  validateOrigin
+} from "./security.js";
 
 const host = process.env.HOST?.trim() || "0.0.0.0";
 const serverStartedAt = Date.now();
@@ -72,6 +85,12 @@ function parsePort(rawPort: string | undefined): number {
   }
 
   return parsedPort;
+}
+
+function parseMaxPayload(raw: string | undefined): number {
+  if (!raw) return DEFAULT_MAX_PAYLOAD_BYTES;
+  const parsed = Number(raw.trim());
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_PAYLOAD_BYTES;
 }
 
 const port = parsePort(process.env.PORT);
@@ -99,7 +118,7 @@ interface MatchRecord {
   readonly miniGameScores: Map<string, number>;
   resultsApplied: boolean;
   stateVersion: number;
-  readonly processedActionIds: Set<string>;
+  readonly replayFence: MatchReplayFence;
 }
 
 interface RoomRecord {
@@ -115,9 +134,11 @@ interface RoomRecord {
 }
 
 interface SocketContext {
+  clientIp: string;
   playerId: string | undefined;
   roomCode: string | undefined;
   clientVersion: string | undefined;
+  limiter: SocketRateLimiter;
 }
 
 interface SessionIndexEntry {
@@ -129,14 +150,20 @@ const rooms = new Map<string, RoomRecord>();
 const sessionIndex = new Map<string, SessionIndexEntry>();
 const socketContexts = new WeakMap<WebSocket, SocketContext>();
 const socketHeartbeat = new WeakMap<WebSocket, boolean>();
+const originPolicy = createOriginPolicy(process.env);
+const trustedProxyHops = parseTrustedProxyHops(process.env.TRUSTED_PROXY_HOPS || process.env.GLIX_TRUSTED_PROXY_HOPS);
+const maxPayload = parseMaxPayload(process.env.MAX_PAYLOAD_BYTES || process.env.GLIX_MAX_PAYLOAD_BYTES);
+const ipLimiter = new BoundedIpRateLimiter();
 let isShuttingDown = false;
 let shutdownTimer: NodeJS.Timeout | undefined;
 
-function createSocketContext(): SocketContext {
+function createSocketContext(clientIp = "127.0.0.1"): SocketContext {
   return {
+    clientIp,
     playerId: undefined,
     roomCode: undefined,
-    clientVersion: undefined
+    clientVersion: undefined,
+    limiter: new SocketRateLimiter()
   };
 }
 
@@ -284,80 +311,100 @@ function handleHttp(request: IncomingMessage, response: ServerResponse): void {
   writeJson(response, 404, { ok: false, message: "Bulunamadı" });
 }
 
-function parseClientMessage(raw: string): ClientMessage | null {
+type ParseClientMessageResult =
+  | { readonly ok: true; readonly message: ClientMessage }
+  | { readonly ok: false; readonly reason: "malformed" | "complexity" };
+
+function parseClientMessage(raw: string): ParseClientMessageResult {
+  let value: unknown;
   try {
-    const value: unknown = JSON.parse(raw);
+    value = JSON.parse(raw);
+  } catch {
+    return { ok: false, reason: "malformed" };
+  }
 
-    if (!isRecord(value) || typeof value.type !== "string") {
-      return null;
-    }
+  if (!validateJsonComplexity(value)) {
+    return { ok: false, reason: "complexity" };
+  }
 
-    if (value.type === "client:hello" && typeof value.clientVersion === "string") {
-      return { type: "client:hello", clientVersion: value.clientVersion };
-    }
+  if (!isRecord(value) || typeof value.type !== "string") {
+    return { ok: false, reason: "malformed" };
+  }
 
-    if (
-      value.type === "client:ping" &&
-      typeof value.clientTime === "number" &&
-      Number.isFinite(value.clientTime)
-    ) {
-      return { type: "client:ping", clientTime: value.clientTime };
-    }
+  if (value.type === "client:hello" && typeof value.clientVersion === "string") {
+    return { ok: true, message: { type: "client:hello", clientVersion: value.clientVersion } };
+  }
 
-    if (value.type === "client:room:create" && typeof value.nickname === "string") {
-      return { type: "client:room:create", nickname: value.nickname };
-    }
+  if (
+    value.type === "client:ping" &&
+    typeof value.clientTime === "number" &&
+    Number.isFinite(value.clientTime)
+  ) {
+    return { ok: true, message: { type: "client:ping", clientTime: value.clientTime } };
+  }
 
-    if (
-      value.type === "client:room:join" &&
-      typeof value.roomCode === "string" &&
-      typeof value.nickname === "string" &&
-      (value.resumeToken === undefined || typeof value.resumeToken === "string")
-    ) {
-      return {
+  if (value.type === "client:room:create" && typeof value.nickname === "string") {
+    return { ok: true, message: { type: "client:room:create", nickname: value.nickname } };
+  }
+
+  if (
+    value.type === "client:room:join" &&
+    typeof value.roomCode === "string" &&
+    typeof value.nickname === "string" &&
+    (value.resumeToken === undefined || typeof value.resumeToken === "string")
+  ) {
+    return {
+      ok: true,
+      message: {
         type: "client:room:join",
         roomCode: value.roomCode,
         nickname: value.nickname,
         ...(value.resumeToken === undefined ? {} : { resumeToken: value.resumeToken })
-      };
-    }
+      }
+    };
+  }
 
-    if (
-      value.type === "client:room:update-games" &&
-      isGameSelectionMode(value.selectionMode) &&
-      Array.isArray(value.selectedGameIds) &&
-      value.selectedGameIds.every((gameId) => typeof gameId === "string") &&
-      typeof value.randomGameCount === "number" &&
-      Number.isFinite(value.randomGameCount)
-    ) {
-      return {
+  if (
+    value.type === "client:room:update-games" &&
+    isGameSelectionMode(value.selectionMode) &&
+    Array.isArray(value.selectedGameIds) &&
+    value.selectedGameIds.every((gameId) => typeof gameId === "string") &&
+    typeof value.randomGameCount === "number" &&
+    Number.isFinite(value.randomGameCount)
+  ) {
+    return {
+      ok: true,
+      message: {
         type: "client:room:update-games",
         selectionMode: value.selectionMode,
         selectedGameIds: value.selectedGameIds as GameId[],
         randomGameCount: value.randomGameCount
-      };
-    }
+      }
+    };
+  }
 
-    if (value.type === "client:room:start") {
-      return { type: "client:room:start" };
-    }
+  if (value.type === "client:room:start") {
+    return { ok: true, message: { type: "client:room:start" } };
+  }
 
-    if (value.type === "client:game:ready") {
-      return { type: "client:game:ready" };
-    }
+  if (value.type === "client:game:ready") {
+    return { ok: true, message: { type: "client:game:ready" } };
+  }
 
-    if (
-      value.type === "client:game:submit" &&
-      typeof value.clientTime === "number" &&
-      Number.isFinite(value.clientTime) &&
-      typeof value.actionId === "string" && value.actionId.length > 0 && value.actionId.length <= 80 &&
-      typeof value.stateVersion === "number" && Number.isSafeInteger(value.stateVersion) && value.stateVersion >= 0 &&
-      typeof value.phaseIndex === "number" && Number.isSafeInteger(value.phaseIndex) && value.phaseIndex >= 0 &&
-      typeof value.actionScope === "string" && value.actionScope.length <= 240 &&
-      "payload" in value &&
-      isJsonValue(value.payload)
-    ) {
-      return {
+  if (
+    value.type === "client:game:submit" &&
+    typeof value.clientTime === "number" &&
+    Number.isFinite(value.clientTime) &&
+    typeof value.actionId === "string" && value.actionId.length > 0 && value.actionId.length <= 80 &&
+    typeof value.stateVersion === "number" && Number.isSafeInteger(value.stateVersion) && value.stateVersion >= 0 &&
+    typeof value.phaseIndex === "number" && Number.isSafeInteger(value.phaseIndex) && value.phaseIndex >= 0 &&
+    typeof value.actionScope === "string" && value.actionScope.length <= 240 &&
+    "payload" in value &&
+    isJsonValue(value.payload)
+  ) {
+    return {
+      ok: true,
+      message: {
         type: "client:game:submit",
         payload: value.payload,
         clientTime: value.clientTime,
@@ -365,21 +412,19 @@ function parseClientMessage(raw: string): ClientMessage | null {
         stateVersion: value.stateVersion,
         phaseIndex: value.phaseIndex,
         actionScope: value.actionScope
-      };
-    }
-
-    if (value.type === "client:match:return-lobby") {
-      return { type: "client:match:return-lobby" };
-    }
-
-    if (value.type === "client:room:leave") {
-      return { type: "client:room:leave" };
-    }
-  } catch {
-    return null;
+      }
+    };
   }
 
-  return null;
+  if (value.type === "client:match:return-lobby") {
+    return { ok: true, message: { type: "client:match:return-lobby" } };
+  }
+
+  if (value.type === "client:room:leave") {
+    return { ok: true, message: { type: "client:room:leave" } };
+  }
+
+  return { ok: false, reason: "malformed" };
 }
 
 function normalizeNickname(
@@ -732,6 +777,7 @@ function removePlayer(room: RoomRecord, playerId: string): void {
     room.match.engine.eliminatePlayer(playerId);
     room.match.adapter?.removePlayer(playerId);
     room.match.miniGameScores.delete(playerId);
+    room.match.replayFence.removePlayer(playerId);
     room.match.stateVersion += 1;
   }
 
@@ -910,6 +956,12 @@ function sendRoomRequiredError(socket: WebSocket): void {
 function handleCreateRoom(socket: WebSocket, nicknameInput: string): void {
   const context = socketContexts.get(socket) ?? createSocketContext();
 
+  if (!ipLimiter.checkRoomCreate(context.clientIp)) {
+    logSecurity("rate_limit_room_create", { ip: context.clientIp });
+    sendError(socket, "invalid_message", "Çok sık oda açma denemesi yapıldı. Lütfen biraz bekleyin.");
+    return;
+  }
+
   if (context.playerId) {
     sendError(socket, "already_in_room", "Zaten bir odadasın. Önce odadan çıkmalısın.");
     return;
@@ -934,6 +986,12 @@ function handleJoinRoom(
   resumeToken?: string
 ): void {
   const context = socketContexts.get(socket) ?? createSocketContext();
+
+  if (!ipLimiter.checkRoomJoin(context.clientIp)) {
+    logSecurity("rate_limit_room_join", { ip: context.clientIp });
+    sendError(socket, "invalid_message", "Çok sık odaya katılma denemesi yapıldı. Lütfen biraz bekleyin.");
+    return;
+  }
 
   if (context.playerId) {
     sendError(socket, "already_in_room", "Zaten bir odadasın. Önce odadan çıkmalısın.");
@@ -1114,7 +1172,7 @@ function createMatch(room: RoomRecord, gameIds: readonly GameId[]): MatchRecord 
     miniGameScores: new Map(),
     resultsApplied: false,
     stateVersion: 1,
-    processedActionIds: new Set()
+    replayFence: new MatchReplayFence(REPLAY_FENCE_CAPACITY_PER_PLAYER)
   };
 }
 
@@ -1198,6 +1256,7 @@ function startNextGame(room: RoomRecord, match: MatchRecord, now: number): boole
     match.engine = new MiniGameEngine(definition, playerIds, now);
     match.adapter = createGameAdapter(nextGameId, playerIds);
     match.miniGameScores.clear();
+    match.replayFence.clear();
     match.resultsApplied = false;
     return true;
   }
@@ -1412,6 +1471,12 @@ function handleGameSubmit(
     if (publishRuntimeTransition && room && match) broadcastMatchState(room, now);
   };
 
+  if (context && !context.limiter.checkSubmit(now)) {
+    logSecurity("rate_limit_submit", { player: context.playerId, ip: context.clientIp });
+    reject("invalid_game_input");
+    return;
+  }
+
   if (!room || !match) {
     reject("invalid_game_input");
     sendError(socket, "match_not_started", "Henüz aktif bir mini oyun yok.");
@@ -1435,12 +1500,10 @@ function handleGameSubmit(
     return;
   }
 
-  const actionFenceKey = `${context.playerId}:${message.actionId}`;
-  if (match.processedActionIds.has(actionFenceKey)) {
+  if (match.replayFence.has(context.playerId, message.actionId)) {
     reject("input_duplicate");
     return;
   }
-  match.processedActionIds.add(actionFenceKey);
 
   if (!submittedTargetsAreLive(room, match, message.payload)) {
     reject("invalid_game_input");
@@ -1471,6 +1534,7 @@ function handleGameSubmit(
   const record = match.engine.commitPreparedInput(prepared.prepared);
 
   match.stateVersion += 1;
+  match.replayFence.record(context.playerId, message.actionId);
   synchronizeMatchRuntime(room, match, now);
   applyMatchResult(room, match);
   sendJson(socket, {
@@ -1633,15 +1697,43 @@ function closeSocketForShutdown(socket: WebSocket): void {
 }
 
 const httpServer = createServer(handleHttp);
-const websocketServer = new WebSocketServer({ server: httpServer, path: DEFAULT_WS_PATH });
+const websocketServer = new WebSocketServer({
+  server: httpServer,
+  path: DEFAULT_WS_PATH,
+  maxPayload,
+  verifyClient: (info, callback) => {
+    const clientIp = resolveClientIp(info.req, trustedProxyHops);
+    const originHeader = (info.origin || (info.req.headers["origin"] as string | undefined));
+    const originResult = validateOrigin(originHeader, originPolicy);
+
+    if (!originResult.allowed) {
+      logSecurity("origin_rejected", {
+        origin: originHeader ?? "none",
+        ip: clientIp,
+        reason: originResult.reason
+      });
+      callback(false, 403, "Origin Not Allowed");
+      return;
+    }
+
+    if (!ipLimiter.checkConnection(clientIp)) {
+      logSecurity("rate_limit_connection", { ip: clientIp });
+      callback(false, 429, "Too Many Requests");
+      return;
+    }
+
+    callback(true);
+  }
+});
 const matchTicker = setInterval(advanceMatches, 100);
 const heartbeatTimer = setInterval(checkWebSocketHeartbeats, HEARTBEAT_INTERVAL_MS);
 
 matchTicker.unref();
 heartbeatTimer.unref();
 
-websocketServer.on("connection", (socket) => {
-  socketContexts.set(socket, createSocketContext());
+websocketServer.on("connection", (socket, request: IncomingMessage) => {
+  const clientIp = resolveClientIp(request, trustedProxyHops);
+  socketContexts.set(socket, createSocketContext(clientIp));
   socketHeartbeat.set(socket, true);
 
   if (isShuttingDown) {
@@ -1661,20 +1753,41 @@ websocketServer.on("connection", (socket) => {
       return;
     }
 
-    const message = parseClientMessage(data.toString());
+    const context = socketContexts.get(socket);
+    const now = Date.now();
 
-    if (!message) {
+    if (context && !context.limiter.checkMessage(now)) {
+      logSecurity("rate_limit_message", { ip: context.clientIp });
+      sendError(socket, "invalid_message", "Çok fazla istek gönderildi, lütfen biraz bekleyin.");
+      return;
+    }
+
+    const rawString = data.toString();
+    const parseResult = parseClientMessage(rawString);
+
+    if (!parseResult.ok) {
+      if (context && context.limiter.recordMalformed(now)) {
+        logSecurity("malformed_flood_terminated", { ip: context.clientIp, reason: parseResult.reason });
+        socket.close(1008, "Malformed message limit exceeded");
+        return;
+      }
       sendError(socket, "invalid_message", "Geçersiz mesaj biçimi.");
       return;
     }
 
-    handleMessage(socket, message);
+    handleMessage(socket, parseResult.message);
   });
 
   socket.on("pong", () => socketHeartbeat.set(socket, true));
 
   socket.on("error", (error) => {
-    console.warn("[glix-server] WebSocket bağlantı hatası:", error);
+    const context = socketContexts.get(socket);
+    const errMessage = error instanceof Error ? error.message : String(error);
+    if (errMessage.includes("Max payload size exceeded") || (error as { code?: string })?.code === "WS_ERR_UNSUPPORTED_MESSAGE_LENGTH") {
+      logSecurity("payload_too_large", { ip: context?.clientIp ?? "unknown", error: errMessage });
+    } else {
+      console.warn("[glix-server] WebSocket bağlantı hatası:", error);
+    }
 
     if (socket.readyState !== WebSocket.CLOSED) {
       socket.terminate();
@@ -1710,6 +1823,7 @@ function shutdown(signal: string): void {
   console.log("[glix-server] " + signal + " alındı, kapatılıyor.");
   clearInterval(matchTicker);
   clearInterval(heartbeatTimer);
+  ipLimiter.destroy();
 
   for (const room of rooms.values()) {
     deleteRoom(room);

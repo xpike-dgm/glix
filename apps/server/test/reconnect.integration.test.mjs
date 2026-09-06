@@ -103,10 +103,10 @@ async function launchServer() {
 }
 
 class TestClient {
-  constructor(wsUrl) {
+  constructor(wsUrl, options = {}) {
     TestClient.instanceSequence = (TestClient.instanceSequence ?? 0) + 1;
     this.instanceId = TestClient.instanceSequence;
-    this.socket = new WebSocket(wsUrl);
+    this.socket = new WebSocket(wsUrl, { headers: { Origin: "http://127.0.0.1" }, ...options });
     this.messages = [];
     this.waiters = [];
     this.latestStateVersion = 0;

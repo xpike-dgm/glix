@@ -5,13 +5,15 @@ const httpUrl = process.env.GLIX_SMOKE_HTTP_URL ?? "http://127.0.0.1:8787";
 const wsUrl = process.env.GLIX_SMOKE_WS_URL ?? "ws://127.0.0.1:8787/ws";
 const timeoutMs = 5_000;
 
+const originHeader = process.env.GLIX_SMOKE_ORIGIN ?? "http://127.0.0.1:8787";
+
 class SmokeClient {
   #socket;
   #messages = [];
   #waiters = [];
 
   constructor() {
-    this.#socket = new WebSocket(wsUrl);
+    this.#socket = new WebSocket(wsUrl, { headers: { Origin: originHeader } });
     this.#socket.on("message", (data) => {
       let message;
 
