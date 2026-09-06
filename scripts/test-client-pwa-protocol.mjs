@@ -4,7 +4,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
-import { PROTOCOL_VERSION } from "../packages/shared/dist/index.js";
+import { PROTOCOL_VERSION, GAME_CATALOG } from "../packages/shared/dist/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, "..");
@@ -306,6 +306,9 @@ const requiredLazyChunks = [
   "ZehirliKadehStage",
   "KpkStage",
   "KendimStage",
+  "Stage11ATimingPressureStage",
+  "Stage11CStage",
+  "Stage11DStage",
   "Stage6GameControls",
   "Stage7GameControls",
   "Stage8GameControls",
@@ -317,7 +320,52 @@ for (const chunkPrefix of requiredLazyChunks) {
   assert.ok(found, `Expected lazy chunk for ${chunkPrefix} to exist in assets`);
 }
 
-console.log("  ✓ All 6 Stage 11.8B games, KPK, Kendim, and Stage 6-9 controls split into independent chunks");
+console.log("  ✓ All games (Stage 11A, 11B, 11C, 11D, KPK, Kendim, Stage 6-9 controls) split into independent chunks");
 console.log(`  ✓ Main index bundle: ${indexJs}`);
 
-console.log("\n=== ALL 4 CLIENT HARDENING TEST SUITES PASSED CLEANLY ===");
+// =========================================================================
+// TEST SUITE 5: 24/24 Catalog Game Presentation Route Coverage
+// =========================================================================
+console.log("\n--- 5. 24/24 Catalog Game Presentation Route Coverage Tests ---");
+
+const STAGE11B_GAMES = new Set(["sizma", "rus-ruleti", "kor-bomba", "zehirli-kadeh", "capraz-ates", "zaman-bombasi-hafizasi"]);
+const STAGE11A_GAMES = new Set(["butona-bas", "gizli-hirsiz", "kor-kronometre", "asiri-yukleme", "son-kisi"]);
+const STAGE11C_GAMES = new Set(["acgozluluk-limiti", "ortalamanin-yarisi", "gizli-kareler", "cizgiyi-gecme", "gizli-alisveris"]);
+const STAGE11D_GAMES = new Set(["yazi-yaz", "sozluk-blofu", "cagrisim-agi", "rusvet-darbe", "karalama-defteri", "ittifak"]);
+
+assert.equal(GAME_CATALOG.length, 24, "Catalog must contain exactly 24 games");
+
+for (const game of GAME_CATALOG) {
+  const id = game.id;
+  const isKpk = id === "kontrol-paneli-kaosu";
+  const isKendim = id === "kendim";
+  const is11B = STAGE11B_GAMES.has(id);
+  const is11A = STAGE11A_GAMES.has(id);
+  const is11C = STAGE11C_GAMES.has(id);
+  const is11D = STAGE11D_GAMES.has(id);
+
+  const matchedSurfaces = [isKpk, isKendim, is11B, is11A, is11C, is11D].filter(Boolean).length;
+  assert.equal(
+    matchedSurfaces,
+    1,
+    `Game '${id}' must resolve to exactly 1 dedicated stage surface (matched ${matchedSurfaces})`
+  );
+}
+console.log("  ✓ All 24/24 catalog games unambiguously resolve to exactly one dedicated stage handler");
+
+// =========================================================================
+// TEST SUITE 6: Production Distribution Purity Tests
+// =========================================================================
+console.log("\n--- 6. Production Distribution Purity Tests ---");
+
+assert.ok(!existsSync(resolve(clientDist, "qa.html")), "qa.html must NOT exist in production dist");
+assert.ok(!existsSync(resolve(clientDist, "dev-stage11d.html")), "dev-stage11d.html must NOT exist in production dist");
+
+const forbiddenAssetPrefixes = ["devPreview", "Stage11DPreviewHarness", "stage11d_preview", "qa-stage11c"];
+for (const prefix of forbiddenAssetPrefixes) {
+  const foundForbidden = assetFiles.some((f) => f.startsWith(prefix));
+  assert.ok(!foundForbidden, `Forbidden QA asset ${prefix} found in production dist/assets`);
+}
+console.log("  ✓ Production dist is 100% pure (zero QA HTML or preview harness artifacts)");
+
+console.log("\n=== ALL 6 CLIENT HARDENING TEST SUITES PASSED CLEANLY ===");

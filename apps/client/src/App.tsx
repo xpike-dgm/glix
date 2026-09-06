@@ -44,6 +44,7 @@ import { safeLazy, preloadGameStage, preloadNextScheduledGame, StageLoadingFallb
 
 const LazyStage11AStage = lazy(safeLazy(() => import("./visuals/games/Stage11ATimingPressureStage").then((m) => ({ default: m.Stage11ATimingPressureStage }))));
 const LazyStage11CStage = lazy(safeLazy(() => import("./visuals/games/stage11c/Stage11CStage").then((m) => ({ default: m.Stage11CStage }))));
+const LazyStage11DStage = lazy(safeLazy(() => import("./visuals/games/stage11-8d/Stage11DStage").then((m) => ({ default: m.Stage11DStage }))));
 
 
 
@@ -171,6 +172,22 @@ function isStage11CGameId(gameId: GameId): gameId is Stage11CGameId {
     gameId === "gizli-kareler" ||
     gameId === "cizgiyi-gecme" ||
     gameId === "gizli-alisveris"
+  );
+}
+
+type Stage11DGameId = Extract<
+  GameId,
+  "yazi-yaz" | "sozluk-blofu" | "cagrisim-agi" | "rusvet-darbe" | "karalama-defteri" | "ittifak"
+>;
+
+function isStage11DGameId(gameId: GameId): gameId is Stage11DGameId {
+  return (
+    gameId === "yazi-yaz" ||
+    gameId === "sozluk-blofu" ||
+    gameId === "cagrisim-agi" ||
+    gameId === "rusvet-darbe" ||
+    gameId === "karalama-defteri" ||
+    gameId === "ittifak"
   );
 }
 
@@ -1174,6 +1191,7 @@ function MatchScreen({
   const stage11AGameId = isStage11AGameId(state.currentGameId) ? state.currentGameId : null;
   const stage11BGameId = isStage11BGameId(state.currentGameId) ? state.currentGameId : null;
   const stage11CGameId = isStage11CGameId(state.currentGameId) ? state.currentGameId : null;
+  const stage11DGameId = isStage11DGameId(state.currentGameId) ? state.currentGameId : null;
   const remaining = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - now);
   const duration = state.phaseEndsAt === null ? null : Math.max(0, state.phaseEndsAt - state.phaseStartedAt);
   const progress = state.phase === "finished"
@@ -1428,10 +1446,28 @@ function MatchScreen({
                 onSubmit={onSubmit}
               />
             </Suspense>
+          ) : stage11DGameId ? (
+            <Suspense fallback={<StageLoadingFallback gameName={game.name} />}>
+              <LazyStage11DStage
+                gameId={stage11DGameId}
+                gameName={game.name}
+                phase={state.phase}
+                publicState={state.gameState}
+                ownState={ownGameState}
+                selfPlayerId={selfPlayerId}
+                players={sortedPlayers}
+                now={now}
+                isSpectator={isSpectator}
+                isReady={ready}
+                actionState={actionState}
+                onReady={onReady}
+                onSubmit={onSubmit}
+              />
+            </Suspense>
           ) : undefined
         }
         hero={
-          isKpk || isKendim || stage11AGameId || stage11BGameId || stage11CGameId ? undefined : (
+          isKpk || isKendim || stage11AGameId || stage11BGameId || stage11CGameId || stage11DGameId ? undefined : (
             <PremiumStageHero
               game={game}
               phase={state.phase}
@@ -1451,7 +1487,7 @@ function MatchScreen({
                 remainingLabel={formatRemaining(remaining)}
               />
             )}
-            {state.phase === "results" && !isKpk && !isKendim && !stage11AGameId && !stage11BGameId && !stage11CGameId && (
+            {state.phase === "results" && !isKpk && !isKendim && !stage11AGameId && !stage11BGameId && !stage11CGameId && !stage11DGameId && (
               <ResultOverlay gameName={game.name} disableInteraction>
                 {resultControls}
               </ResultOverlay>
@@ -1473,7 +1509,7 @@ function MatchScreen({
                 )}
               </ResultOverlay>
             )}
-            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && !stage11AGameId && !stage11BGameId && !stage11CGameId && (
+            {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && !stage11AGameId && !stage11BGameId && !stage11CGameId && !stage11DGameId && (
               <SpectatorOverlay
                 roomCode={roomCode}
                 connected={Boolean(self?.connected)}
@@ -1483,7 +1519,7 @@ function MatchScreen({
           </>
         }
       >
-        {!isKpk && !isKendim && !stage11AGameId && !stage11BGameId && !stage11CGameId && (
+        {!isKpk && !isKendim && !stage11AGameId && !stage11BGameId && !stage11CGameId && !stage11DGameId && (
           <>
             <div className="glix-stage-context">
               <div>

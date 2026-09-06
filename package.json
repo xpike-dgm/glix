@@ -15,15 +15,16 @@
     "dev:server": "npm run build --workspace @glix/shared && npm run dev --workspace @glix/server",
     "build": "npm run build --workspace @glix/shared && npm run build --workspace @glix/client && npm run build --workspace @glix/server",
     "typecheck": "npm run build --workspace @glix/shared && npm run typecheck --workspace @glix/client && npm run typecheck --workspace @glix/server",
-    "test:engine": "npm run build --workspace @glix/shared && node --test packages/shared/dist/engine.test.js packages/shared/dist/contracts.test.js packages/shared/dist/games.test.js packages/shared/dist/games-stage7.test.js packages/shared/dist/games-stage8.test.js packages/shared/dist/games-stage9.test.js packages/shared/dist/catalog-stage10.test.js packages/shared/dist/games-stage11.test.js packages/shared/dist/lobby-availability-stage11.test.js packages/shared/dist/games-stage11b.test.js packages/shared/dist/games-stage11c.test.js",
+    "test:engine": "npm run build --workspace @glix/shared && node --test packages/shared/dist/engine.test.js packages/shared/dist/contracts.test.js packages/shared/dist/games.test.js packages/shared/dist/games-stage7.test.js packages/shared/dist/games-stage8.test.js packages/shared/dist/games-stage9.test.js packages/shared/dist/catalog-stage10.test.js packages/shared/dist/games-stage11.test.js packages/shared/dist/lobby-availability-stage11.test.js packages/shared/dist/games-stage11b.test.js packages/shared/dist/games-stage11c.test.js packages/shared/dist/games-stage11d.test.js",
     "test:server": "npm run build --workspace @glix/shared && npm run build --workspace @glix/server && node --test apps/server/test/reconnect.integration.test.mjs apps/server/test/hardening.integration.test.mjs",
     "test:client-pwa": "node scripts/test-client-pwa-protocol.mjs",
     "test:client-privacy": "node --test scripts/stage11a-privacy-sinks.test.mjs",
     "test": "npm run test:engine && npm run test:client-pwa && npm run test:client-privacy && npm run test:server",
     "smoke": "npm run smoke:realtime",
-
     "smoke:realtime": "node scripts/realtime-smoke.mjs",
     "qa:stage11c": "node scripts/browser-qa-stage11c.mjs",
+    "build:client:qa": "npm run build --workspace @glix/shared && npm run build:qa --workspace @glix/client",
+    "qa:screenshots": "npm run build:client:qa && node scripts/capture-stage11d-screenshots.mjs",
     "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server"
   }
 }

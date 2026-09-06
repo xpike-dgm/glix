@@ -42,6 +42,13 @@ const gameLoaders: Partial<Record<GameId, () => Promise<unknown>>> = {
   "gizli-kareler": () => import("./visuals/games/stage11c/Stage11CStage"),
   "cizgiyi-gecme": () => import("./visuals/games/stage11c/Stage11CStage"),
   "gizli-alisveris": () => import("./visuals/games/stage11c/Stage11CStage"),
+  // Stage 11.8D social / creative games
+  "yazi-yaz": () => import("./visuals/games/stage11-8d/Stage11DStage"),
+  "sozluk-blofu": () => import("./visuals/games/stage11-8d/Stage11DStage"),
+  "cagrisim-agi": () => import("./visuals/games/stage11-8d/Stage11DStage"),
+  "rusvet-darbe": () => import("./visuals/games/stage11-8d/Stage11DStage"),
+  "karalama-defteri": () => import("./visuals/games/stage11-8d/Stage11DStage"),
+  "ittifak": () => import("./visuals/games/stage11-8d/Stage11DStage"),
   // Immersive games
   "kontrol-paneli-kaosu": () => import("./visuals/games/kontrol-paneli-kaosu/KpkStage"),
   "kendim": () => import("./visuals/games/kendim/KendimStage")
