@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -506,7 +506,7 @@ test("Batch D Stage Components — Zero DOM leaks of secrets in className, id, d
 // ---------------------------------------------------------------------------
 // 10. Regression — Production Application Graph Rejects Preview Harness / Routes
 // ---------------------------------------------------------------------------
-test("Regression — Production application graph strictly rejects Stage11DPreviewHarness and stage11d_preview", () => {
+test("Regression — Production application graph strictly rejects Stage11DPreviewHarness, stage11d_preview, and preview inputs", () => {
   const prodFiles = [
     resolve(__dirname, "../../../apps/client/src/App.tsx"),
     resolve(__dirname, "../../../apps/client/src/main.tsx"),
@@ -523,6 +523,67 @@ test("Regression — Production application graph strictly rejects Stage11DPrevi
       !content.includes("stage11d_preview"),
       `Production file ${filePath} must not reference query parameter or route stage11d_preview`
     );
+  }
+
+  // Verify normal vite.config.ts has no devPreview production input
+  const viteConfigPath = resolve(__dirname, "../../../apps/client/vite.config.ts");
+  const viteConfigContent = readFileSync(viteConfigPath, "utf-8");
+  assert.ok(
+    !viteConfigContent.includes("devPreview"),
+    "Production vite.config.ts must not configure devPreview rollup input"
+  );
+  assert.ok(
+    !viteConfigContent.includes("dev-stage11d"),
+    "Production vite.config.ts must not reference dev-stage11d.html"
+  );
+
+  // Verify QA config is isolated in vite.config.qa.ts
+  const viteQaConfigPath = resolve(__dirname, "../../../apps/client/vite.config.qa.ts");
+  assert.ok(existsSync(viteQaConfigPath), "Dedicated QA vite configuration vite.config.qa.ts must exist");
+  const viteQaConfigContent = readFileSync(viteQaConfigPath, "utf-8");
+  assert.ok(
+    viteQaConfigContent.includes("dist-qa"),
+    "QA vite configuration must output to isolated dist-qa directory"
+  );
+  assert.ok(
+    viteQaConfigContent.includes("dev-stage11d.html"),
+    "QA vite configuration must target dev-stage11d.html"
+  );
+
+  // If production dist exists, assert zero preview artifacts or strings inside it
+  const distDir = resolve(__dirname, "../../../apps/client/dist");
+  if (existsSync(distDir)) {
+    assert.ok(
+      !existsSync(resolve(distDir, "dev-stage11d.html")),
+      "Production dist must not contain dev-stage11d.html"
+    );
+
+    function scanDir(dir: string) {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const full = resolve(dir, entry.name);
+        if (entry.isDirectory()) {
+          scanDir(full);
+        } else if (entry.isFile()) {
+          assert.ok(
+            !entry.name.includes("devPreview"),
+            `Production dist file name must not include devPreview: ${entry.name}`
+          );
+          if (entry.name.endsWith(".js") || entry.name.endsWith(".html") || entry.name.endsWith(".json")) {
+            const fileContent = readFileSync(full, "utf-8");
+            assert.ok(
+              !fileContent.includes("Stage11DPreviewHarness"),
+              `Production dist file ${entry.name} must not contain Stage11DPreviewHarness`
+            );
+            assert.ok(
+              !fileContent.includes("stage11d_preview"),
+              `Production dist file ${entry.name} must not contain stage11d_preview`
+            );
+          }
+        }
+      }
+    }
+    scanDir(distDir);
   }
 });
 

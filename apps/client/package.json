@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:qa": "vite build --config vite.config.qa.ts",
     "typecheck": "tsc --noEmit",
-    "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
+    "clean": "node -e \"import('node:fs').then(({rmSync}) => { rmSync('dist', { recursive: true, force: true }); rmSync('dist-qa', { recursive: true, force: true }); })\""
   },
   "dependencies": {
     "@glix/shared": "0.1.0",

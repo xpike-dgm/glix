@@ -2,14 +2,21 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { execFile } from "node:child_process";
+import { execFile, execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DIST_DIR = path.resolve(__dirname, "../apps/client/dist");
+const CLIENT_DIR = path.resolve(__dirname, "../apps/client");
+const DIST_DIR = path.resolve(__dirname, "../apps/client/dist-qa");
 const OUT_DIR = path.resolve(__dirname, "../docs/screenshots/stage11d");
+
+// Ensure QA bundle is built cleanly into dist-qa
+if (!fs.existsSync(path.join(DIST_DIR, "dev-stage11d.html"))) {
+  console.log("Building isolated QA preview bundle (vite.config.qa.ts)...");
+  execSync("npx vite build --config vite.config.qa.ts", { cwd: CLIENT_DIR, stdio: "inherit" });
+}
 
 if (!fs.existsSync(OUT_DIR)) {
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -17,10 +24,10 @@ if (!fs.existsSync(OUT_DIR)) {
 
 // Browser executable
 const BROWSER_PATHS = [
-  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
   "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
 ];
 
 const browserExe = BROWSER_PATHS.find((p) => fs.existsSync(p));
@@ -136,10 +143,9 @@ server.listen(PORT, "127.0.0.1", async () => {
     ];
 
     try {
-      await new Promise((resolve, reject) => {
-        execFile(browserExe, args, { timeout: 15_000 }, (err) => {
-          if (err) reject(err);
-          else resolve();
+      await new Promise((resolve) => {
+        execFile(browserExe, args, { timeout: 20_000 }, () => {
+          resolve();
         });
       });
       if (fs.existsSync(destPath) && fs.statSync(destPath).size > 1000) {

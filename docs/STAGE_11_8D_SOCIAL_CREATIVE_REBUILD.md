@@ -155,22 +155,43 @@ Prior to independent review, a comprehensive corrective pass was executed:
 
 ---
 
-## 5. Verification Results
+## 5. Second Corrective Pass Summary (Vite Config & Production Graph Isolation)
+
+In the second corrective pass:
+1. **Production Vite Configuration Restored**:
+   - `apps/client/vite.config.ts` was restored to its standard production configuration, completely removing the `devPreview` input from `build.rollupOptions`.
+   - Normal production `npm run build` generates strictly the authentic application graph: `dist/index.html`, `dist/assets/index-*.js`, `dist/assets/index-*.css`, and production static assets.
+   - `dist/` contains zero instances of `dev-stage11d.html`, zero `devPreview-*.js` chunks, zero `Stage11DPreviewHarness`, and zero `stage11d_preview` query routes.
+2. **Dedicated QA-Only Configuration**:
+   - Created `apps/client/vite.config.qa.ts` targeting `dev-stage11d.html` with output directory isolated to `dist-qa`.
+   - Added `"build:qa"` to `apps/client/package.json` and `"build:client:qa"` / `"qa:screenshots"` to root `package.json`.
+   - Added `dist-qa/` to `.gitignore` so temporary QA build artifacts are never tracked.
+   - Updated `scripts/capture-stage11d-screenshots.mjs` to utilize the isolated QA preview build, prioritizing system Chromium/Chrome for headless capture.
+3. **Strengthened Regression Coverage**:
+   - `packages/shared/src/games-stage11d.test.ts` asserts:
+     - `App.tsx`, `main.tsx`, and `index.html` contain no preview route or import.
+     - Production `vite.config.ts` has no `devPreview` or `dev-stage11d` input.
+     - Dedicated QA config `vite.config.qa.ts` is present and targets `dist-qa`.
+     - When production `dist/` is scanned, it contains zero `dev-stage11d.html` files, zero `devPreview` chunks, and zero references to `Stage11DPreviewHarness` or `stage11d_preview`.
+
+---
+
+## 6. Verification Results
 
 | Verification Item | Command | Result | Details |
 |---|---|---|---|
-| **Batch D Tests** | `node --test packages/shared/dist/games-stage11d.test.js` | **PASS (12/12)** | Subphases, privacy, targets, scoring, DOM scan, regression |
+| **Batch D Tests** | `node --test packages/shared/dist/games-stage11d.test.js` | **PASS (12/12)** | Subphases, privacy, targets, scoring, DOM scan, dist & vite regression |
 | **All Engine Tests** | `npm run test:engine` | **PASS (87/87)** | 75 baseline + 12 Batch D tests |
 | **Server Tests** | `npm run test:server` | **PASS (10/10)** | Reconnect integration tests |
 | **Total Automated Tests** | `npm test` | **PASS (97/97)** | Zero failures across the repository |
 | **TypeScript Typecheck** | `npm run typecheck` | **PASS (0 errors)** | Clean compilation for shared, client, server |
-| **Production Build** | `npm run build` | **PASS** | Shared tsc, Client Vite (125 kB main), Server tsc |
+| **Production Build** | `npm run build` | **PASS** | Shared tsc, Client Vite (pure production graph), Server tsc |
 | **Realtime Smoke** | `npm run smoke` | **PASS** | Room creation, join, game select, start |
-| **Headless Browser QA** | `scripts/capture-stage11d-screenshots.mjs` | **PASS (37/37)** | Full matrix captured in `docs/screenshots/stage11d/` |
+| **Headless Browser QA** | `npm run qa:screenshots` | **PASS (37/37)** | Isolated QA build, all 37 screenshots captured |
 
 ---
 
-## 6. Viewport & Browser QA Matrix
+## 7. Viewport & Browser QA Matrix
 
 All 37 screenshots captured and saved to `docs/screenshots/stage11d/`:
 - **390 × 844 px (Standard Phone)**: Primary views for all 6 games, all subphases, spectator mode, 8-player density, accepted ACK, pending ACK, and negative ACK.
@@ -180,7 +201,8 @@ All 37 screenshots captured and saved to `docs/screenshots/stage11d/`:
 
 ---
 
-## 7. Review & Acceptance Note
+## 8. Review & Acceptance Note
 
 **STATUS**: `INDEPENDENT REVIEW REQUIRED — NOT YET ACCEPTED`  
 All authoritative rules, contracts, and design criteria for Stage 11.8D have been strictly implemented and verified with zero regression to existing systems.
+

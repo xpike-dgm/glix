@@ -20,6 +20,8 @@
     "test": "npm run test:engine && npm run test:server",
     "smoke": "npm run smoke:realtime",
     "smoke:realtime": "node scripts/realtime-smoke.mjs",
-    "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server"
+    "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server",
+    "build:client:qa": "npm run build --workspace @glix/shared && npm run build:qa --workspace @glix/client",
+    "qa:screenshots": "npm run build:client:qa && node scripts/capture-stage11d-screenshots.mjs"
   }
 }
