@@ -15,10 +15,11 @@
     "dev:server": "npm run build --workspace @glix/shared && npm run dev --workspace @glix/server",
     "build": "npm run build --workspace @glix/shared && npm run build --workspace @glix/client && npm run build --workspace @glix/server",
     "typecheck": "npm run build --workspace @glix/shared && npm run typecheck --workspace @glix/client && npm run typecheck --workspace @glix/server",
-    "test:engine": "npm run build --workspace @glix/shared && node --test packages/shared/dist/engine.test.js packages/shared/dist/contracts.test.js packages/shared/dist/games.test.js packages/shared/dist/games-stage7.test.js packages/shared/dist/games-stage8.test.js packages/shared/dist/games-stage9.test.js packages/shared/dist/catalog-stage10.test.js packages/shared/dist/games-stage11.test.js packages/shared/dist/lobby-availability-stage11.test.js",
+    "test:engine": "npm run build --workspace @glix/shared && node --test packages/shared/dist/engine.test.js packages/shared/dist/contracts.test.js packages/shared/dist/games.test.js packages/shared/dist/games-stage7.test.js packages/shared/dist/games-stage8.test.js packages/shared/dist/games-stage9.test.js packages/shared/dist/catalog-stage10.test.js packages/shared/dist/games-stage11.test.js packages/shared/dist/lobby-availability-stage11.test.js packages/shared/dist/games-stage11c.test.js",
     "test:server": "npm run build --workspace @glix/shared && npm run build --workspace @glix/server && node --test apps/server/test/reconnect.integration.test.mjs",
     "test": "npm run test:engine && npm run test:server",
     "smoke:realtime": "node scripts/realtime-smoke.mjs",
+    "qa:stage11c": "node scripts/browser-qa-stage11c.mjs",
     "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server"
   }
 }
