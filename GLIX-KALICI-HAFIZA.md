@@ -37,24 +37,34 @@ Herhangi bir mini oyunun ekranı değiştirilmeden önce:
 ## 3. Güncel canlı/release tabanı
 
 - GitHub: `xpike-dgm/glix`
-- Protected `main`: `0ac9fc29ce33448be5fee8947281c18e4a9b09fc`
+- Protected `main`: `12e3e5253edf9a6babed863b2351d1493a738816`
 - Kabul edilmiş uygulama revizyonu: `ba6e895f2e71a9466bcf2d87770ece53f9902780`
-- `0ac9fc29...`, uygulama revizyonuna yalnız CI workflow sıralama düzeltmesi ekler.
+- CI-only release head: `0ac9fc29ce33448be5fee8947281c18e4a9b09fc`
+- `12e3e525...`, protected main üzerinde yalnız bu yeni kalıcı hafıza dosyasını ekleyen dokümantasyon commit'idir; canlı uygulama revizyonunu değiştirmez.
 - Public: `https://glix.lynrax.com`
 - Public version: `0.7.0`
 - Protocol: `3`
 - 24/24 mini oyun server adapter'ı mevcut.
 - Server authority / private-public state / reconnect / protocol v3 korunacak.
 
+### Aktif redesign branch
+
+- Branch: `redesign-mobile-first-v1`
+- Base: `12e3e5253edf9a6babed863b2351d1493a738816`
+- Tüm yeni tasarım/UX çalışmaları bu branch ve gerektiğinde buradan açılan izole alt branch'lerde yürütülecek.
+- Public canlı sürüme aşamalar bitmeden dokunulmayacak.
+
 ## 4. Yeni kilitli görsel yön
 
 ### Master referans
 
-Kanonik tasarım görseli:
+Kanonik tasarım görseli hedef yolu:
 
-`docs/design/GLIX-MASTER-REFERENCE.svg`
+`docs/design/GLIX-MASTER-REFERENCE.png`
 
 Bu referansın görsel dili **hedef tasarımdır**. Uygulama bu referansa mümkün olduğunca birebir yaklaşacak; “ilham” olarak gevşek yorumlanmayacak.
+
+> Not: Referans PNG bu konuşmada üretilmiş ve kilitlenmiştir. GitHub connector'ının mevcut yazma aracı yalnız UTF-8 metin dosyası oluşturabildiği için binary PNG'nin repo'ya fiziksel yüklenmesi R0'ın tek açık operasyonel işidir. Yerel git/AI ajanı ilk R0 uygulama görevinde PNG'yi exact dosya olarak `docs/design/GLIX-MASTER-REFERENCE.png` yoluna ekleyecek. PNG yüklenene kadar yeni UI implementasyonu başlamayacak.
 
 ### Tasarım dili
 
@@ -143,9 +153,9 @@ Referanstaki örnek oyun kuralları kanonik değildir. **Görsel tasarım kanoni
 
 Yapılacak:
 - [x] Yeni kalıcı hafıza dosyasını tanımla.
-- [ ] Master referans görselini repo'ya ekle.
+- [ ] Master referans PNG'yi repo'ya exact binary dosya olarak ekle.
 - [x] `GLIX-MINIOYUN-KURALLARI-FORMU.md` dosyasını yeniden oku ve kanonik kural kaynağı olarak kilitle.
-- [ ] Redesign çalışma branch'ini aç.
+- [x] Redesign çalışma branch'ini aç: `redesign-mobile-first-v1`.
 
 **Bitiş kriteri:** Hafıza + görsel referans repo'da ve sonraki aşamalar bunları açıkça kaynak alıyor.
 
@@ -231,6 +241,11 @@ Her aşama için aşağıdaki sıraya uyulacak:
 - Yeni mobile-first GLIX master tasarım panosu kullanıcı tarafından beğenildi ve **hedef görsel yön** olarak kilitlendi.
 - Kullanıcı, uygulamanın master referansa mümkün olduğunca birebir dönüştürülmesini istedi.
 - Oyunların gerçek kuralları için `GLIX-MINIOYUN-KURALLARI-FORMU.md` yeniden kanonik kaynak olarak kilitlendi.
+- Butona Bas kuralı yeniden doğrulandı: 45 saniye boyunca 0,3 saniyelik pencereler; aynı pencerede 2+ farklı oyuncu +1, tek oyuncu -1. Bu 0,3 saniye server kuralıdır ama yeni UI'da teknik metrik olarak gösterilmeyecektir.
+- Çağrışım Ağı yeniden doğrulandı: ortak ana kelime, tek zorunlu çağrışım, 30 saniye, aynı normalize cevabı veren 2+ oyuncu grup oluşturur ve grup büyüklüğü kadar mini oyun puanı alır.
+- Rus Ruleti yeniden doğrulandı: silah sahibi hedef seçer; risk %16 başlar, güvenli atışta +10 artar (max %76), patlamada hedef elenir; hayatta kalan sayısı başlangıcın yarısına düşünce biter.
+- Gizli Hırsız yeniden doğrulandı: herkesin bir kez gizli `ÇAL` hamlesi vardır; 30 saniye sonunda tek hırsız +1, birden fazla hırsızın her biri -1, basmayan 0; hamleler sonuç anına kadar gizlidir.
+- `redesign-mobile-first-v1` branch'i protected main'deki `12e3e525...` dokümantasyon tabanından açıldı.
 - Bundan sonra her aşama başında/sonunda bu hafıza dosyasının okunması/güncellenmesi zorunlu.
 
-**R0 açık işler:** master görselin repo'ya eklenmesi ve redesign branch'inin hazırlanması.
+**R0 açık tek iş:** master referans PNG'nin exact binary dosya olarak repo'ya eklenmesi.
