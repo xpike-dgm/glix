@@ -49,8 +49,8 @@ test("Rus Ruleti güvenli atışta hedefe geçer ve riski 76 ile sınırlar", ()
   assert.equal(adapter.isFinished, false);
 });
 
-test("Stage 11.7.1 wire sözleşmesi action correlation için protocol v3'ü ilan eder", () => {
-  assert.equal(PROTOCOL_VERSION, 3);
+test("Stage 11.7.1 wire sözleşmesi action correlation için protocol v4'ü ilan eder", () => {
+  assert.equal(PROTOCOL_VERSION, 4);
 });
 
 test("Rus Ruleti yalnızca silah sahibinin ve hayatta olan hedefin atışını kabul eder", () => {

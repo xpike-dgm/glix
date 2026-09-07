@@ -1,6 +1,6 @@
 import type { RuntimePhaseId } from "./engine.js";
 
-export const PROTOCOL_VERSION = 3 as const;
+export const PROTOCOL_VERSION = 4 as const;
 export const DEFAULT_SERVER_PORT = 8787 as const;
 export const DEFAULT_WS_PATH = "/ws" as const;
 export const MAX_PLAYERS = 8 as const;
@@ -175,6 +175,10 @@ export type ClientMessage =
     }
   | {
       readonly type: "client:room:leave";
+    }
+  | {
+      readonly type: "client:room:kick";
+      readonly targetPlayerId: string;
     };
 
 export type ServerErrorCode =
@@ -201,7 +205,9 @@ export type ServerErrorCode =
   | "input_disabled"
   | "input_empty_not_allowed"
   | "spectator"
-  | "invalid_game_input";
+  | "invalid_game_input"
+  | "cannot_kick_self"
+  | "target_not_found";
 
 export type ServerMessage =
   | {
@@ -229,7 +235,7 @@ export type ServerMessage =
   | {
       readonly type: "server:room-left";
       readonly roomCode: string;
-      readonly reason: "left" | "closed";
+      readonly reason: "left" | "closed" | "kicked";
     }
   | {
       readonly type: "server:match-state";

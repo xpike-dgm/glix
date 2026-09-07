@@ -50,8 +50,8 @@ function createMockServer(onConnection) {
     return { ok: true, serverProto, srvVer };
   }
 
-  // Untrusted string protocol "3" must NOT pass as number 3
-  const strProto = validateServerReady({ type: "server:ready", protocolVersion: "3", serverVersion: "0.8.0" });
+  // Untrusted string protocol "4" must NOT pass as number 4
+  const strProto = validateServerReady({ type: "server:ready", protocolVersion: "4", serverVersion: "0.8.0" });
   assert.equal(strProto.ok, false);
   assert.equal(strProto.reason, "protocol_mismatch");
 
@@ -61,10 +61,10 @@ function createMockServer(onConnection) {
   assert.equal(higherProto.reason, "protocol_mismatch");
   assert.equal(higherProto.serverProto, 99);
 
-  // Compatible protocol 3
-  const validProto = validateServerReady({ type: "server:ready", protocolVersion: 3, serverVersion: "0.7.0" });
+  // Compatible protocol 4
+  const validProto = validateServerReady({ type: "server:ready", protocolVersion: PROTOCOL_VERSION, serverVersion: "0.7.0" });
   assert.equal(validProto.ok, true);
-  assert.equal(validProto.serverProto, 3);
+  assert.equal(validProto.serverProto, PROTOCOL_VERSION);
   console.log("  ✓ Runtime validation rejects non-numeric or mismatched protocol versions");
 }
 
