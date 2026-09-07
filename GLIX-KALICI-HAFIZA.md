@@ -58,13 +58,17 @@ Herhangi bir mini oyunun ekranı değiştirilmeden önce:
 
 ### Master referans
 
-Kanonik tasarım görseli hedef yolu:
+Kanonik tasarım görseli yolu:
 
 `docs/design/GLIX-MASTER-REFERENCE.png`
 
-Bu referansın görsel dili **hedef tasarımdır**. Uygulama bu referansa mümkün olduğunca birebir yaklaşacak; “ilham” olarak gevşek yorumlanmayacak.
+- **Durum:** Exact binary olarak repo'ya eklendi ve kilitlendi.
+- **Kanonik Görsel Master:** Bu dosya projenin kanonik görsel referansıdır (canonical visual master).
+- **SHA-256:** `bdcc7072889d4cd053b84fe79acbfd5e38e97397ea3b79e5656081ebbca225f7`
+- **Boyutlar:** 1491 × 1055 px (1.706.082 bayt).
+- **Zorunlu Kural:** Gelecek tüm aşamalar (R1–R5) implementasyona veya kodlamaya başlamadan önce bu dosyayı (`docs/design/GLIX-MASTER-REFERENCE.png`) açmak, okumak ve incelemek zorundadır.
 
-> Not: Referans PNG bu konuşmada üretilmiş ve kilitlenmiştir. GitHub connector'ının mevcut yazma aracı yalnız UTF-8 metin dosyası oluşturabildiği için binary PNG'nin repo'ya fiziksel yüklenmesi R0'ın tek açık operasyonel işidir. Yerel git/AI ajanı ilk R0 uygulama görevinde PNG'yi exact dosya olarak `docs/design/GLIX-MASTER-REFERENCE.png` yoluna ekleyecek. PNG yüklenene kadar yeni UI implementasyonu başlamayacak.
+Bu referansın görsel dili **hedef tasarımdır**. Uygulama bu referansa mümkün olduğunca birebir yaklaşacak; “ilham” olarak gevşek yorumlanmayacak.
 
 ### Tasarım dili
 
@@ -147,19 +151,19 @@ Referanstaki örnek oyun kuralları kanonik değildir. **Görsel tasarım kanoni
 
 ## 7. Yeniden yapım aşamaları
 
-### AŞAMA R0 — Kalıcı hafıza + master referans + rule baseline
+### AŞAMA R0 — Kalıcı hafıza + master referans + rule baseline [TAMAMLANDI]
 
 **Amaç:** Tasarım çalışmasının tek hafıza kaynağını, görsel hedefini ve kural okuma prosedürünü kilitlemek.
 
 Yapılacak:
 - [x] Yeni kalıcı hafıza dosyasını tanımla.
-- [ ] Master referans PNG'yi repo'ya exact binary dosya olarak ekle.
+- [x] Master referans PNG'yi repo'ya exact binary dosya olarak ekle (`docs/design/GLIX-MASTER-REFERENCE.png`, SHA-256: `bdcc7072889d4cd053b84fe79acbfd5e38e97397ea3b79e5656081ebbca225f7`).
 - [x] `GLIX-MINIOYUN-KURALLARI-FORMU.md` dosyasını yeniden oku ve kanonik kural kaynağı olarak kilitle.
 - [x] Redesign çalışma branch'ini aç: `redesign-mobile-first-v1`.
 
-**Bitiş kriteri:** Hafıza + görsel referans repo'da ve sonraki aşamalar bunları açıkça kaynak alıyor.
+**Bitiş kriteri:** Hafıza + görsel referans repo'da ve sonraki aşamalar bunları açıkça kaynak alıyor. [TAMAMLANDI]
 
-### AŞAMA R1 — Oyuncu akışı ve ortak UI kabuğu
+### AŞAMA R1 — Oyuncu akışı ve ortak UI kabuğu [SIRADAKİ AŞAMA]
 
 **Kapsam:**
 - Anasayfa
@@ -248,4 +252,16 @@ Her aşama için aşağıdaki sıraya uyulacak:
 - `redesign-mobile-first-v1` branch'i protected main'deki `12e3e525...` dokümantasyon tabanından açıldı.
 - Bundan sonra her aşama başında/sonunda bu hafıza dosyasının okunması/güncellenmesi zorunlu.
 
-**R0 açık tek iş:** master referans PNG'nin exact binary dosya olarak repo'ya eklenmesi.
+- Master referans PNG exact binary olarak `docs/design/GLIX-MASTER-REFERENCE.png` yoluna eklendi.
+
+### 2026-09-07 — AŞAMA R0 TAMAMLANDI (Master referans kilitlendi)
+
+- **Exact dosya repo'ya eklendi:** `docs/design/GLIX-MASTER-REFERENCE.png`
+- **SHA-256 doğrulandı:** `bdcc7072889d4cd053b84fe79acbfd5e38e97397ea3b79e5656081ebbca225f7`
+- **Görsel boyutları:** 1491 × 1055 px, 1.706.082 bayt.
+- **Kanonik Statü:** Bu dosya projenin kanonik görsel master referansıdır (canonical visual master).
+- **Zorunlu Kural:** Gelecek tüm aşamalar (R1–R5) kodlamaya veya implementasyona başlamadan önce bu referans görseli açmak, okumak ve incelemek zorundadır.
+- **Kural bütünlüğü:** `GLIX-MINIOYUN-KURALLARI-FORMU.md` ve kilitli 24 mini oyun kuralı aynen korundu; hiçbir gameplay kuralı değiştirilmedi.
+- **Kod bütünlüğü:** Application/client/server/shared koduna dokunulmadı (Application code changed: NO).
+- **Aşama Durumu:** AŞAMA R0 eksiksiz tamamlandı (R0_COMPLETE_READY_FOR_R1).
+- **Sıradaki Aşama:** **AŞAMA R1 — Oyuncu akışı ve ortak UI kabuğu**.
