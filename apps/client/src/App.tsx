@@ -32,6 +32,8 @@ import {
 } from "@glix/shared";
 import { GameHUD } from "./visuals/hud/GameHUD";
 import { HomeScreen } from "./visuals/home/HomeScreen";
+import { RoomEntryScreen } from "./visuals/home/RoomEntryScreen";
+import { LobbyScreen } from "./visuals/lobby/LobbyScreen";
 import { ResultOverlay } from "./visuals/overlays/ResultOverlay";
 import { SpectatorOverlay } from "./visuals/overlays/SpectatorOverlay";
 import { TutorialOverlay } from "./visuals/overlays/TutorialOverlay";
@@ -119,7 +121,7 @@ function isServerMessage(value: unknown): value is ServerMessage {
 
 function connectionLabel(connection: ConnectionState): string {
   if (connection === "connected") {
-    return "BAĞLANTI HAZIR";
+    return "BAĞLI";
   }
 
   if (connection === "connecting") {
@@ -887,181 +889,42 @@ function App(): JSX.Element {
         />
       )}
 
-      {screen === "create" && (
-        <RoomForm
-          mode="create"
+      {(screen === "create" || screen === "join") && (
+        <RoomEntryScreen
+          mode={screen === "create" ? "create" : "join"}
           nickname={nickname}
           roomCode={roomCodeInput}
-          connection={connection}
           error={error}
+          onModeChange={(m) => {
+            clearFormError();
+            setScreen(m);
+          }}
           onNicknameChange={setNickname}
           onRoomCodeChange={setRoomCodeInput}
-          onSubmit={handleCreateRoom}
-          onBack={() => { clearFormError(); setScreen("home"); }}
-        />
-      )}
-
-      {screen === "join" && (
-        <RoomForm
-          mode="join"
-          nickname={nickname}
-          roomCode={roomCodeInput}
-          connection={connection}
-          error={error}
-          onNicknameChange={setNickname}
-          onRoomCodeChange={setRoomCodeInput}
-          onSubmit={handleJoinRoom}
+          onSubmit={screen === "create" ? handleCreateRoom : handleJoinRoom}
           onBack={() => { clearFormError(); setScreen("home"); }}
         />
       )}
 
       {screen === "lobby" && roomState && (
-        <section className="lobby-layout glix-lobby-screen" aria-labelledby="lobby-title">
-          <header className="lobby-header">
-            <div>
-              <p className="eyebrow">GLIX / ODA LOBİSİ</p>
-              <h1 id="lobby-title">Maç kuruluyor<span>.</span></h1>
-            </div>
-            <div className="lobby-header-actions">
-              <ConnectionPill connection={connection} />
-              <button className="text-button danger-button" type="button" onClick={handleLeaveRoom}>ODADAN ÇIK</button>
-            </div>
-          </header>
-
-          <div className="room-banner">
-            <div>
-              <span className="banner-label">KATILIM KODU</span>
-              <strong className="room-code">{roomState.roomCode}</strong>
-            </div>
-            <button className="copy-button" type="button" onClick={() => void copyRoomCode()}>
-              <span>⧉</span>
-              KODU KOPYALA
-            </button>
-          </div>
-
-          <div className="lobby-grid">
-            <section className="lobby-card players-card" aria-labelledby="players-title">
-              <div className="card-heading">
-                <div>
-                  <p className="eyebrow">OYUNCULAR</p>
-                  <h2 id="players-title">Oda ekibi</h2>
-                </div>
-                <span className="count-badge">{roomMemberCount}/{MAX_PLAYERS}</span>
-              </div>
-              <p className="card-description">Kodunu arkadaşlarınla paylaş. Odaya giren herkes burada görünür.</p>
-              <div className="player-list">
-                {roomState.players.map((player, index) => (
-                  <div className={`player-row ${player.id === selfPlayerId ? "is-self" : ""}`} key={player.id}>
-                    <span className={`avatar avatar-${(index % 8) + 1}`} aria-hidden="true">{player.nickname.slice(0, 1).toUpperCase()}</span>
-                    <span className="player-name">
-                      <strong>{player.nickname}</strong>
-                      {player.id === selfPlayerId && <small>SEN</small>}
-                    </span>
-                    {player.id === roomState.hostPlayerId && <span className="host-badge">HOST</span>}
-                    <span className={`player-connection ${player.connected ? "online" : "away"}`}>
-                      <i />
-                      {player.connected ? "HAZIR" : "BEKLİYOR"}
-                    </span>
-                  </div>
-                ))}
-                {roomMemberCount < MAX_PLAYERS && (
-                  <div className="player-row empty-player">
-                    <span className="avatar avatar-empty">＋</span>
-                    <span className="player-name"><strong>Arkadaşlarını bekle</strong><small>{MAX_PLAYERS - roomMemberCount} boş yer</small></span>
-                  </div>
-                )}
-              </div>
-              <div className="self-status">
-                <span className="status-pulse" />
-                {currentPlayer ? `${currentPlayer.nickname} olarak bağlandın.` : "Oturum hazırlanıyor."}
-              </div>
-            </section>
-
-            <section className="lobby-card games-card" aria-labelledby="games-title">
-              <div className="card-heading game-heading">
-                <div>
-                  <p className="eyebrow">ODA YÖNETİMİ</p>
-                  <h2 id="games-title">Mini oyun rotası</h2>
-                </div>
-                <span className="selection-count">
-                  {roomState.selectionMode === "random" ? `${roomState.randomGameCount} RASTGELE` : `${roomState.selectedGameIds.length} SEÇİLİ`}
-                </span>
-              </div>
-
-              <div className="mode-switch" role="group" aria-label="Mini oyun seçim modu">
-                <button className={roomState.selectionMode === "manual" ? "active" : ""} type="button" disabled={!canManageGames} onClick={() => switchSelectionMode("manual")}>MANUEL SEÇİM</button>
-                <button className={roomState.selectionMode === "random" ? "active" : ""} type="button" disabled={!canManageGames} onClick={() => switchSelectionMode("random")}>RASTGELE ROTA</button>
-              </div>
-
-              {roomState.selectionMode === "random" ? (
-                <div className="random-control">
-                  <div>
-                    <strong>Kaç oyun oynansın?</strong>
-                    <small>Uygun oyun havuzu: {availableGameIds.size}</small>
-                  </div>
-                  <input
-                    aria-label="Rastgele oyun sayısı"
-                    type="number"
-                    min="1"
-                    max={Math.max(1, availableGameIds.size)}
-                    value={roomState.randomGameCount}
-                    disabled={!canManageGames}
-                    onChange={(event) => changeRandomGameCount(event.target.value)}
-                  />
-                </div>
-              ) : (
-                <p className="selection-help">
-                  {canManageGames ? "Oynanacak oyunları seç veya listeden çıkar." : "Oyun listesini yalnızca oda yöneticisi değiştirebilir."}
-                </p>
-              )}
-
-              <div className="game-list">
-                {GAME_CATALOG.map((game, index) => {
-                  const selected = selectedGameSet.has(game.id);
-                  const available = availableGameIds.has(game.id);
-                  const isRandom = roomState.selectionMode === "random";
-
-                  return (
-                    <button
-                      className={`game-row ${selected ? "selected" : ""} ${!available ? "unavailable" : ""} ${isRandom ? "read-only" : ""}`}
-                      type="button"
-                      key={game.id}
-                      disabled={!canManageGames || isRandom || (!selected && !available)}
-                      onClick={() => toggleGame(game.id)}
-                    >
-                      <span className={`game-index index-${(index % 5) + 1}`}>{String(index + 1).padStart(2, "0")}</span>
-                      <span className="game-name"><strong>{game.name}</strong><small>{game.category.toUpperCase()} / {game.supportsPortrait ? "DİKEY" : "YATAY"}</small></span>
-                      <span className="game-min">{game.minPlayers}+<small>OYUNCU</small></span>
-                      <span className="selection-mark">{selected ? "✓" : "＋"}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="games-footer">
-                <span><i className="legend-dot selected-dot" /> SEÇİLİ</span>
-                <span><i className="legend-dot warning-dot" /> {connectedCount < 3 ? "3+ OYUNLAR OYUNCU BEKLİYOR" : "TÜM OYUNLAR UYGUN"}</span>
-              </div>
-            </section>
-          </div>
-
-          {error && <div className="inline-message error-message" role="alert">{error}</div>}
-          {notice && <div className="inline-message notice-message" role="status">{notice}</div>}
-
-          <div className="lobby-footer">
-            <span>BAĞLANTI KODU İLE OYNA</span>
-            <span>BAĞLANTI HAZIR · ODA KODUNU PAYLAŞ</span>
-
-            <button
-              className="button button-start"
-              type="button"
-              disabled={!canStartMatch}
-              onClick={handleStartMatch}
-              title={canStartMatch ? "Seçtiğin gerçek oyun rotasını başlat" : "En az iki bağlı oyuncu ve uygun oyunlar gerekli"}
-            >
-              OYUN ROTASINI BAŞLAT <small>{availableGameCount} UYGUN OYUN</small>
-            </button>
-          </div>
-        </section>
+        <LobbyScreen
+          roomState={roomState}
+          selfPlayerId={selfPlayerId}
+          canManageGames={canManageGames}
+          canStartMatch={canStartMatch}
+          availableGameIds={availableGameIds}
+          availableGameCount={availableGameCount}
+          connectedCount={connectedCount}
+          connection={connection}
+          error={error}
+          notice={notice}
+          onCopyRoomCode={() => void copyRoomCode()}
+          onLeaveRoom={handleLeaveRoom}
+          onStartMatch={handleStartMatch}
+          onSwitchSelectionMode={switchSelectionMode}
+          onToggleGame={toggleGame}
+          onChangeRandomGameCount={changeRandomGameCount}
+        />
       )}
 
       {screen === "match" && matchState && (
@@ -1482,9 +1345,16 @@ function MatchScreen({
             {state.phase === "tutorial" && (
               <TutorialOverlay
                 gameName={game.name}
+                category={game.category}
                 steps={tutorialSteps}
-                progress={progress}
-                remainingLabel={formatRemaining(remaining)}
+                readyCount={state.readyPlayerIds.length}
+                eligibleCount={state.players.filter((p) => p.connected && !p.eliminated).length}
+                readyPlayerIds={state.readyPlayerIds}
+                players={state.players}
+                selfPlayerId={selfPlayerId}
+                isReady={ready}
+                canReady={false}
+                onReady={onReady}
               />
             )}
             {state.phase === "results" && !isKpk && !isKendim && !stage11AGameId && !stage11BGameId && !stage11CGameId && !stage11DGameId && (
@@ -1493,21 +1363,26 @@ function MatchScreen({
               </ResultOverlay>
             )}
             {state.phase === "finished" && (
-              <ResultOverlay gameName="GLIX rotası" final>
-                <div className="glix-final-score-rail">
-                  {sortedPlayers.slice(0, 8).map((player, index) => (
-                    <div className="glix-final-score-row" key={player.id}>
-                      <span>{String(index + 1).padStart(2, "0")}</span>
-                      <strong>{player.nickname}</strong>
-                      <small>+{player.miniGameScore}</small>
-                      <b>{player.score}</b>
-                    </div>
-                  ))}
-                </div>
-                {canManageMatch && (
-                  <button className="glix-return-lobby" type="button" onClick={onReturnLobby}>LOBİYE DÖN</button>
-                )}
-              </ResultOverlay>
+              <ResultOverlay
+                gameName="GLIX"
+                final
+                scores={sortedPlayers.map((player, index) => ({
+                  id: player.id,
+                  nickname: player.nickname,
+                  score: player.score,
+                  miniGameScore: player.miniGameScore,
+                  rank: index + 1
+                }))}
+                winner={sortedPlayers[0] ? {
+                  id: sortedPlayers[0].id,
+                  nickname: sortedPlayers[0].nickname,
+                  score: sortedPlayers[0].score,
+                  miniGameScore: sortedPlayers[0].miniGameScore,
+                  rank: 1,
+                  isWinner: true
+                } : null}
+                onReturnLobby={canManageMatch ? onReturnLobby : undefined}
+              />
             )}
             {isSpectator && state.phase !== "finished" && !isKpk && !isKendim && !stage11AGameId && !stage11BGameId && !stage11CGameId && !stage11DGameId && (
               <SpectatorOverlay
@@ -1560,14 +1435,15 @@ function MatchScreen({
 
         <footer className="glix-match-footer">
           <span>ODA {roomCode}</span>
-          <span>{connection === "connected" ? "BAĞLANTI HAZIR" : "BAĞLANTI BEKLENİYOR"}</span>
+          {connection !== "connected" && (
+            <span>{connection === "connecting" ? "Bağlanıyor…" : "Çevrimdışı"}</span>
+          )}
         </footer>
 
       </GameViewport>
     </section>
   );
 }
-
 
 function ConnectionPill({ connection }: { connection: ConnectionState }): JSX.Element {
   return (
@@ -1578,96 +1454,5 @@ function ConnectionPill({ connection }: { connection: ConnectionState }): JSX.El
   );
 }
 
-interface RoomFormProps {
-  readonly mode: "create" | "join";
-  readonly nickname: string;
-  readonly roomCode: string;
-  readonly connection: ConnectionState;
-  readonly error: string | null;
-  readonly onNicknameChange: (value: string) => void;
-  readonly onRoomCodeChange: (value: string) => void;
-  readonly onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-  readonly onBack: () => void;
-}
-
-function RoomForm({
-  mode,
-  nickname,
-  roomCode,
-  connection,
-  error,
-  onNicknameChange,
-  onRoomCodeChange,
-  onSubmit,
-  onBack
-}: RoomFormProps): JSX.Element {
-  const isJoin = mode === "join";
-
-  return (
-    <section className="form-layout" aria-labelledby="room-form-title">
-      <div className="form-intro">
-        <button className="back-button" type="button" onClick={onBack}>← ANA SAYFA</button>
-        <p className="eyebrow">{isJoin ? "ODA KODU / KATIL" : "YENİ ODA / KUR"}</p>
-        <h1 id="room-form-title">
-          {isJoin ? "Ekibe katıl." : "Odanı kur."}
-          <span> Hazır mısın?</span>
-        </h1>
-        <p className="hero-description">
-          {isJoin ? "Arkadaşının paylaştığı kodu ve kendi takma adını gir." : "Takma adını seç, oda kodunu arkadaşlarınla paylaş ve oyun rotasını yönet."}
-        </p>
-      </div>
-
-      <form className="room-form-card" onSubmit={onSubmit}>
-        <div className="form-card-topline">
-          <span className="form-card-index">01</span>
-          <ConnectionPill connection={connection} />
-        </div>
-
-        {isJoin && (
-          <label className="field-group">
-            <span>ODA KODU</span>
-            <input
-              className="room-code-input"
-              type="text"
-              value={roomCode}
-              onChange={(event) => onRoomCodeChange(event.target.value.replace(/\s+/g, "").toUpperCase().slice(0, ROOM_CODE_LENGTH))}
-              placeholder="ABCDE"
-              inputMode="text"
-              autoCapitalize="characters"
-              autoComplete="off"
-              maxLength={ROOM_CODE_LENGTH}
-              autoFocus
-            />
-            <small>Arkadaşının ekranındaki {ROOM_CODE_LENGTH} karakterli kod.</small>
-          </label>
-        )}
-
-        <label className="field-group">
-          <span>TAKMA ADIN</span>
-          <input
-            type="text"
-            value={nickname}
-            onChange={(event) => onNicknameChange(event.target.value.slice(0, MAX_NICKNAME_LENGTH))}
-            placeholder="Örn. NeonKedi"
-            autoComplete="nickname"
-            maxLength={MAX_NICKNAME_LENGTH}
-            autoFocus={!isJoin}
-          />
-          <small>Hesap yok. Bu ad yalnızca bu maçta görünür.</small>
-        </label>
-
-        {error && <div className="form-error" role="alert">{error}</div>}
-
-        <button className="button button-primary form-submit" type="submit">
-          <span className="button-icon">{isJoin ? "↗" : "＋"}</span>
-          <span>
-            <strong>{isJoin ? "ODAYA KATIL" : "ODA OLUŞTUR"}</strong>
-            <small>{isJoin ? "ARKADAŞLARINI BEKLE" : "KODU ARKADAŞLARINLA PAYLAŞ"}</small>
-          </span>
-        </button>
-      </form>
-    </section>
-  );
-}
-
 export default App;
+

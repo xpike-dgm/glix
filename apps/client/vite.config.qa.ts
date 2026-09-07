@@ -15,7 +15,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        devPreview: resolve(__dirname, "dev-stage11d.html")
+        devPreview: resolve(__dirname, "dev-stage11d.html"),
+        devR1: resolve(__dirname, "dev-r1.html")
       }
     }
   }
