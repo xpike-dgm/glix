@@ -1,33 +1,49 @@
 import type { JSX } from "react";
+import type { MatchPlayerState } from "@glix/shared";
+import { BriefingScreen } from "../briefing/BriefingScreen";
 
-interface TutorialOverlayProps {
+export interface TutorialOverlayProps {
   readonly gameName: string;
+  readonly category?: string | undefined;
   readonly steps: readonly string[];
-  readonly progress: number;
-  readonly remainingLabel: string;
+  readonly progress?: number | undefined;
+  readonly remainingLabel?: string | undefined;
+  readonly readyCount?: number | undefined;
+  readonly eligibleCount?: number | undefined;
+  readonly readyPlayerIds?: readonly string[] | undefined;
+  readonly players?: readonly MatchPlayerState[] | undefined;
+  readonly selfPlayerId?: string | null | undefined;
+  readonly isReady?: boolean | undefined;
+  readonly canReady?: boolean | undefined;
+  readonly onReady?: (() => void) | undefined;
 }
 
 export function TutorialOverlay({
   gameName,
+  category,
   steps,
-  progress,
-  remainingLabel
+  readyCount = 0,
+  eligibleCount = 0,
+  readyPlayerIds = [],
+  players,
+  selfPlayerId = null,
+  isReady = false,
+  canReady = false,
+  onReady
 }: TutorialOverlayProps): JSX.Element {
   return (
-    <div className="glix-tutorial-overlay" aria-live="polite">
-      <div className="glix-tutorial-panel">
-        <div className="glix-overlay-kicker"><span /> KISA ANLATIM <b>{remainingLabel}</b></div>
-        <div className="glix-tutorial-heading">
-          <span className="glix-tutorial-seal" aria-hidden="true">01</span>
-          <div><span>KURAL ÖNİZLEMESİ</span><h2>{gameName}</h2></div>
-        </div>
-        <ol>
-          {steps.slice(0, 3).map((step, index) => (
-            <li key={step}><span>{String(index + 1).padStart(2, "0")}</span><strong>{step}</strong></li>
-          ))}
-        </ol>
-        <div className="glix-tutorial-progress" aria-hidden="true"><span style={{ width: `${Math.round(progress * 100)}%` }} /></div>
-      </div>
-    </div>
+    <BriefingScreen
+      gameName={gameName}
+      category={category}
+      steps={steps}
+      readyCount={readyCount}
+      eligibleCount={eligibleCount}
+      readyPlayerIds={readyPlayerIds}
+      players={players}
+      selfPlayerId={selfPlayerId}
+      isReady={isReady}
+      canReady={canReady}
+      onReady={onReady}
+    />
   );
 }

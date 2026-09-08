@@ -1,0 +1,1117 @@
+/* GLIX R1-A Mobile-First UI Core Stylesheet */
+
+:root {
+  --glix-font-display: "Cabinet Grotesk", system-ui, -apple-system, sans-serif;
+  --glix-font-ui: "Satoshi", system-ui, -apple-system, sans-serif;
+  --glix-cyan: #00f0ff;
+  --glix-magenta: #ff007f;
+  --glix-lime: #00ff88;
+  --glix-yellow: #ffe600;
+  --glix-purple: #9d00ff;
+  --glix-bg-deep: #070913;
+  --glix-bg-card: rgba(18, 22, 40, 0.85);
+  --glix-bg-card-border: rgba(255, 255, 255, 0.1);
+  --glix-radius-sm: 10px;
+  --glix-radius-md: 16px;
+  --glix-radius-lg: 24px;
+  --glix-safe-top: env(safe-area-inset-top, 0px);
+  --glix-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --glix-safe-left: env(safe-area-inset-left, 0px);
+  --glix-safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ==========================================================================
+   Global Mobile Shell Polish
+   ========================================================================== */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  background-color: var(--glix-bg-deep);
+  color: #ffffff;
+  font-family: var(--glix-font-ui);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  touch-action: manipulation;
+  overflow-x: hidden;
+}
+
+button, input, select {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+/* ==========================================================================
+   Home Screen (Mobile Party Style)
+   ========================================================================== */
+
+.glix-home-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(var(--glix-safe-top) + 20px) 20px calc(var(--glix-safe-bottom) + 20px);
+  box-sizing: border-box;
+  text-align: center;
+  background: radial-gradient(circle at 50% 20%, rgba(26, 32, 70, 0.6) 0%, rgba(7, 9, 19, 0.95) 75%);
+}
+
+.glix-home-header {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.glix-wordmark {
+  font-family: var(--glix-font-display);
+  font-size: 1.85rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+}
+
+.glix-wordmark-x {
+  color: var(--glix-magenta);
+  text-shadow: 0 0 16px var(--glix-magenta);
+}
+
+.glix-wordmark-glow {
+  color: var(--glix-cyan);
+  text-shadow: 0 0 16px var(--glix-cyan);
+}
+
+.glix-home-hero {
+  width: 100%;
+  max-width: 440px;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.glix-home-title {
+  font-family: var(--glix-font-display);
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 900;
+  line-height: 1.1;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  background: linear-gradient(135deg, #ffffff 40%, #b8c7ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glix-home-tagline {
+  font-size: 1.05rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+  margin: 0 0 20px;
+  max-width: 320px;
+}
+
+.glix-home-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 999px;
+  color: var(--glix-cyan);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+/* Home Mascot / Graphic container */
+.glix-home-visual {
+  width: 180px;
+  height: 180px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px auto 20px;
+}
+
+.glix-home-orb {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.3) 0%, rgba(255, 0, 127, 0.2) 60%, transparent 80%);
+  filter: blur(12px);
+  animation: glix-orb-pulse 4s ease-in-out infinite alternate;
+}
+
+.glix-home-character {
+  position: absolute;
+  font-size: 3.8rem;
+  filter: drop-shadow(0 0 20px rgba(0, 240, 255, 0.6));
+}
+
+@keyframes glix-orb-pulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.15); opacity: 1; }
+}
+
+/* Home Action Stack */
+.glix-home-actions {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.glix-btn-cta-cyan {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #00f0ff 0%, #00a8ff 100%);
+  color: #030814;
+  border: none;
+  border-radius: var(--glix-radius-md);
+  font-family: var(--glix-font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 240, 255, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glix-btn-cta-cyan:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 10px rgba(0, 240, 255, 0.25);
+}
+
+.glix-btn-cta-magenta {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #ff007f 0%, #d6006c 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--glix-radius-md);
+  font-family: var(--glix-font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(255, 0, 127, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glix-btn-cta-magenta:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 10px rgba(255, 0, 127, 0.25);
+}
+
+/* Home "Nasıl Oynanır?" Collapsible Accordion */
+.glix-home-rules-accordion {
+  width: 100%;
+  margin-top: 8px;
+  background: var(--glix-bg-card);
+  border: 1px solid var(--glix-bg-card-border);
+  border-radius: var(--glix-radius-md);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.glix-home-rules-trigger {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.glix-home-rules-trigger:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.glix-accordion-arrow {
+  display: inline-block;
+  transition: transform 0.25s ease;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.glix-accordion-arrow.open {
+  transform: rotate(180deg);
+}
+
+.glix-home-rules-body {
+  padding: 0 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.glix-rule-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.glix-rule-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  background: rgba(0, 240, 255, 0.15);
+  color: var(--glix-cyan);
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.glix-home-footer {
+  width: 100%;
+  max-width: 440px;
+  margin-top: 14px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* ==========================================================================
+   Room Entry Screen (Oda Kur & Odaya Katıl Tabbed Sheet)
+   ========================================================================== */
+
+.glix-entry-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--glix-safe-top) + 16px) 20px calc(var(--glix-safe-bottom) + 20px);
+  box-sizing: border-box;
+  background: radial-gradient(circle at 50% 15%, rgba(22, 28, 62, 0.65) 0%, rgba(7, 9, 19, 0.98) 75%);
+}
+
+.glix-entry-topbar {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.glix-btn-back {
+  min-height: 44px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--glix-radius-sm);
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.glix-btn-back:active {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.glix-entry-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--glix-bg-card);
+  border: 1px solid var(--glix-bg-card-border);
+  border-radius: var(--glix-radius-lg);
+  padding: 24px 20px;
+  box-sizing: border-box;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Mode Switcher Segmented Control */
+.glix-segmented-tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--glix-radius-md);
+  padding: 4px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glix-segment-btn {
+  flex: 1;
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: calc(var(--glix-radius-md) - 4px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.glix-segment-btn.active-create {
+  background: var(--glix-cyan);
+  color: #040914;
+  box-shadow: 0 2px 10px rgba(0, 240, 255, 0.35);
+}
+
+.glix-segment-btn.active-join {
+  background: var(--glix-magenta);
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(255, 0, 127, 0.35);
+}
+
+.glix-form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.glix-field-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+}
+
+.glix-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.glix-input-text {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--glix-radius-md);
+  color: #ffffff;
+  font-size: 1.05rem;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glix-input-text:focus {
+  border-color: var(--glix-cyan);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+}
+
+.glix-input-code {
+  font-family: var(--glix-font-display);
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.glix-input-clear {
+  position: absolute;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glix-field-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 6px;
+}
+
+.glix-entry-error {
+  background: rgba(255, 60, 60, 0.15);
+  border: 1px solid rgba(255, 60, 60, 0.3);
+  border-radius: var(--glix-radius-sm);
+  padding: 10px 14px;
+  color: #ff7070;
+  font-size: 0.88rem;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+/* ==========================================================================
+   Lobby Screen (Ordered strictly per spec)
+   1. Room code card + copy
+   2. Players list + host badge + kick
+   3. Minigame selection accordion
+   4. Start Match CTA
+   ========================================================================== */
+
+.glix-lobby-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--glix-safe-top) + 16px) 16px calc(var(--glix-safe-bottom) + 20px);
+  box-sizing: border-box;
+  background: radial-gradient(circle at 50% 10%, rgba(26, 32, 70, 0.6) 0%, rgba(7, 9, 19, 0.98) 80%);
+}
+
+.glix-lobby-container {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 1. Room Code Card */
+.glix-room-code-card {
+  background: var(--glix-bg-card);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: var(--glix-radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(0, 240, 255, 0.12);
+}
+
+.glix-room-code-info {
+  text-align: left;
+}
+
+.glix-room-code-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 2px;
+}
+
+.glix-room-code-display {
+  font-family: var(--glix-font-display);
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--glix-cyan);
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
+}
+
+.glix-btn-copy-code {
+  min-height: 44px;
+  padding: 8px 18px;
+  background: rgba(0, 240, 255, 0.15);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: var(--glix-radius-md);
+  color: var(--glix-cyan);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.glix-btn-copy-code:active {
+  transform: scale(0.95);
+  background: rgba(0, 240, 255, 0.28);
+}
+
+/* 2. Players Card & Roster */
+.glix-players-card {
+  background: var(--glix-bg-card);
+  border: 1px solid var(--glix-bg-card-border);
+  border-radius: var(--glix-radius-lg);
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+.glix-players-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.glix-players-title {
+  font-family: var(--glix-font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.glix-players-count {
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.glix-players-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.glix-player-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--glix-radius-md);
+  transition: background 0.15s ease;
+}
+
+.glix-player-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.glix-player-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--glix-purple) 0%, var(--glix-magenta) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.glix-player-meta {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  overflow: hidden;
+}
+
+.glix-player-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.glix-host-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--glix-yellow);
+}
+
+.glix-btn-kick {
+  min-height: 36px;
+  padding: 6px 12px;
+  background: rgba(255, 60, 60, 0.12);
+  border: 1px solid rgba(255, 60, 60, 0.25);
+  border-radius: var(--glix-radius-sm);
+  color: #ff7070;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.glix-btn-kick:active {
+  background: rgba(255, 60, 60, 0.25);
+}
+
+/* 3. Minigame Selection Accordion */
+.glix-games-accordion {
+  background: var(--glix-bg-card);
+  border: 1px solid var(--glix-bg-card-border);
+  border-radius: var(--glix-radius-lg);
+  overflow: hidden;
+}
+
+.glix-games-trigger {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.glix-games-trigger:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.glix-games-panel {
+  padding: 0 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.glix-game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.glix-game-card-toggle {
+  min-height: 48px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--glix-radius-sm);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.glix-game-card-toggle.selected {
+  background: rgba(0, 240, 255, 0.12);
+  border-color: rgba(0, 240, 255, 0.4);
+  color: #ffffff;
+}
+
+/* 4. Start Match CTA */
+.glix-btn-start-match {
+  width: 100%;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+  color: #03140a;
+  border: none;
+  border-radius: var(--glix-radius-md);
+  font-family: var(--glix-font-display);
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(0, 255, 136, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glix-btn-start-match:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: grayscale(0.6);
+}
+
+.glix-btn-start-match:not(:disabled):active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 12px rgba(0, 255, 136, 0.2);
+}
+
+/* ==========================================================================
+   Briefing Screen (Full Screen Mobile Replacement for Tutorial)
+   - No countdown timer
+   - No progress bar
+   - Big "Hazırım" CTA
+   ========================================================================== */
+
+.glix-briefing-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(var(--glix-safe-top) + 20px) 20px calc(var(--glix-safe-bottom) + 24px);
+  box-sizing: border-box;
+  background: radial-gradient(circle at 50% 15%, #182048 0%, #080a14 85%);
+  text-align: center;
+}
+
+.glix-briefing-content {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: auto 0;
+}
+
+.glix-briefing-category {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--glix-cyan);
+  padding: 4px 12px;
+  background: rgba(0, 240, 255, 0.12);
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.glix-briefing-title {
+  font-family: var(--glix-font-display);
+  font-size: clamp(2.2rem, 7vw, 2.8rem);
+  font-weight: 900;
+  line-height: 1.1;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 0 24px rgba(0, 240, 255, 0.4);
+}
+
+.glix-briefing-subtitle {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+}
+
+/* Step Cards */
+.glix-briefing-steps {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.glix-briefing-step-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--glix-bg-card);
+  border: 1px solid var(--glix-bg-card-border);
+  border-radius: var(--glix-radius-md);
+  text-align: left;
+}
+
+.glix-briefing-step-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--glix-cyan) 0%, #0088ff 100%);
+  color: #030814;
+  font-weight: 900;
+  font-size: 0.85rem;
+}
+
+.glix-briefing-step-text {
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+}
+
+/* Ready Status Badges */
+.glix-briefing-status-bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--glix-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.glix-briefing-actions {
+  width: 100%;
+  max-width: 440px;
+}
+
+.glix-btn-ready {
+  width: 100%;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+  color: #03140a;
+  border: none;
+  border-radius: var(--glix-radius-md);
+  font-family: var(--glix-font-display);
+  font-size: 1.25rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4);
+  transition: transform 0.15s ease;
+}
+
+.glix-btn-ready.is-ready {
+  background: rgba(255, 255, 255, 0.15);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.4);
+  box-shadow: none;
+}
+
+.glix-btn-ready:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Result Overlay (Celebration & Final Scores)
+   - Mobile party full-screen
+   - Authoritative data only
+   ========================================================================== */
+
+.glix-result-fullscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(var(--glix-safe-top) + 20px) 20px calc(var(--glix-safe-bottom) + 20px);
+  box-sizing: border-box;
+  background: radial-gradient(circle at 50% 20%, rgba(40, 20, 70, 0.8) 0%, rgba(7, 9, 19, 0.98) 80%);
+  text-align: center;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glix-result-header {
+  width: 100%;
+  max-width: 440px;
+}
+
+.glix-result-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 230, 0, 0.15);
+  border: 1px solid rgba(255, 230, 0, 0.4);
+  color: var(--glix-yellow);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.glix-result-title {
+  font-family: var(--glix-font-display);
+  font-size: clamp(2rem, 7vw, 2.5rem);
+  font-weight: 900;
+  margin: 0;
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(255, 230, 0, 0.4);
+}
+
+/* Winner Spotlight Card */
+.glix-winner-spotlight {
+  width: 100%;
+  max-width: 440px;
+  background: linear-gradient(180deg, rgba(255, 230, 0, 0.15) 0%, rgba(18, 22, 40, 0.9) 100%);
+  border: 1.5px solid rgba(255, 230, 0, 0.45);
+  border-radius: var(--glix-radius-lg);
+  padding: 20px;
+  box-sizing: border-box;
+  margin: 12px 0;
+  box-shadow: 0 8px 32px rgba(255, 230, 0, 0.2);
+}
+
+.glix-winner-crown {
+  font-size: 2.4rem;
+  margin-bottom: 4px;
+}
+
+.glix-winner-name {
+  font-family: var(--glix-font-display);
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.glix-winner-score {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--glix-yellow);
+  margin-top: 4px;
+}
+
+/* Score Rail */
+.glix-scores-list {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.glix-score-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--glix-radius-md);
+}
+
+.glix-score-rank {
+  font-family: var(--glix-font-display);
+  font-size: 1rem;
+  font-weight: 900;
+  width: 28px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.glix-score-nick {
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex: 1;
+  text-align: left;
+  margin: 0 10px;
+}
+
+.glix-score-delta {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--glix-lime);
+  margin-right: 12px;
+}
+
+.glix-score-total {
+  font-family: var(--glix-font-display);
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Compact Landscape Layout
+   ========================================================================== */
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .glix-home-screen,
+  .glix-entry-screen,
+  .glix-lobby-screen,
+  .glix-briefing-screen,
+  .glix-result-fullscreen {
+    padding: 8px 16px;
+  }
+
+  .glix-home-visual {
+    width: 90px;
+    height: 90px;
+    margin: 4px auto;
+  }
+
+  .glix-home-character {
+    font-size: 2.2rem;
+  }
+
+  .glix-btn-cta-cyan,
+  .glix-btn-cta-magenta,
+  .glix-btn-start-match,
+  .glix-btn-ready {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .glix-home-title,
+  .glix-briefing-title {
+    font-size: 1.6rem;
+  }
+
+  .glix-briefing-step-card {
+    padding: 8px 12px;
+  }
+
+  .glix-players-list,
+  .glix-scores-list {
+    max-height: 140px;
+  }
+}
+
+/* ==========================================================================
+   Prefers-Reduced-Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
