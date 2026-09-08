@@ -358,3 +358,16 @@ Parallel wave merge/QA sonrasında:
 - A5 Codex süreci bu kontrolde gerçek exit code `1` ile usage-limit nedeniyle durdu; worktree değişiklikleri korunuyor ve tamamlandı/accepted sayılmadı.
 - Diğer A1-A6/A8 worktree'leri korunuyor; kullanıcı değişikliklerine reset/restore yapılmadı. A8'de A7-owned Stage11B dosyalarının kopya/overlap riski acceptance sırasında temiz ownership kuralıyla ayrıştırılacak.
 - Sonraki PM adımı: A1-A6/A8 ajan çıktılarının gerçek exit durumunu ve branch diff/test/build kanıtını bağımsız doğrulamak; önce scope-temiz adayları commit/push etmek, sonra accepted olanları redesign branch'e sırayla entegre etmek.
+
+### 2026-09-08 — Parallel wave PM review: A5 visual gate RED / Codex limit
+
+- PM bu çalışmada GitHub'daki `GLIX-KALICI-HAFIZA.md` ve `docs/tasks/WAVE-DISPATCH.md` dosyalarını yeniden okudu; aktif aşama değişmedi.
+- A2/A3/A4/A5/A6/A8 için `gpt-5.6-luna` + `model_reasoning_effort=max` resume süreçleri exact 5 PNG girdileriyle yeniden denendi. Süreçler gerçek exit code `1` ile Codex usage-limit'e takıldı (`try again at 12:38 PM`); worktree değişiklikleri korunuyor ve hiçbiri tamamlandı/accepted sayılmadı.
+- A5 worktree PM tarafından bağımsız incelendi. Scope temizliği ana olarak `apps/client/src/visuals/games/stage11c/` altında; `apps/client/.local-vite-stage11c.mjs` untracked local QA yardımcı dosyasıdır ve acceptance commit'ine alınmayacak.
+- A5 canonical Stage11C regresyonu PM tarafından sandbox dışında yeniden çalıştırıldı: `games-stage11c.test.js` 9/9 PASS; shared build PASS; `git diff --check` temiz.
+- A5 production client Vite/PWA build PM tarafından sandbox dışında exit code `0` ile geçti.
+- Full client typecheck exit code `2`; hatalar A5'in değiştirmediği mevcut `apps/client/src/dev-r1.tsx` harness alanında (`JSX`, eksik `LobbyState.phase`, eksik `MatchPlayerState` alanları). A5 scope'una ait yeni type error görülmedi.
+- A5 browser QA `qa:stage11c` exit code `0`: 5 oyun için toplam 50/50 layout/stage integrity kontrolü geçti; 320x700, 390x520, 390x844 ve 844x390 senaryolarında overflow bulunmadı.
+- Ancak PM exact reference görsel karşılaştırmasında A5'i **REJECT / REVISION REQUIRED** yaptı. Örnek `acgozluluk-limiti-playing-390x844.png`, kilitli `12-acgozluluk-limiti-reference-v3.png` kompozisyonunu takip etmiyor; eski `OYUN 02/05`, `BAĞLI`, `ÇIK`, büyük legacy HUD/arena shell'i ve farklı kart/CTA düzeni hâlâ görünür. Bu, 50/50 teknik layout QA'ya rağmen visual acceptance gate'i geçmez.
+- A5 branch commit/push/merge yapılmadı; mevcut dirty implementasyon ve PM QA çıktıları korunuyor. Kullanıcı işi reset/restore edilmedi.
+- Sonraki PM adımı: Codex limiti açıldığında A5'i exact v3/v2 PNG kompozisyonuna göre legacy stage shell/HUD'dan arındıracak net revision prompt ile resume etmek; ardından 5 primary screenshot'u exact referanslarla yeniden görsel karşılaştırıp ancak sonra commit/push/acceptance değerlendirmek. Paralelde A1/A2/A3/A4/A6/A8 adayları aynı gate ile sürdürülecek.
