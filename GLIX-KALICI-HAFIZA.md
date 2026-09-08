@@ -345,3 +345,16 @@ Parallel wave merge/QA sonrasında:
 - Kullanıcının final 24 oyun + 13 common reference seti kilitlendi; ortak ekran kararlarındaki son overrides bu hafızaya işlendi.
 - R2/R3/R4 yerine 8-agent parallel reference implementation wave **AKTİF** olarak açıldı.
 - Sonraki iş: bu memory commit'inden exact base alarak 8 izolasyon branch/worktree oluştur; Luna Max ajanlarını background process olarak başlat; sonuçları PM bağımsız doğrula.
+
+### 2026-09-08 — Parallel wave PM acceptance: A7 entegre
+
+- PM bu çalışmada GitHub'daki `GLIX-KALICI-HAFIZA.md` ve `docs/tasks/WAVE-DISPATCH.md` dosyalarını yeniden okudu; aktif aşama 8-agent parallel reference implementation wave olarak devam ediyor.
+- A7 branch: `wave-a7-games-stage11b`.
+- A7 implementation commit: `798c158` (`feat: implement A7 risk game references`), 7 dosya; yalnız `apps/client/src/visuals/games/stage11-8b/` scope'u.
+- PM acceptance kanıtı: `git diff --check` temiz; Stage11B/shared privacy tests `11/11` geçti; client privacy tests `3/3` geçti; shared build geçti; production client Vite build PM tarafından sandbox dışında geçti.
+- Full client typecheck hâlâ A7'nin dokunmadığı `apps/client/src/dev-r1.tsx` içindeki mevcut harness type hatalarında duruyor; A7 scope'una ait yeni type error kanıtı yok.
+- A7 kontrollü olarak `redesign-mobile-first-v1` branch'ine cherry-pick edildi. Entegrasyon commit'i: `62c2725cddbe78ba577e4f6d2fa504ff28973aed`.
+- A7 kapsamındaki oyunlar: `zaman-bombasi-hafizasi`, `capraz-ates`, `rus-ruleti`, `sizma`, `zehirli-kadeh`. Canonical gameplay/scoring/private-state adapterları değiştirilmedi; privacy regresyonları geçti.
+- A5 Codex süreci bu kontrolde gerçek exit code `1` ile usage-limit nedeniyle durdu; worktree değişiklikleri korunuyor ve tamamlandı/accepted sayılmadı.
+- Diğer A1-A6/A8 worktree'leri korunuyor; kullanıcı değişikliklerine reset/restore yapılmadı. A8'de A7-owned Stage11B dosyalarının kopya/overlap riski acceptance sırasında temiz ownership kuralıyla ayrıştırılacak.
+- Sonraki PM adımı: A1-A6/A8 ajan çıktılarının gerçek exit durumunu ve branch diff/test/build kanıtını bağımsız doğrulamak; önce scope-temiz adayları commit/push etmek, sonra accepted olanları redesign branch'e sırayla entegre etmek.
