@@ -424,6 +424,21 @@ function parseClientMessage(raw: string): ParseClientMessageResult {
     return { ok: true, message: { type: "client:room:leave" } };
   }
 
+  if (
+    value.type === "client:room:kick" &&
+    typeof value.targetPlayerId === "string" &&
+    value.targetPlayerId.length > 0 &&
+    value.targetPlayerId.length <= 80
+  ) {
+    return {
+      ok: true,
+      message: {
+        type: "client:room:kick",
+        targetPlayerId: value.targetPlayerId
+      }
+    };
+  }
+
   return { ok: false, reason: "malformed" };
 }
 
@@ -549,9 +564,12 @@ function broadcastRoomState(room: RoomRecord): void {
 function synchronizeMatchRuntime(room: RoomRecord, match: MatchRecord, now: number): boolean {
   let changed = false;
   const adapter = match.adapter;
+  const connectedPlayerIds = getConnectedPlayerIds(room);
+
+  match.engine.setConnectedPlayerIds(connectedPlayerIds);
 
   const adapterBeforeRoster = adapter ? JSON.stringify(adapter.getPublicState(now)) : null;
-  adapter?.setConnectedPlayerIds?.(getConnectedPlayerIds(room), now);
+  adapter?.setConnectedPlayerIds?.(connectedPlayerIds, now);
   if (adapter && adapterBeforeRoster !== JSON.stringify(adapter.getPublicState(now))) changed = true;
 
   const phaseBefore = match.engine.snapshot(now);
@@ -1353,13 +1371,73 @@ function handleGameReady(socket: WebSocket): void {
     return;
   }
 
-  if (!match.engine.markReady(context.playerId, Date.now())) {
-    sendError(socket, "input_phase_locked", "Hazır bildirimi yalnızca hazırlanma aşamasında alınır.");
+  const now = Date.now();
+  match.engine.setConnectedPlayerIds(getConnectedPlayerIds(room));
+
+  if (!match.engine.markReady(context.playerId, now)) {
+    sendError(socket, "input_phase_locked", "Hazır bildirimi yalnızca anlatım aşamasında alınır.");
     return;
   }
 
+  synchronizeMatchRuntime(room, match, now);
   match.stateVersion += 1;
-  broadcastMatchState(room);
+  broadcastMatchState(room, now);
+}
+
+function handleKickPlayer(
+  socket: WebSocket,
+  message: Extract<ClientMessage, { type: "client:room:kick" }>
+): void {
+  const context = socketContexts.get(socket);
+
+  if (!context?.roomCode || !context.playerId) {
+    sendRoomRequiredError(socket);
+    return;
+  }
+
+  const room = rooms.get(context.roomCode);
+
+  if (!room) {
+    sendRoomRequiredError(socket);
+    return;
+  }
+
+  if (room.hostPlayerId !== context.playerId) {
+    sendError(socket, "not_host", "Yalnızca oda yöneticisi oyuncu çıkarabilir.");
+    return;
+  }
+
+  if (room.match) {
+    sendError(socket, "match_in_progress", "Maç başladıktan sonra oyuncu çıkarılamaz.");
+    return;
+  }
+
+  if (message.targetPlayerId === room.hostPlayerId) {
+    sendError(socket, "cannot_kick_self", "Oda yöneticisi kendisini odadan çıkaramaz.");
+    return;
+  }
+
+  const target = room.players.get(message.targetPlayerId);
+
+  if (!target) {
+    sendError(socket, "target_not_found", "Çıkarılacak oyuncu odada bulunamadı.");
+    return;
+  }
+
+  if (target.socket && target.connected) {
+    sendJson(target.socket, {
+      type: "server:room-left",
+      roomCode: room.code,
+      reason: "kicked"
+    });
+  }
+
+  const targetSocket = target.socket;
+  removePlayer(room, target.id);
+
+  if (targetSocket) {
+    targetSocket.close(1000, "Odadan çıkarıldın");
+  }
 }
 
 function inputRejectionCode(
@@ -1655,6 +1733,11 @@ function handleMessage(socket: WebSocket, message: ClientMessage): void {
 
   if (message.type === "client:room:leave") {
     handleLeaveRoom(socket);
+    return;
+  }
+
+  if (message.type === "client:room:kick") {
+    handleKickPlayer(socket, message);
     return;
   }
 

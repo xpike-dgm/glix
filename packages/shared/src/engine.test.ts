@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GAME_CATALOG, type GameId } from "./index.js";
+import { GAME_CATALOG, PROTOCOL_VERSION, type GameId } from "./index.js";
 import {
   MiniGameEngine,
   applyScoreDeltas,
@@ -142,4 +142,128 @@ test("sıralama ödülü lider eşitliğini ve sonraki dereceyi deterministik he
     { playerId: "a", points: 1, reason: "test" },
     { playerId: "b", points: 2, reason: "test" }
   ]), { a: 5, b: 2 });
+});
+
+test("Protocol v4 sürümü doğru tanımlanmıştır", () => {
+  assert.equal(PROTOCOL_VERSION, 4);
+});
+
+test("brifing fazı süresizdir, zamanla ilerlemez ve hazır bariyeri tamamlanmadan açılmaz", () => {
+  const definition = createMiniGameDefinition(demoGame);
+  const tutorialPhase = definition.phases.find((p) => p.id === "tutorial");
+  assert.equal(tutorialPhase?.durationMs, null, "brifing fazının süresi null olmalı");
+  assert.equal(tutorialPhase?.advance, "all-ready", "brifing advance modu all-ready olmalı");
+
+  const engine = new MiniGameEngine(definition, ["a", "b"], 1_000);
+  const snap1 = engine.snapshot(1_000);
+  assert.equal(snap1.phase, "tutorial");
+  assert.equal(snap1.phaseEndsAt, null, "brifing fazında phaseEndsAt null olmalı");
+
+  // Uzun süre geçse bile zamanla ilerlememeli
+  assert.equal(engine.advance(999_999).phase, "tutorial");
+
+  // Tek oyuncu hazır olunca ilerlememeli
+  assert.equal(engine.markReady("a", 1_050), true);
+  assert.equal(engine.snapshot(1_050).phase, "tutorial");
+  assert.deepEqual(engine.snapshot(1_050).readyPlayerIds, ["a"]);
+
+  // Aynı oyuncu tekrar hazır derse idempotent olmalı
+  assert.equal(engine.markReady("a", 1_060), true);
+  assert.equal(engine.snapshot(1_060).phase, "tutorial");
+
+  // Tüm bağlı/uygun oyuncular hazır olunca 0ms preparing köprüsünden doğrudan playing'e geçmeli
+  assert.equal(engine.markReady("b", 1_070), true);
+  const playingSnap = engine.snapshot(1_070);
+  assert.equal(playingSnap.phase, "playing");
+  assert.equal(playingSnap.phaseStartedAt, 1_070);
+});
+
+test("seyirci ve elenmiş oyuncular hazır bariyerini engelleyemez ve hazır olamaz", () => {
+  const definition = createMiniGameDefinition(demoGame);
+  const engine = new MiniGameEngine(definition, ["a", "b"], 1_000);
+
+  // Seyirci/bilinmeyen oyuncu hazır olamaz
+  assert.equal(engine.markReady("spectator-x", 1_010), false);
+
+  // b elenince hazır bariyerini kilitlemez, yalnızca kalan a'nın hazır olması yeterlidir
+  engine.eliminatePlayer("b");
+  assert.equal(engine.markReady("b", 1_020), false);
+  assert.equal(engine.markReady("a", 1_030), true);
+
+  // a hazır olunca doğrudan playing'e geçer
+  assert.equal(engine.snapshot(1_030).phase, "playing");
+});
+
+test("bağlantısı kesilen oyuncu hazır bariyerini engellemez", () => {
+  const definition = createMiniGameDefinition(demoGame);
+  const engine = new MiniGameEngine(definition, ["a", "b"], 1_000);
+
+  // Yalnızca a bağlı
+  engine.setConnectedPlayerIds(["a"]);
+
+  // a hazır olunca b kilit oluşturmaz, doğrudan playing'e geçer
+  assert.equal(engine.markReady("a", 1_020), true);
+  assert.equal(engine.snapshot(1_020).phase, "playing");
+});
+
+test("A+B hazır iken C brifing sırasında koparsa kalan uygunların bariyeri anında ilerletir", () => {
+  const definition = createMiniGameDefinition(demoGame);
+  const engine = new MiniGameEngine(definition, ["a", "b", "c"], 1_000);
+  engine.setConnectedPlayerIds(["a", "b", "c"]);
+
+  // A ve B hazır, C henüz hazır değil
+  assert.equal(engine.markReady("a", 1_010), true);
+  assert.equal(engine.markReady("b", 1_020), true);
+  assert.equal(engine.snapshot(1_020).phase, "tutorial");
+
+  // C brifing fazında kopuyor
+  engine.setConnectedPlayerIds(["a", "b"]);
+  const advancedSnap = engine.advance(1_030);
+
+  // Kalan uygun oyuncuların tamamı hazır olduğundan anında playing'e geçmeli
+  assert.equal(advancedSnap.phase, "playing");
+  assert.equal(advancedSnap.phaseStartedAt, 1_030);
+});
+
+test("sıfır bağlı uygun katılımcı varken faz kesinlikle otomatik başlamaz", () => {
+  const definition = createMiniGameDefinition(demoGame);
+  const engine = new MiniGameEngine(definition, ["a", "b"], 1_000);
+
+  // Herkes koptu, sıfır bağlı oyuncu var
+  engine.setConnectedPlayerIds([]);
+
+  // Motor ilerletilse bile brifingde kalmalı, otomatik başlamamalı
+  assert.equal(engine.advance(2_000).phase, "tutorial");
+  assert.equal(engine.advance(999_999).phase, "tutorial");
+});
+
+test("brifing sırasında yeniden bağlanan oyuncu tutarlı şekilde katılabilir ve hazır olabilir", () => {
+  const definition = createMiniGameDefinition(demoGame);
+  const engine = new MiniGameEngine(definition, ["a", "b"], 1_000);
+
+  // Başlangıçta a ve b bağlı, a hazır oluyor
+  engine.setConnectedPlayerIds(["a", "b"]);
+  assert.equal(engine.markReady("a", 1_010), true);
+  assert.equal(engine.snapshot(1_010).phase, "tutorial");
+
+  // b geçici olarak koptu
+  engine.setConnectedPlayerIds(["a"]);
+  // a zaten hazır olduğu için bu noktada tek bağlı oyuncu a olur ve başlardı;
+  // Fakat b kopup a henüz hazır değilken reconnect senaryosunu test edelim:
+  const engine2 = new MiniGameEngine(definition, ["a", "b"], 1_000);
+  engine2.setConnectedPlayerIds(["a"]); // b henüz offline
+  // a henüz hazır değil
+  assert.equal(engine2.snapshot(1_010).phase, "tutorial");
+
+  // b brifing bitmeden yeniden bağlanıyor
+  engine2.setConnectedPlayerIds(["a", "b"]);
+  assert.equal(engine2.snapshot(1_020).phase, "tutorial");
+
+  // b artık hazır olabilmeli
+  assert.equal(engine2.markReady("b", 1_030), true);
+  assert.equal(engine2.snapshot(1_030).phase, "tutorial");
+
+  // a da hazır olunca playing'e geçer
+  assert.equal(engine2.markReady("a", 1_040), true);
+  assert.equal(engine2.snapshot(1_040).phase, "playing");
 });

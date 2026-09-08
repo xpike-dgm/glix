@@ -326,7 +326,6 @@ async function startAndEnterPlaying(players, gameIndex = 0) {
   const host = players[0].client;
   host.send({ type: "client:room:start" });
   await waitMatch(host, (message) => message.state.currentGameIndex === gameIndex && message.state.phase === "tutorial", "tutorial");
-  await waitMatch(host, (message) => message.state.currentGameIndex === gameIndex && message.state.phase === "preparing", "preparing", 12_000);
 
   players.forEach(({ client }) => client.send({ type: "client:game:ready" }));
   await Promise.all(
@@ -467,7 +466,6 @@ test("R1/R2/R4/R5 — transition participant snapshotı, identity ve current-gam
     assert.equal(playerById(spectatorTutorial.state, cId)?.score, 1, "Score room member üzerinde korunmalı.");
     assertUniquePlayerIds(spectatorTutorial.state);
 
-    await waitMatch(host, (message) => message.state.currentGameIndex === 1 && message.state.phase === "preparing", "second game preparing", 12_000);
     host.send({ type: "client:game:ready" });
     guest.send({ type: "client:game:ready" });
     await waitMatch(host, (message) => message.state.currentGameIndex === 1 && message.state.phase === "playing", "second game playing", 12_000);

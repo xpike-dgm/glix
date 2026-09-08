@@ -476,7 +476,13 @@ function App(): JSX.Element {
             setOwnGameState(null);
             setScreen("home");
             setError(null);
-            setNotice(value.reason === "left" ? "Odadan ayrıldın." : "Oda kapatıldı.");
+            setNotice(
+              value.reason === "left"
+                ? "Odadan ayrıldın."
+                : value.reason === "kicked"
+                  ? "Odadan çıkarıldın."
+                  : "Oda kapatıldı."
+            );
             resumeTokenRef.current = "";
             roomCodeRef.current = "";
             removeStoredValue(STORAGE_KEYS.resumeToken);

@@ -461,10 +461,10 @@ test("Batch D Disconnect Policies — skip-disconnected and neutral-missing cont
 });
 
 // ---------------------------------------------------------------------------
-// 8. Protocol v3 Action Correlation & ACK Verification
+// 8. Protocol v4 Action Correlation & ACK Verification
 // ---------------------------------------------------------------------------
-test("Protocol v3 action correlation version declaration", () => {
-  assert.equal(PROTOCOL_VERSION, 3);
+test("Protocol v4 action correlation version declaration", () => {
+  assert.equal(PROTOCOL_VERSION, 4);
 });
 
 // ---------------------------------------------------------------------------
