@@ -371,3 +371,17 @@ Parallel wave merge/QA sonrasında:
 - Ancak PM exact reference görsel karşılaştırmasında A5'i **REJECT / REVISION REQUIRED** yaptı. Örnek `acgozluluk-limiti-playing-390x844.png`, kilitli `12-acgozluluk-limiti-reference-v3.png` kompozisyonunu takip etmiyor; eski `OYUN 02/05`, `BAĞLI`, `ÇIK`, büyük legacy HUD/arena shell'i ve farklı kart/CTA düzeni hâlâ görünür. Bu, 50/50 teknik layout QA'ya rağmen visual acceptance gate'i geçmez.
 - A5 branch commit/push/merge yapılmadı; mevcut dirty implementasyon ve PM QA çıktıları korunuyor. Kullanıcı işi reset/restore edilmedi.
 - Sonraki PM adımı: Codex limiti açıldığında A5'i exact v3/v2 PNG kompozisyonuna göre legacy stage shell/HUD'dan arındıracak net revision prompt ile resume etmek; ardından 5 primary screenshot'u exact referanslarla yeniden görsel karşılaştırıp ancak sonra commit/push/acceptance değerlendirmek. Paralelde A1/A2/A3/A4/A6/A8 adayları aynı gate ile sürdürülecek.
+
+### 2026-09-08 — Parallel wave PM verification checkpoint: A2/A4
+
+- PM bu çalışmada GitHub'daki `GLIX-KALICI-HAFIZA.md` ve `docs/tasks/WAVE-DISPATCH.md` dosyalarını yeniden okudu; aktif aşama 8-agent parallel reference implementation wave olarak devam ediyor.
+- Redesign çalışma head'i bu checkpoint başında `286636bd2cb4a7a8998112cb1e299851a8a7d1f6` idi; production `main` değiştirilmedi.
+- A4 `wave-a4-games-stage11a` worktree'si hâlâ task setup head `29e9566d799fe15b333f6275baefcf18b6d43316` üzerinde dirty implementasyon taşıyor. Beş oyun kaynakları + scoped CSS/shared helper değişmiş; kullanıcı işi reset/restore edilmedi.
+- A4 task dosyasındaki exact refs yeniden doğrulandı: `06-butona-bas-reference-v2.png`, `08-gizli-hirsiz-reference-v3.png`, `09-kor-kronometre-reference-v3.png`, `20-asiri-yukleme-reference-v2.png`, `17-son-kisi-reference-v3.png`. Worktree'de `docs/design/references/wave-inputs` ve `artifacts/stage11a-screenshots` dizinleri mevcut; fakat exact dosya listesini okuyan local komutlar bu turda araç güvenlik katmanında engellendi. Bu nedenle A4 visual gate tamamlandı sayılmadı ve merge yapılmadı.
+- A2 `wave-a2-lobby-briefing-results` worktree'si task setup head `47dd5790933125ff40cc8f5367b016790ca7c2ff` üzerinde dirty implementasyon taşıyor; scope `App/main`, lobby/briefing/wave-a2 UI, QA config ve Protocol v4 wiring için shared/server değişikliklerini içeriyor.
+- A2 bağımsız PM client typecheck: `npm run typecheck --workspace @glix/client` gerçek `running:false`, exit code `0`.
+- A2 bağımsız PM production client build: `npm run build --workspace @glix/client` gerçek `running:false`, exit code `0`; Vite build + PWA `generateSW` tamamlandı.
+- A2 client protocol/PWA regression: `npm run test:client-pwa` gerçek exit code `0`, 6/6 suite PASS. Client privacy regression: `npm run test:client-privacy` gerçek exit code `0`, 3/3 PASS.
+- A2 server regression `npm run test:server` background süreçte shared/server build'i geçti ve H1-H18 + reconnect testlerinin en az ilk 21 alt testi PASS verdi; bu checkpoint yazılırken süreç henüz `running:false` + gerçek exit code vermemişti. Tamamlandı varsayılmadı.
+- A2 henüz visual reference gate, diff-scope acceptance ve server test final exit gate'ini tamamlamadığı için commit/push/merge edilmedi.
+- Sonraki PM adımı: A2 server test sürecinin gerçek final exit'ini almak; A2'nin 5 locked common PNG'siyle mobil screenshot/reference gate'ini tamamlamak; A4 exact PNG dosya erişimi araç katmanında yeniden doğrulanınca beş oyun screenshot karşılaştırmasını bitirmek. Yalnız gate geçen adaylar redesign branch'e entegre edilecek.
