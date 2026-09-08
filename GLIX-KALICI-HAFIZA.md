@@ -1,314 +1,347 @@
 # GLIX — Kalıcı Hafıza
 
-> **Kanonik redesign çalışma hafızası — 2026-09-07**
+> **Kanonik redesign çalışma hafızası — son PM güncellemesi 2026-09-08**
 >
-> Bu dosya GLIX'in 2026-09-07 sonrası ürün/tasarım yeniden yapımının tek kalıcı karar ve ilerleme kaynağıdır.
-> Tarihsel `GLIX-PROJE-HAFIZASI.md` yalnız geçmiş kayıt olarak tutulur.
+> Bu dosya GLIX'in redesign sürecindeki tek kalıcı karar/ilerleme kaynağıdır. `GLIX-PROJE-HAFIZASI.md` tarihsel kayıttır.
 >
-> **PM çalışma kuralı:** Her aşamanın başında bu dosyayı asistan/PM bizzat okuyacak; ilgili oyun varsa kanonik kural dosyası + adapter/testler yeniden okunacak; master referans açılıp incelenecek. Aşama sonunda GitHub diff/test/branch/SHA asistan/PM tarafından doğrulanacak ve bu dosya asistan/PM tarafından güncellenecek. Hafıza güncellenmeden aşama kapanmış sayılmaz. Implementasyon AI'ları bu dosyayı okuyabilir ama aşama hafızasının nihai sahibi değildir.
+> **PM kuralı:** Her aşamanın başında ve sonunda bu dosyayı asistan/PM bizzat okur/günceller. Oyun işi varsa PM ilgili kanonik kuralı + adapter/testleri tazeler ve görsel referansı inceler. Implementasyon AI'ları bu dosyayı okuyabilir ama nihai hafıza sahibi değildir. PM GitHub diff/SHA/test kanıtını bağımsız doğrulamadan ve bu dosyayı commit etmeden aşama tamamlanmış sayılmaz.
 
 ---
 
-## 1. GLIX'in iki değişmez kalite hedefi
+## 1. Değişmez kalite hedefleri
 
-1. **Gerçek oyun hissi:** GLIX web sitesi/dashboard gibi değil, telefonda oynanan gerçek bir parti oyunu gibi görünmeli ve hissettirmeli. Tasarım, animasyon, geçiş ve dokunma tepkileri güçlü; performans orta seviye telefonlarda akıcı olmalı.
-2. **Sorunsuz oynanış:** 24 mini oyunun kuralları, skorları, gizli bilgileri, target/reconnect/phase akışları ve sonuçları doğru çalışmalı. UI sadeleştirilirken gameplay kuralı yeniden icat edilmez.
+1. **Gerçek mobil oyun hissi:** GLIX web sitesi/dashboard gibi değil, telefonda kurulu bir parti oyunu gibi görünmeli ve davranmalı. Mobile-first, büyük touch target, safe-area, gerçek portrait/landscape, düşük görsel karmaşa, performans-dostu motion.
+2. **24/24 doğru gameplay:** Kurallar, skor, gizli bilgi, server authority, phase, reconnect, timeout, target ve sonuç davranışları bozulmayacak. UI kural icat etmez veya client-side authoritative skor hesaplamaz.
 
-Arkadaş grubu kullanımında bu iki hedef dışındaki süreçler ikincildir; gereksiz release bürokrasisi oluşturulmaz.
+Arkadaş grubu kullanımında bu iki hedef dışındaki süreçler ikincildir; gereksiz enterprise bürokrasisi yoktur.
 
 ---
 
 ## 2. Kanonik kaynak önceliği
 
-Bir çelişki varsa şu sıra geçerlidir:
+Çelişkide sıra:
 
 1. Kullanıcının bu dosyadan daha yeni açık kararı.
-2. `GLIX-MINIOYUN-KURALLARI-FORMU.md` — 24 oyunun kanonik oyun kuralları.
-3. `packages/shared/src/` adapter/engine/contracts + testler — gerçek uygulanmış server davranışı.
-4. Bu dosyadaki güncel ürün/tasarım kararları.
-5. Eski tarihsel dokümanlar.
+2. `GLIX-MINIOYUN-KURALLARI-FORMU.md` — 24 mini oyunun kanonik kuralları.
+3. `packages/shared/src/` engine/adapters/contracts + testler — gerçek uygulanmış davranış.
+4. Bu hafıza.
+5. Eski dokümanlar.
 
-### Oyun ekranı tasarlama zorunluluğu
-
-Bir oyun ekranına dokunmadan önce:
-
-- ilgili oyun kuralı okunur,
-- ilgili adapter/testler okunur,
-- oyuncunun gerçekten bilmesi gereken bilgi çıkarılır,
-- teknik detay oyuncunun kararına hizmet etmiyorsa UI'da gösterilmez.
-
-Örnek: `butona-bas` için 0,3 saniyelik pencere gerçek server kuralıdır; fakat oyuncunun radar, milisaniye grafiği veya mühendislik metrikleri görmesine gerek yoktur. Oyuncuya basitçe aynı anda basışın +1, tek basışın -1 olduğu anlatılır.
+**Görsel referans kuralı:** Onaylı referans görsel layout/sanat yönü için mümkün olduğunca birebir uygulanır. Referans üzerinde gameplay/contract ile çelişen örnek metin/değer varsa kanonik kural/contract kazanır. Örn. teknik 0,3 sn Butona Bas server kuralıdır ama oyuncuya radar/ms dashboard olarak gösterilmez.
 
 ---
 
-## 3. Canlı/release tabanı
+## 3. Canlı taban ve redesign branch
 
 - Repo: `xpike-dgm/glix`
 - Protected `main`: `12e3e5253edf9a6babed863b2351d1493a738816`
-- Kabul edilmiş canlı uygulama revizyonu: `ba6e895f2e71a9466bcf2d87770ece53f9902780`
+- Canlı uygulama revizyonu: `ba6e895f2e71a9466bcf2d87770ece53f9902780`
 - CI-only release head: `0ac9fc29ce33448be5fee8947281c18e4a9b09fc`
 - Public: `https://glix.lynrax.com`
-- Public version: `0.7.0`
-- Public protocol: `3`
-- 24/24 mini oyun adapter'ı mevcut.
-- Server authority, private/public state, reconnect ve action fencing korunacak.
-- Redesign bitene kadar public canlı sürüme dokunulmayacak.
+- Public version/protocol: `0.7.0 / v3`
+- Public canlı redesign tamamlanana kadar değişmeyecek.
 
-### Aktif redesign branch
+### Redesign
 
 - Branch: `redesign-mobile-first-v1`
-- R0 doğrulanmış head: `a26ab81098d8b5b012522f5c94b7b02b9e517228`
-- R0 parent: `5cc1b8b97f0063c64e591ff74c334f50378dcac8`
-- R1 başlangıç tabanı: R0 doğrulanmış head + bu PM hafıza başlangıç commit'i.
+- R0 master commit: `a26ab81098d8b5b012522f5c94b7b02b9e517228`
+- R1 PM başlangıç commit: `66eaef5fd22bb4032e7177a112e94a33a7f4a1cd`
+- R1-A UI branch final: `6b98cef6d85e13c4d0eea4880f323e91febc69ba`
+- R1-B Protocol/ready/kick branch final: `bc814dc7aa8bae051c90062f028dccbb7292f463`
+- R1-A merge commit: `5cce80e6a79c4ec1b0e31808fffb51e34443c8e2`
+- R1-B merge commit / integrated redesign head before this memory update: `d4c6c001a35d186d356f951b6af6246f6032f386`
+- Production `main` bu merge'lerden etkilenmedi.
 
 ---
 
-## 4. Kilitli görsel yön
+## 4. Görsel sistem — LOCKED
 
-### Master referans
-
-Kanonik dosya:
+### İlk master
 
 `docs/design/GLIX-MASTER-REFERENCE.png`
 
 - SHA-256: `bdcc7072889d4cd053b84fe79acbfd5e38e97397ea3b79e5656081ebbca225f7`
-- Boyut: `1491 × 1055`
-- R0 commit: `a26ab81098d8b5b012522f5c94b7b02b9e517228`
-- PM tarafından R1 başlangıcında tekrar açılıp görsel olarak incelendi.
+- 1491×1055
+- İlham değil, hedef tasarım.
 
-Bu görsel **ilham panosu değil, hedef tasarımdır**. Uygulama mümkün olduğunca bu görselin sade mobil neon oyun diline birebir yaklaşır.
+### Güncel final referans politikası
 
-### Master tasarım dili
+Kullanıcı 24 mini oyun için **1 oyun = 1 ayrı PNG** referans setini ve ayrıca 13 ortak ekranın final referanslarını onayladı. Uygulama AI'ları hedef ekranı yeniden tasarlamayacak; verilen PNG'yi mümkün olduğunca birebir kodlayacak.
 
-- Telefon-first.
-- Deep navy/koyu lacivert zemin.
-- Cyan + magenta + violet + kontrollü lime vurgular.
-- Büyük ve okunabilir metin.
-- Büyük dokunma alanları.
-- Tek bakışta anlaşılır ana eylem.
-- Az panel, az teknik bilgi, az dekoratif kalabalık.
-- Dashboard/SaaS/sistem paneli görünümü yok.
-- Kısa, akıcı, performans-dostu animasyonlar.
-- Sürekli pahalı blur/parallax/glow yok.
+Ortak sanat dili:
 
-### Alt referans kuralı
+- deep navy / gece tabanı
+- cyan + magenta + violet + lime neon vurgu
+- aynı GLIX wordmark/logo sistemi
+- aynı yuvarlak 2.5D blob/maskot karakter ailesi
+- büyük mobil tipografi ve touch targets
+- az panel, az HUD, teknik jargon yok
+- desktop/SaaS/dashboard hissi yok
+- ağır sürekli blur/parallax yok
 
-Bir iş paketi master'daki ekrandan daha fazla detay gerektiriyorsa, master + gerçek kurallardan alt referans PNG üretilebilir.
+### 13 ortak final referans
 
-Alt referans:
+1. Home
+2. Nasıl Oynanır
+3. Oda Kur
+4. Odaya Katıl
+5. Host Lobi
+6. Minigame Seçimi — **bağımsız full-screen sayfa**
+7. Guest Lobi
+8. Detailed game briefing + Hazırım
+9. Tur Sonucu
+10. Oyun Bitti / Genel Skor
+11. Telefonunu Yana Çevir
+12. Bağlantın Kesildi / auto reconnect
+13. Odadan Çıkarıldın
 
-- master diliyle aynı olmalı,
-- gameplay kuralı icat etmemeli,
-- implementasyon AI'sına görevle birlikte verilmelidir,
-- repo'da `docs/design/references/` altında saklanmalıdır.
-
-### R1 alt referansı
-
-R1 için master'dan türetilmiş odaklı core-flow referansı oluşturuldu ve görev paketiyle repo'ya eklenecek:
-
-`docs/design/references/GLIX-R1-CORE-FLOW-REFERENCE.png`
-
-- SHA-256: `bd97a4d004af5ed4c07d90a9d23bf417cc78bc128665f1dce4b59e44ab505f57`
-- Boyut: `1330 × 1183`
-- İçerik: anasayfa, oda kur/katıl, lobi, tam ekran briefing, sonuç, portrait ve landscape shell.
-- Görseldeki örnek oyun mekanikleri kanonik değildir; yalnız layout/sanat yönü referanstır.
+Bu dosyalar final uygulama dalgasında `docs/design/references/common/` altına exact binary olarak kurulacak. 24 oyun referansları `docs/design/references/games/` altında tutulacak. AI başına görevle ilgili **5 referans görsel** verilecek; hedef ekran PNG'si primary reference, kalanlar ortak stil/kompozisyon desteğidir.
 
 ---
 
-## 5. Kullanıcı tarafından kilitlenen UX kararları
+## 5. Kilitli ortak UX kararları
 
-### Anasayfa
+### Home
 
-- `Nasıl oynanır?` düzgün açılır/kapanır; içerik çakışmaz ve tekrar kapatılabilir.
-- Ana görünüm sade olur.
-- Birincil eylemler: `Oda Kur` ve `Odaya Katıl`.
-- Normal bağlı durumda teknik `Bağlı / Bağlantı hazır` rozeti gösterilmez.
-- Oyuncuya yalnız bağlantı gerçekten sorun olduğunda sade bir reconnect/offline mesajı gösterilir.
+- Root ekranda geri oku yok.
+- Mascotların altında örnek kişi isimleri yok.
+- Slogan: `Aynı oda. Farklı hamle.`
+- Alt açıklama: `Arkadaşlarınla en eğlenceli mini oyunlar burada.`
+- Ana eylemler: `Oda Kur`, `Odaya Katıl`, `Nasıl Oynanır?`
+- Alt bilgi: `2–8 Oyuncu • Herkes Kendi Telefonundan`.
+- Normal bağlı durumda teknik connection badge yok.
 
-### Oda kur / katıl
+### Nasıl Oynanır
 
-- Telefon ekranında kısa, basic ve anlaşılır form.
+- Genel oyun ailesini anlatır; tüm oyunları “gizli karar” veya “cevap gir” diye yanlış genellemez.
+- 3 sade adım, mobile-first.
+
+### Oda Kur / Katıl
+
 - Takma ad + gerekiyorsa oda kodu dışında gereksiz alan yok.
-- Teknik bağlantı mesajı yok.
+- Avatar seçimi yok.
+- Room code 5 karakter uppercase format; örnek `NQSX9`.
+- Nickname sınırında referans görsel üzerindeki örnek sayı authoritative değildir; shared `MAX_NICKNAME_LENGTH` contract'ı korunur.
 
-### Lobi
+### Host Lobi
 
-- Oda kodu büyük ve kopyalanabilir.
-- Oyuncular sade liste halinde görünür.
-- Host net biçimde `Oda Sahibi` olarak işaretlenebilir.
-- Host diğer oyuncuları **yalnız lobide** odadan çıkarabilir.
-- `Bağlantı hazır`, `Deneme olarak bağlandın`, protocol/server/telemetry vb. teknik metinler oyuncuya gösterilmez.
-- `Oyun seçimi` adı `Minigame Seçimi` olur.
-- `Minigame Seçimi` ilk açılışta kapalı accordion olur.
-- Büyük ve net `Oyunu Başlat` eylemi olur.
+- Oda kodu büyük/kopyalanabilir.
+- Self `Sen`, host `Oda Sahibi` olarak ayırt edilir.
+- Host yalnız lobide diğer oyuncuları kick edebilir; kendisini kick edemez.
+- Tek `Minigame Seçimi` aksiyonu bağımsız seçim sayfasına götürür.
+- `Oyunu Başlat` büyük primary CTA.
+- Teknik connection/protocol/server metni yok.
 
-### Oyun anlatımı / briefing
+### Minigame Seçimi
 
-- Eski oyunun üstüne binen küçük opak tutorial paneli kaldırılır.
-- Her mini oyundan önce **oyundan bağımsız tam ekran briefing** gösterilir.
-- Oyun adı + amaç + en fazla 3 kısa madde + gerekirse basit görsel.
-- Kullanıcı isteği gereği görünür geri sayım yoktur.
-- Büyük `Hazırım` butonu vardır.
-- Oyun, o anki uygun/bağlı katılımcıların tamamı hazır olduğunda server-authoritative olarak başlar.
-- Spectator/eliminated/disconnected oyuncu ready bariyerini kilitlemez.
+- **Accordion kararı iptal edildi. Kullanıcının yeni kararı: bağımsız full-screen sayfa.**
+- `Rastgele Seç` / `Elle Seç` modları; gerçek game catalog/availability korunur.
+- Seçimi kaydet ve host lobisine dön.
 
-### Oyun ekranları
+### Guest Lobi
 
-- Desktop layout küçültülmez; telefon için yeniden düzenlenir.
-- Skor, süre ve ana eylem dışında HUD minimal tutulur.
-- Oyuncunun bilmesine gerek olmayan mekanik/teknik metrikler kaldırılır.
+- Self `Sen`, host `Oda Sahibi`.
+- Guest hostun seçtiği minigame/rota bilgisini görmez.
+- Start/kick/selection kontrolü yok.
+- Metin: oda sahibi oyunu başlattığında oyun başlayacak.
 
-### Landscape
+### Briefing / Hazırım
 
-- Landscape gerektiren oyun gerçek telefon ekranını doldurur.
-- Ortada kayan desktop panel + sabit üst/alt dashboard şeritleri kullanılmaz.
-- Safe-area ve orientation gate gerçek mobil fullscreen mantığıyla çalışır.
+- Gameplay üstüne binen overlay değil, bağımsız full-screen ekran.
+- Görünür countdown/progress yok.
+- Kullanıcı yeni kararı: oyun oyuncunun gerçekten anlayacağı kadar detaylı anlatılacak; sabit “en fazla 3 madde” limiti yok.
+- Uygun yapı: `Amaç`, `Nasıl Oynanır`, gerekiyorsa `Gizlilik`, `Puanlama` / kritik özel durumlar. Teknik iç detay yok.
+- Ready avatar/count matematiksel tutarlı olmalı.
+- Büyük `Hazırım`; server-authoritative ready bariyeri.
+- Eligible = current-game participant + connected + not eliminated/spectator. Disconnected/spectator/eliminated bariyeri kilitlemez.
 
----
+### Result
 
-## 6. R1 teknik kararları — 2026-09-07
+- Tur sonucu authoritative server verisini render eder; client skor kuralını hesaplamaz.
+- Tur sonucu manuel `Sonraki Tur` / uydurma `Detayı Gör` aksiyonu yok; otomatik progression durumu gösterilebilir.
+- Finalde `Lobiye Dön`; uydurma `Yeniden Oyna` yok.
 
-### Ready akışı
+### Sistem ekranları
 
-Mevcut motor `tutorial (10 sn timer) → preparing (5 sn all-ready-or-timeout) → playing` kullanıyor. Bu, yeni UX kararıyla uyuşmuyor.
+- Landscape gate: geri/Tamam yok; telefonu yataya çevirince otomatik devam.
+- Reconnect: teknik `server` dili yok, otomatik yeniden bağlanma; gameplay/lobby fark etmeksizin güvenli generic copy.
+- Kicked: ayrı state — `Odadan çıkarıldın`, `Oda sahibi seni bu odadan çıkardı.`, `Ana Ekrana Dön`; `Tekrar Katıl` yok.
 
-R1 hedefi:
+### PWA / mobile-app davranışı
 
-- `tutorial` artık tam ekran briefing + server-authoritative ready bariyeri olacak.
-- Görünür tutorial süresi olmayacak.
-- `client:game:ready` briefing ekranındaki `Hazırım` eylemi için kullanılacak.
-- Tüm uygun bağlı katılımcılar hazır olduğunda oyun hemen başlayacak.
-- İç mimari uyumluluk için `preparing` fazı gerekirse 0 ms internal bridge olarak korunabilir; oyuncu bu fazı ayrı ekran olarak görmemeli.
-- Ready hesabı reconnect/disconnect ile kilitlenmemeli; server eligible connected current-game participant roster'ını esas almalı.
-
-### Protocol kararı
-
-Bu redesign ready semantiği eski Protocol v3 istemciyle geriye uyumlu değildir ve host-kick için yeni istemci mesajı gerekecektir. Bu nedenle **R1 redesign sürümünde Protocol v4'e kontrollü geçiş planlanmıştır**. Public Protocol v3, redesign deploy edilene kadar değişmez.
-
-Protocol v4 kapsamında minimum wire değişiklikleri:
-
-- `client:room:kick` (`targetPlayerId`)
-- oyuncuya sade kick sonucu için gerekirse `server:room-left` reason `kicked`
-- `client:game:ready` semantiğinin tutorial briefing ready bariyerine taşınması
-
-Host kick:
-
-- yalnız host,
-- yalnız lobby,
-- host kendisini kick edemez,
-- hedef oyuncu reconnect token/session hakkıyla otomatik geri dönememeli,
-- oda state'i anında güncellenmeli.
-
-### Result ekranı
-
-R1'de ortak result görseli master referansa göre sadeleştirilecek. Oyunların server-authoritative skor/rank alanları kullanılacak; UI kendi skor kuralını yeniden hesaplamayacak. Match progression kuralı gereksiz yere değiştirilmez.
+- Standalone PWA, safe-area ve `100dvh` benzeri gerçek mobil viewport.
+- Gameplay sırasında scroll/overscroll/text-selection/double-tap zoom gibi web hissi mümkün olduğunca engellenir.
+- Canvas/gesture yüzeylerinde uygun `touch-action` kullanılır; input/form ekranlarının kullanılabilirliği bozulmaz.
+- Landscape oyun gerçek full-screen landscape shell kullanır; ortada scroll edilen desktop panel yok.
 
 ---
 
-## 7. Redesign aşamaları
+## 6. R1 teknik sonuç — TAMAMLANDI / ENTEGRE
 
-### R0 — Kalıcı hafıza + master referans + rule baseline — **TAMAMLANDI**
+R1-A ve R1-B ayrı branchlerde tamamlandı ve 2026-09-08'de PM tarafından redesign branch'e merge edildi.
 
-- Kalıcı hafıza oluşturuldu.
-- Master PNG exact binary olarak repo'ya eklendi.
-- 24 oyun kural kaynağı kilitlendi.
-- `redesign-mobile-first-v1` branch açıldı.
-- PM doğrulaması: commit `a26ab81098d8b5b012522f5c94b7b02b9e517228`; değişen dosyalar yalnız `GLIX-KALICI-HAFIZA.md` + master PNG; gameplay/application code değişmedi.
+### Protocol v4 redesign
 
-### R1 — Oyuncu akışı ve ortak UI kabuğu — **AKTİF**
+- Public canlı v3 kalır; redesign branch v4'e ilerler.
+- `client:room:kick` + kicked room-left sonucu.
+- Tutorial/briefing server-authoritative all-ready bariyeri.
+- Gerekirse 0 ms internal preparing bridge; oyuncu ayrı preparing ekranı görmez.
+- Disconnect/reconnect ready bariyerini deadlock etmez.
+- Host kick yalnız lobby, only-host, no-self; reconnect session/token geçersizleşir.
 
-Kapsam:
+### R1 merge kayıtları
 
-- Anasayfa
-- Oda Kur / Odaya Katıl
-- Lobi
-- Host kick
-- Minigame Seçimi accordion
-- Tam ekran briefing + `Hazırım`
-- Ortak result sunumu
-- Portrait/landscape ortak shell
-- Protocol v4 minimum gereksinimleri
+- PR #3 R1-A → `redesign-mobile-first-v1`: merge `5cce80e6a79c4ec1b0e31808fffb51e34443c8e2`
+- PR #4 R1-B → `redesign-mobile-first-v1`: merge `d4c6c001a35d186d356f951b6af6246f6032f386`
+- R1-A değişikliği 27 dosya; R1-B 12 dosya.
+- Bu entegrasyon yalnız redesign branch'tedir; public `main` değişmedi.
+- Final referans dalgası R1-A'nın ilk görsel yaklaşımını gerektiği yerde yeniden/üzerine birebir uygulayacaktır.
 
-Gameplay adapter kuralları değişmez.
+---
 
-### R2 — İlk dikey oyun batch
+## 7. Yeni aktif aşama — R2/R3/R4 PARALLEL REFERENCE IMPLEMENTATION WAVE
 
+**Durum: AKTİF — 2026-09-08**
+
+Kullanıcının kararıyla R2/R3/R4 seri yürütülmeyecek; 8 ayrı Luna Max Codex ajanıyla paralel büyük dalga yürütülecek. Bütün ajanlar integrated redesign base'den ayrı branch/worktree alır. Aynı branch'e eşzamanlı yazmazlar.
+
+### Codex çalışma standardı
+
+Windows Local Coder üzerinden tüm Codex işleri yalnız:
+
+- model: `gpt-5.6-luna`
+- reasoning effort: `max`
+
+Uzun görevler blocking `run_command` ile değil `start_process` background + `process_output` takibiyle başlatılır. Mümkünse stdin kapalı/DEVNULL. `running:false` + gerçek exit code görülmeden tamamlandı varsayılmaz. Codex self-report tek kanıt değildir; PM dosya/git diff/status + test/build ile doğrular. Kullanıcı değişikliklerine izinsiz reset/restore yok.
+
+Aktif Codex desktop/thread kontrolünde yalnız thread listesine güvenilmez; gerektiğinde `.codex/sessions/.../*.jsonl` büyümesi, son timestamps ve `task_started/task_complete` olayları kontrol edilir.
+
+### 8 ajan dağılımı
+
+**A1 — Common Entry / Core Flow**
+- Home
+- Nasıl Oynanır
+- Oda Kur
+- Odaya Katıl
+- Host Lobi
+- 5 primary/supporting common refs
+- Common flow components; mümkün olduğunca global `App.tsx/styles.css` sahipliği bu ajanda toplanır.
+
+**A2 — Lobby Selection / Briefing / Results + integration wiring**
+- Minigame Seçimi
+- Guest Lobi
+- Briefing/Hazırım
+- Tur Sonucu
+- Final Sonuç
+- R1-B Protocol v4 ready/kick ile UI wiring.
+
+**A3 — Mobile/PWA exceptional states**
+- Rotate device
+- Reconnect
+- Kicked
+- + Home ve Briefing style support ref = toplam 5 ref
+- OrientationGate/GameViewport/PWA viewport, safe-area, gameplay app-lock/overscroll/touch behavior.
+
+**A4 — Game batch Stage11A (5 oyun)**
 - `butona-bas`
-- `cagrisim-agi`
 - `gizli-hirsiz`
+- `kor-kronometre`
+- `asiri-yukleme`
+- `son-kisi`
 
-Her biri için master + gerçek kurallardan özel alt referans; sonra uygulama.
+**A5 — Game batch Stage11C (5 oyun)**
+- `acgozluluk-limiti`
+- `ortalamanin-yarisi`
+- `gizli-kareler`
+- `cizgiyi-gecme`
+- `gizli-alisveris`
 
-### R3 — Kalan dikey oyunlar
+**A6 — Game batch Stage11D (5 oyun)**
+- `yazi-yaz`
+- `sozluk-blofu`
+- `cagrisim-agi`
+- `rusvet-darbe`
+- `karalama-defteri`
 
-Portrait oyunlar interaction tiplerine göre küçük batch'lerle dönüştürülür.
+**A7 — Stage11B/risk/social (5 oyun)**
+- `zaman-bombasi-hafizasi`
+- `capraz-ates`
+- `rus-ruleti`
+- `sizma`
+- `zehirli-kadeh`
 
-### R4 — Landscape / çizim / yoğun etkileşim
+**A8 — complex/remaining (4 oyun + 1 common style ref)**
+- `kor-bomba`
+- `ittifak`
+- `kendim`
+- `kontrol-paneli-kaosu`
+- + approved common/rotate/master support ref
 
-Gerçek fullscreen mobile landscape ve çizim/geniş sahne oyunları.
+Toplam: 24/24 oyun + 13 ortak ekran kapsamda.
 
-### R5 — Motion + performans + gerçek telefon QA + deploy
+### Paralel branch kuralı
 
-- microinteraction / geçiş / result feedback
-- reduced-motion
-- orta seviye Android performansı
-- 3–8 gerçek telefon
-- rule regression
-- reconnect
-- portrait/landscape
-- kontrollü deploy
+Her ajan ayrı branch/worktree. Game ajanları mümkün olduğunca kendi stage/dedicated component + scoped CSS dosyalarında kalır; büyük ortak `styles.css` / `App.tsx` değişikliği yapmaz. Ortak orchestrator conflict'leri A1/A2/A3 sahipliğinde tutulur. Gameplay adapter/scoring değişikliği ancak gerçek rule bug kanıtı varsa ve ayrı raporlanır.
+
+### Her oyun ajanının zorunlu girdisi
+
+- Hedef oyunun final PNG referansı.
+- Toplam 5 reference image.
+- `GLIX-MINIOYUN-KURALLARI-FORMU.md` ilgili bölüm.
+- İlgili adapter/engine testleri.
+- Primary talimat: referansı mümkün olduğunca **tıpa tıp** uygula; kural/hidden-state sınırını bozma.
 
 ---
 
-## 8. Her aşamada zorunlu PM protokolü
+## 8. Sonraki aşama — R5
 
-1. PM `GLIX-KALICI-HAFIZA.md` dosyasını GitHub'dan okur.
-2. İlgili kural/adapters/tests PM tarafından tazelenir.
-3. Master PNG PM tarafından açılıp incelenir.
-4. Gerekirse alt referans hazırlanır.
-5. Implementasyon izole branch/worktree'de yapılır.
-6. Runtime + mobil viewport + test kanıtı alınır.
-7. PM GitHub diff ve exact SHA'yı doğrular.
-8. PM bu hafızayı yeni durumla günceller.
-9. Hafıza commit'i olmadan aşama `TAMAMLANDI` olmaz.
+Parallel wave merge/QA sonrasında:
+
+- independent 24/24 gameplay regression
+- visual reference similarity review
+- reconnect/privacy/ready/kick
+- portrait 360×800, 390×844, 412×915
+- landscape 844×390
+- no horizontal overflow
+- reduced-motion
+- mid-range Android performance
+- PWA app-like gesture/zoom/scroll behavior
+- 3–8 gerçek telefon
+- kontrollü redesign deploy; Caddy'ye gereksiz dokunma yok; `game.lynrax.com` etkilenmez.
 
 ---
 
 ## 9. Yasaklar
 
 - Dashboard/SaaS görünümü
-- Debug/telemetry/protocol/stage/batch/server gibi iç terimlerin player-facing olması
-- Oyuncuya gereksiz teknik metrikler
-- Küçük dokunma hedefleri
-- Gameplay'in scroll edilen kart-dashboard'a dönüşmesi
-- Uzun açıklama okumadan oynanamayan ekranlar
-- Gizli state'in DOM/ARIA/class/data/id/SVG metadata'ya sızması
-- UI'nın oyun kurallarını yeniden hesaplaması/icat etmesi
-- Master referanstan gerekçesiz sapma
-- Public canlıya redesign aşamaları bitmeden deploy
+- Player-facing debug/telemetry/protocol/stage/batch/server dili
+- Referansı “iyileştirme” bahanesiyle yeniden tasarlama
+- Kural dosyasında olmayan gameplay action/button
+- Gizli state'i DOM/ARIA/class/data/id/SVG metadata'ya sızdırma
+- UI'nın authoritative skor/rank hesaplaması
+- Public canlıya wave ve R5 tamamlanmadan deploy
+- Caddy restart/reload veya unrelated `game.lynrax.com` değişikliği
 
 ---
 
-## 10. Aşama günlüğü
+## 10. PM aşama günlüğü
 
-### 2026-09-07 — R0 başlangıç
+### 2026-09-07 — R0
 
-- Public `0.7.0 / Protocol v3` release dışarıdan doğrulandı.
-- Gerçek telefon testinde mevcut tasarımın desktop-panel hissi, teknik metin fazlalığı, tutorial overlay ve landscape sıkışıklığı görüldü.
-- Kullanıcı yeni mobile-first master tasarımı hedef olarak kilitledi.
+- Public `0.7.0 / Protocol v3` dışarıdan doğrulandı; gerçek telefon testinde eski görsel UX reddedildi.
+- Mobile-first neon master kilitlendi.
+- Master exact binary repo'ya eklendi; R0 commit `a26ab81098d8b5b012522f5c94b7b02b9e517228`.
 
-### 2026-09-07 — R0 completion
+### 2026-09-07 — R1 başlangıç
 
-- `docs/design/GLIX-MASTER-REFERENCE.png` exact binary eklendi.
-- SHA-256 doğrulandı: `bdcc7072889d4cd053b84fe79acbfd5e38e97397ea3b79e5656081ebbca225f7`.
-- R0 implementation commit: `a26ab81098d8b5b012522f5c94b7b02b9e517228`.
-- Application/gameplay code değişmedi.
+- PM hafıza/master/rule/engine/common UI kaynaklarını tekrar okudu.
+- R1-A UI ve R1-B ready/kick/protocol paralel başlatıldı; base `66eaef5fd22bb4032e7177a112e94a33a7f4a1cd`.
 
-### 2026-09-07 — PM R0 doğrulaması + R1 başlangıcı
+### 2026-09-08 — R1 entegrasyon / parallel wave başlangıcı
 
-- PM GitHub'dan `redesign-mobile-first-v1` head'inin exact `a26ab81098d8b5b012522f5c94b7b02b9e517228` olduğunu bağımsız doğruladı.
-- PM R0 commit'in parent'ını `5cc1b8b97f0063c64e591ff74c334f50378dcac8` olarak doğruladı.
-- PM master referansı tekrar açıp görsel olarak inceledi.
-- PM `GLIX-KALICI-HAFIZA.md`, kural formunun genel çerçevesi, mevcut engine phase planı, `client:game:ready`, HomeScreen, TutorialOverlay ve ResultOverlay kaynaklarını yeniden okudu.
-- R1 alt referansı üretildi; R1 görev paketiyle repo'ya eklenecek.
-- R1 **AKTİF** olarak başlatıldı.
+- PM GitHub'dan R1-A final SHA `6b98cef6d85e13c4d0eea4880f323e91febc69ba` ve R1-B final SHA `bc814dc7aa8bae051c90062f028dccbb7292f463` doğruladı.
+- R1-A PR #3 merge edildi → `5cce80e6a79c4ec1b0e31808fffb51e34443c8e2`.
+- R1-B PR #4 merge edildi → `d4c6c001a35d186d356f951b6af6246f6032f386`.
+- Kullanıcının final 24 oyun + 13 common reference seti kilitlendi; ortak ekran kararlarındaki son overrides bu hafızaya işlendi.
+- R2/R3/R4 yerine 8-agent parallel reference implementation wave **AKTİF** olarak açıldı.
+- Sonraki iş: bu memory commit'inden exact base alarak 8 izolasyon branch/worktree oluştur; Luna Max ajanlarını background process olarak başlat; sonuçları PM bağımsız doğrula.
