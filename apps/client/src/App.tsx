@@ -661,6 +661,16 @@ function App(): JSX.Element {
     removeStoredValue(STORAGE_KEYS.roomCode);
   };
 
+  const handleKickPlayer = (targetPlayerId: string): void => {
+    if (!canManageGames || !roomState || targetPlayerId === selfPlayerId ||
+        !roomState.players.some((player) => player.id === targetPlayerId)) {
+      return;
+    }
+
+    setError(null);
+    sendMessage({ type: "client:room:kick", targetPlayerId });
+  };
+
   const handleStartMatch = (): void => {
     if (!canManageGames || !roomState) {
       return;
@@ -930,6 +940,7 @@ function App(): JSX.Element {
           onSwitchSelectionMode={switchSelectionMode}
           onToggleGame={toggleGame}
           onChangeRandomGameCount={changeRandomGameCount}
+          onKickPlayer={handleKickPlayer}
         />
       )}
 
@@ -1354,12 +1365,12 @@ function MatchScreen({
                 category={game.category}
                 steps={tutorialSteps}
                 readyCount={state.readyPlayerIds.length}
-                eligibleCount={state.players.filter((p) => p.connected && !p.eliminated).length}
+                eligibleCount={state.players.filter((p) => p.connected && p.currentGameParticipant && !p.eliminated).length}
                 readyPlayerIds={state.readyPlayerIds}
                 players={state.players}
                 selfPlayerId={selfPlayerId}
                 isReady={ready}
-                canReady={false}
+                canReady={!isSpectator && !ready && connection === "connected"}
                 onReady={onReady}
               />
             )}
