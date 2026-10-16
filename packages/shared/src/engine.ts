@@ -10,7 +10,7 @@ export type RuntimePhaseId =
   | "transition"
   | "finished";
 
-export type PhaseAdvanceMode = "timer" | "all-ready-or-timeout" | "manual";
+export type PhaseAdvanceMode = "timer" | "all-ready-or-timeout" | "all-ready" | "manual";
 
 export interface GamePhaseDefinition {
   readonly id: Exclude<RuntimePhaseId, "finished">;
@@ -33,16 +33,16 @@ export interface MiniGameDefinition {
 }
 
 export const DEMO_PHASE_PLAN = [
-  { id: "tutorial", durationMs: 10_000, advance: "timer" },
-  { id: "preparing", durationMs: 5_000, advance: "all-ready-or-timeout" },
+  { id: "tutorial", durationMs: null, advance: "all-ready" },
+  { id: "preparing", durationMs: 0, advance: "timer" },
   { id: "playing", durationMs: 12_000, advance: "timer" },
   { id: "results", durationMs: 5_000, advance: "timer" },
   { id: "transition", durationMs: 3_000, advance: "timer" }
 ] as const satisfies readonly GamePhaseDefinition[];
 
 const REAL_GAME_PHASES = {
-  tutorial: { id: "tutorial", durationMs: 10_000, advance: "timer" },
-  preparing: { id: "preparing", durationMs: 5_000, advance: "all-ready-or-timeout" },
+  tutorial: { id: "tutorial", durationMs: null, advance: "all-ready" },
+  preparing: { id: "preparing", durationMs: 0, advance: "timer" },
   results: { id: "results", durationMs: 6_000, advance: "timer" },
   transition: { id: "transition", durationMs: 3_000, advance: "timer" }
 } as const;
@@ -318,7 +318,7 @@ function validatePhasePlan(phases: readonly GamePhaseDefinition[]): void {
       throw new Error(`Geçersiz faz süresi: ${phase.id}`);
     }
 
-    if (phase.advance !== "manual" && phase.durationMs === null) {
+    if (phase.advance !== "manual" && phase.advance !== "all-ready" && phase.durationMs === null) {
       throw new Error(`Zamanla ilerleyen fazın süresi olmalı: ${phase.id}`);
     }
   });
@@ -333,6 +333,7 @@ export class MiniGameEngine {
   private readonly eliminatedPlayerSet = new Set<string>();
   private readonly inputs: MiniGameInputRecord[] = [];
   private readonly submittedPlayerSet = new Set<string>();
+  private connectedPlayerSet: ReadonlySet<string> | null = null;
   private phaseIndex = 0;
   private phaseStartedAt: number;
   private nextInputSequence = 1;
@@ -375,6 +376,10 @@ export class MiniGameEngine {
     return this.playerIds.filter((playerId) => !this.eliminatedPlayerSet.has(playerId));
   }
 
+  setConnectedPlayerIds(playerIds: readonly string[]): void {
+    this.connectedPlayerSet = new Set(playerIds);
+  }
+
   private currentPhaseEndsAt(): number | null {
     const phase = this.currentPhaseDefinition;
 
@@ -396,10 +401,15 @@ export class MiniGameEngine {
       return false;
     }
 
-    if (phase.advance === "all-ready-or-timeout") {
-      const allActiveReady = this.activePlayerIds.every((playerId) =>
-        this.readyPlayerSet.has(playerId)
-      );
+    if (phase.advance === "all-ready-or-timeout" || phase.advance === "all-ready") {
+      const candidates =
+        this.connectedPlayerSet !== null
+          ? this.activePlayerIds.filter((playerId) => this.connectedPlayerSet!.has(playerId))
+          : this.activePlayerIds;
+
+      const allActiveReady =
+        candidates.length > 0 &&
+        candidates.every((playerId) => this.readyPlayerSet.has(playerId));
 
       if (allActiveReady) {
         return true;
@@ -450,7 +460,7 @@ export class MiniGameEngine {
     if (
       !this.playerSet.has(playerId) ||
       this.eliminatedPlayerSet.has(playerId) ||
-      this.currentPhase !== "preparing"
+      (this.currentPhase !== "tutorial" && this.currentPhase !== "preparing")
     ) {
       return false;
     }

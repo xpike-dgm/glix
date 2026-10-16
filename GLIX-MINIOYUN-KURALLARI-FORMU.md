@@ -25,8 +25,9 @@ tasarladığı alanlar birlikte kilitlenir; kodlama bu kural seti üzerinden yap
 - Aynı maçta aynı mini oyun tekrar etmez.
 - Bot bulunmaz.
 - Maç verileri maç bitince kalıcı olarak saklanmaz.
-- Her mini oyundan önce yaklaşık 10 saniyelik görsel/animasyonlu öğretici ekran
-  gösterilir.
+- Her mini oyundan önce tam ekran görsel öğretici (briefing) gösterilir;
+  görünür bir geri sayım bulunmaz. Oyuncular "Hazırım" butonuna basar; o anki tüm
+  uygun ve bağlı katılımcılar hazır olduğunda oyun doğrudan başlar.
 - Tema neon arcade, yüksek kaliteli 2.5D sahne ve en fazla 8 farklı karakterdir.
 - Her oyunun kendi mini oyun puanı ve genel skora aktarım kuralı olabilir.
 - Aşağıda “genel skor” denilen puan, maçın toplam skor tablosuna eklenen puandır.

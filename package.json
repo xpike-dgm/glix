@@ -19,12 +19,13 @@
     "test:server": "npm run build --workspace @glix/shared && npm run build --workspace @glix/server && node --test apps/server/test/reconnect.integration.test.mjs apps/server/test/hardening.integration.test.mjs",
     "test:client-pwa": "node scripts/test-client-pwa-protocol.mjs",
     "test:client-privacy": "node --test scripts/stage11a-privacy-sinks.test.mjs",
-    "test": "npm run test:engine && npm run test:client-pwa && npm run test:client-privacy && npm run test:server",
+    "test": "npm run test:engine && npm run test:client-pwa && npm run test:client-ui && npm run test:client-privacy && npm run test:server",
     "smoke": "npm run smoke:realtime",
     "smoke:realtime": "node scripts/realtime-smoke.mjs",
     "qa:stage11c": "node scripts/browser-qa-stage11c.mjs",
     "build:client:qa": "npm run build --workspace @glix/shared && npm run build:qa --workspace @glix/client",
     "qa:screenshots": "npm run build:client:qa && node scripts/capture-stage11d-screenshots.mjs",
-    "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server"
+    "clean": "npm run clean --workspace @glix/shared && npm run clean --workspace @glix/client && npm run clean --workspace @glix/server",
+    "test:client-ui": "tsx --tsconfig apps/client/tsconfig.json --test scripts/stage1-ui-regression.test.mjs"
   }
 }

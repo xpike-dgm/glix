@@ -593,7 +593,6 @@ test("H11 — Duplicate action-id replay rejected with input_duplicate; repeatab
 
     host.send({ type: "client:room:start" });
     await host.waitFor((m) => m.state?.phase === "tutorial", "tut");
-    await host.waitFor((m) => m.state?.phase === "preparing", "prep", 12_000);
 
     host.send({ type: "client:game:ready" });
     guest.send({ type: "client:game:ready" });
@@ -731,7 +730,6 @@ test("H13 — Stale action scope and phase index are rejected regardless of cach
 
     host.send({ type: "client:room:start" });
     await host.waitFor((m) => m.state?.phase === "tutorial", "tut");
-    await host.waitFor((m) => m.state?.phase === "preparing", "prep", 12_000);
 
     host.send({ type: "client:game:ready" });
     guest.send({ type: "client:game:ready" });
@@ -789,7 +787,6 @@ test("H14 — Rapid global stateVersion advance does not falsely reject valid co
 
     host.send({ type: "client:room:start" });
     await host.waitFor((m) => m.state?.phase === "tutorial", "tut");
-    await host.waitFor((m) => m.state?.phase === "preparing", "prep", 12_000);
 
     host.send({ type: "client:game:ready" });
     guest.send({ type: "client:game:ready" });
@@ -859,7 +856,6 @@ test("H15 — Legal maximum drawing payload (1.21MB, 180 strokes x 140 points) s
 
     c1.send({ type: "client:room:start" });
     await c1.waitFor((m) => m.state?.phase === "tutorial", "tut");
-    await c1.waitFor((m) => m.state?.phase === "preparing", "prep", 14_000);
 
     clients.forEach((c) => c.send({ type: "client:game:ready" }));
     await c1.waitFor((m) => m.state?.phase === "playing", "playing", 8_000);
@@ -902,4 +898,198 @@ test("H16 — Invalid action ID floods do not grow replay fence; memory remains 
   }
   assert.equal(matchFence.getPlayerFenceSize(playerId), 2048, "Fence asla 2048 sınırını aşamaz");
 });
+
+test("H17 — Host kick in lobby: validation, token invalidation, disconnected kick, match lock", async () => {
+  const server = await launchTestServer();
+  const host = new HardeningClient(server.wsUrl);
+  const guest1 = new HardeningClient(server.wsUrl);
+  const guest2 = new HardeningClient(server.wsUrl);
+
+  try {
+    await Promise.all([
+      host.waitFor((m) => m.type === "server:ready", "h rdy"),
+      guest1.waitFor((m) => m.type === "server:ready", "g1 rdy"),
+      guest2.waitFor((m) => m.type === "server:ready", "g2 rdy")
+    ]);
+
+    host.send({ type: "client:hello", clientVersion: "0.7.0" });
+    guest1.send({ type: "client:hello", clientVersion: "0.7.0" });
+    guest2.send({ type: "client:hello", clientVersion: "0.7.0" });
+
+    host.send({ type: "client:room:create", nickname: "HostPlayer" });
+    const hSession = await host.waitFor((m) => m.type === "server:session", "h sess");
+    const roomCode = hSession.roomCode;
+    const hostId = hSession.playerId;
+
+    guest1.send({ type: "client:room:join", roomCode, nickname: "GuestOne" });
+    const g1Session = await guest1.waitFor((m) => m.type === "server:session", "g1 sess");
+    const guest1Id = g1Session.playerId;
+
+    guest2.send({ type: "client:room:join", roomCode, nickname: "GuestTwo" });
+    const g2Session = await guest2.waitFor((m) => m.type === "server:session", "g2 sess");
+    const guest2Id = g2Session.playerId;
+    const guest2ResumeToken = g2Session.reconnectToken;
+
+    await host.waitFor((m) => m.type === "server:room-state" && m.state.players.length === 3, "3 players");
+
+    // 1. Non-host cannot kick
+    guest1.send({ type: "client:room:kick", targetPlayerId: guest2Id });
+    const errNotHost = await guest1.waitFor((m) => m.type === "server:error" && m.code === "not_host", "err not_host");
+    assert.equal(errNotHost.code, "not_host");
+
+    // 2. Host cannot kick self
+    host.send({ type: "client:room:kick", targetPlayerId: hostId });
+    const errSelf = await host.waitFor((m) => m.type === "server:error" && m.code === "cannot_kick_self", "err cannot_kick_self");
+    assert.equal(errSelf.code, "cannot_kick_self");
+
+    // 3. Invalid target
+    host.send({ type: "client:room:kick", targetPlayerId: "fake-target-id" });
+    const errNotFound = await host.waitFor((m) => m.type === "server:error" && m.code === "target_not_found", "err target_not_found");
+    assert.equal(errNotFound.code, "target_not_found");
+
+    // 4. Disconnected player can be kicked
+    await guest2.close();
+    await host.waitFor((m) => m.type === "server:room-state" && m.state.players.find((p) => p.id === guest2Id && !p.connected), "g2 offline");
+
+    host.send({ type: "client:room:kick", targetPlayerId: guest2Id });
+    const stateAfterG2Kick = await host.waitFor((m) => m.type === "server:room-state" && m.state.players.length === 2, "g2 kicked state");
+    assert.equal(stateAfterG2Kick.state.players.some((p) => p.id === guest2Id), false);
+
+    // Kicked reconnect token cannot resume
+    const guest2Recon = new HardeningClient(server.wsUrl);
+    await guest2Recon.waitFor((m) => m.type === "server:ready", "g2 recon ready");
+    guest2Recon.send({ type: "client:hello", clientVersion: "0.7.0" });
+    guest2Recon.send({
+      type: "client:room:join",
+      roomCode,
+      nickname: "GuestTwo",
+      resumeToken: guest2ResumeToken
+    });
+    const errResume = await guest2Recon.waitFor((m) => m.type === "server:error" && m.code === "resume_failed", "err resume_failed");
+    assert.equal(errResume.code, "resume_failed");
+    await guest2Recon.close();
+
+    // 5. Connected target kick receives room-left "kicked" and socket closes
+    host.send({ type: "client:room:kick", targetPlayerId: guest1Id });
+    const kickedMsg = await guest1.waitFor((m) => m.type === "server:room-left", "g1 kicked");
+    assert.equal(kickedMsg.reason, "kicked");
+    await host.waitFor((m) => m.type === "server:room-state" && m.state.players.length === 1, "only host left");
+
+    // 6. Match in progress kick is rejected
+    const guest3 = new HardeningClient(server.wsUrl);
+    await guest3.waitFor((m) => m.type === "server:ready", "g3 ready");
+    guest3.send({ type: "client:hello", clientVersion: "0.7.0" });
+    guest3.send({ type: "client:room:join", roomCode, nickname: "GuestThree" });
+    const g3Session = await guest3.waitFor((m) => m.type === "server:session", "g3 sess");
+    await host.waitFor((m) => m.type === "server:room-state" && m.state.players.length === 2, "2 players for match");
+
+    host.send({
+      type: "client:room:update-games",
+      selectionMode: "manual",
+      selectedGameIds: ["butona-bas"],
+      randomGameCount: 1
+    });
+    await host.waitFor((m) => m.type === "server:room-state" && m.state.selectedGameIds[0] === "butona-bas", "games set");
+
+    host.send({ type: "client:room:start" });
+    await host.waitFor((m) => m.state?.phase === "tutorial", "match started");
+
+    host.send({ type: "client:room:kick", targetPlayerId: g3Session.playerId });
+    const errMatchProgress = await host.waitFor((m) => m.type === "server:error" && m.code === "match_in_progress", "err match_in_progress");
+    assert.equal(errMatchProgress.code, "match_in_progress");
+
+    await guest3.close();
+  } finally {
+    await Promise.all([host.close(), guest1.close(), guest2.close()]);
+    await server.stop();
+  }
+});
+
+test("H18 — Briefing ready barrier semantics, disconnect advance, and reconnect participation", async () => {
+  const server = await launchTestServer();
+  const host = new HardeningClient(server.wsUrl);
+  const guest1 = new HardeningClient(server.wsUrl);
+  const guest2 = new HardeningClient(server.wsUrl);
+
+  try {
+    await Promise.all([
+      host.waitFor((m) => m.type === "server:ready", "h rdy"),
+      guest1.waitFor((m) => m.type === "server:ready", "g1 rdy"),
+      guest2.waitFor((m) => m.type === "server:ready", "g2 rdy")
+    ]);
+
+    host.send({ type: "client:hello", clientVersion: "0.7.0" });
+    guest1.send({ type: "client:hello", clientVersion: "0.7.0" });
+    guest2.send({ type: "client:hello", clientVersion: "0.7.0" });
+
+    host.send({ type: "client:room:create", nickname: "Host" });
+    const hSession = await host.waitFor((m) => m.type === "server:session", "h sess");
+    const roomCode = hSession.roomCode;
+    const hostId = hSession.playerId;
+
+    guest1.send({ type: "client:room:join", roomCode, nickname: "Guest1" });
+    const g1Session = await guest1.waitFor((m) => m.type === "server:session", "g1 sess");
+    const guest1Id = g1Session.playerId;
+
+    guest2.send({ type: "client:room:join", roomCode, nickname: "Guest2" });
+    const g2Session = await guest2.waitFor((m) => m.type === "server:session", "g2 sess");
+    const guest2Id = g2Session.playerId;
+    const guest2ResumeToken = g2Session.reconnectToken;
+
+    await host.waitFor((m) => m.type === "server:room-state" && m.state.players.length === 3, "3 players");
+
+    host.send({
+      type: "client:room:update-games",
+      selectionMode: "manual",
+      selectedGameIds: ["kendim"],
+      randomGameCount: 1
+    });
+    await host.waitFor((m) => m.type === "server:room-state" && m.state.selectedGameIds[0] === "kendim", "games set");
+
+    host.send({ type: "client:room:start" });
+    const hostMatch = await host.waitFor((m) => m.state?.phase === "tutorial", "tut");
+    assert.equal(hostMatch.state.phaseEndsAt, null, "Brifing fazında geri sayım süresi olmamalı (phaseEndsAt null)");
+
+    // 1. Duplicate ready is idempotent and single ready doesn't advance
+    host.send({ type: "client:game:ready" });
+    const readyState1 = await host.waitFor((m) => m.state?.readyPlayerIds?.includes(hostId), "h ready");
+    assert.equal(readyState1.state.phase, "tutorial");
+
+    host.send({ type: "client:game:ready" }); // duplicate call
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(host.latestPhaseIndex, readyState1.state.phaseIndex, "Tekrar eden hazır çağrısı fazı bozmamalı");
+
+    // 2. Guest1 also readies; 2 of 3 ready, phase stays tutorial
+    guest1.send({ type: "client:game:ready" });
+    const readyState2 = await host.waitFor((m) => m.state?.readyPlayerIds?.includes(guest1Id), "g1 ready");
+    assert.equal(readyState2.state.phase, "tutorial");
+
+    // 3. Guest2 disconnects during briefing => remaining eligible barrier met => advances immediately to playing
+    await guest2.close();
+    const playingState = await host.waitFor((m) => m.state?.phase === "playing", "advance on disconnect", 5_000);
+    assert.equal(playingState.state.phase, "playing");
+
+    // 4. Guest2 reconnects during playing: coherent match state, not permanently eliminated
+    const guest2Recon = new HardeningClient(server.wsUrl);
+    await guest2Recon.waitFor((m) => m.type === "server:ready", "g2 recon ready");
+    guest2Recon.send({ type: "client:hello", clientVersion: "0.7.0" });
+    guest2Recon.send({
+      type: "client:room:join",
+      roomCode,
+      nickname: "Guest2",
+      resumeToken: guest2ResumeToken
+    });
+    const g2PlayingMatch = await guest2Recon.waitFor((m) => m.type === "server:match-state", "g2 resume match");
+    assert.equal(g2PlayingMatch.state.phase, "playing");
+    const g2Player = g2PlayingMatch.state.players.find((p) => p.id === guest2Id);
+    assert.equal(g2Player?.currentGameParticipant, true, "Reconnect olan oyuncu katılımcı olarak kalmalı");
+    assert.equal(g2Player?.eliminated, false, "Kopan oyuncu elenmemeli");
+
+    await guest2Recon.close();
+  } finally {
+    await Promise.all([host.close(), guest1.close(), guest2.close()]);
+    await server.stop();
+  }
+});
+
 

@@ -53,10 +53,11 @@ export function GameViewport({
             </div>
           )}
           {overlays}
-          <span className="glix-viewport-connection-note" aria-hidden="true">
-            {connection === "connected" ? "BAĞLI" : connection === "connecting" ? "YENİDEN BAĞLANIYOR" : "ÇEVRİMDIŞI"}
-
-          </span>
+          {connection !== "connected" && (
+            <span className="glix-viewport-connection-note" aria-hidden="true">
+              {connection === "connecting" ? "YENİDEN BAĞLANIYOR" : "ÇEVRİMDIŞI"}
+            </span>
+          )}
         </div>
       </OrientationGate>
     </section>
