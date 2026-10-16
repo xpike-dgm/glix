@@ -385,3 +385,17 @@ Parallel wave merge/QA sonrasında:
 - A2 server regression `npm run test:server` background süreçte shared/server build'i geçti ve H1-H18 + reconnect testlerinin en az ilk 21 alt testi PASS verdi; bu checkpoint yazılırken süreç henüz `running:false` + gerçek exit code vermemişti. Tamamlandı varsayılmadı.
 - A2 henüz visual reference gate, diff-scope acceptance ve server test final exit gate'ini tamamlamadığı için commit/push/merge edilmedi.
 - Sonraki PM adımı: A2 server test sürecinin gerçek final exit'ini almak; A2'nin 5 locked common PNG'siyle mobil screenshot/reference gate'ini tamamlamak; A4 exact PNG dosya erişimi araç katmanında yeniden doğrulanınca beş oyun screenshot karşılaştırmasını bitirmek. Yalnız gate geçen adaylar redesign branch'e entegre edilecek.
+
+
+---
+
+## 11. 2026-10-16 — GLIX v1.0 Aşama 1 Stabilizasyon
+
+- Kullanıcı GLIX 5 aşama v1.0 planını onayladı ve Aşama 1'i başlatmamızı istedi. Bu kayıt Stage 1 uygulama / QA çalışmasına aittir; R2-R5 veya canlı release kabulü anlamına gelmez.
+- Güvenli temel: `main 12e3e525` korunuyor. Yeni isolated branch `fix/stage1-core-stabilization-20261016`; draft QA PR: https://github.com/xpike-dgm/glix/pull/5. Redesign basesi `1341a386`.
+- VDS ön kontrol: GLIX checkout ve çalışan GLIX Docker servisi bulunmadı; `/srv/glix-stage1-qa` altında 148 önemli kaynak/config dosyası kopyalanarak Node.js 22 Alpine ephemeral Docker ile test çalıştırıldı. DGMusic ve Mailu servisleri değiştirilmedi.
+- Kod düzeltmeleri: real match tutorial `canReady` engeli; connected/current participant eligible sayımı; host kick istemci wiring; protocol v4 typed R1 mock; 24 oyun için ayrı, anlaşılır briefing; 4 adet UI regresyon testi ve `npm test` entegrasyonu.
+- Yerel QA sonuçları: `npm ci`, `npm run typecheck`, `npm run build` PASS; 119/119 shared, 28/28 server integration, 3/3 privacy, 4/4 yeni UI test PASS; 6 client PWA/protocol kontrol grubu PASS; gerçek WS smoke oda kurma/katılma ve tutorial girişinde PASS. 24 oyunun gerçek telefonda uçtan uca oynandığı iddia edilmez.
+- GitHub Actions PR #5 workflow run `38907015269` başarısız; job steps boş ve log endpoint 404. CI kök nedeni henüz doğrulanmadı, release gate açık.
+- Kanonik ayrıntılı rapor: `docs/STAGE1-BASELINE-2026-10-16.md`. 24 oyun QA matrisi, açık riskler, release engelleri burada takip edilir.
+- Bu çalışma **main'e merge edilmedi, production'a yayınlanmadı**. Aşama 1 release kabulü GitHub CI kök nedeninin çözülmesine ve açık kapsam değerlendirmesine bağlıdır.
