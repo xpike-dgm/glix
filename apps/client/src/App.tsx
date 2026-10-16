@@ -1027,22 +1027,35 @@ function formatRemaining(milliseconds: number | null): string {
   return Math.max(0, Math.ceil(milliseconds / 1000)) + " sn";
 }
 
-function tutorialStepsForGame(game: GameDefinition): readonly string[] {
-  const action = game.category === "sayi"
-    ? "sayıyı seç ve kilitle"
-    : game.category === "risk"
-      ? "riski oku ve hedefini seç"
-      : game.category === "hafiza"
-        ? "deseni gör ve sırayla tekrar et"
-        : game.category === "zaman"
-          ? "süreyi oku ve doğru anda dokun"
-          : "sahnedeki nesneye hamle yap";
+const GAME_TUTORIAL_STEPS: Readonly<Record<GameId, readonly string[]>> = {
+  "yazi-yaz": ["İki oyuncu gizlice kelime yazar; diğerleri masum rolündedir.", "Masada konuşarak yazanları ve kelimelerini bulmaya çalış.", "Tahminde doğru oyuncu ve doğru kelime ayrı ayrı puan kazandırır."],
+  "kendim": ["Kendini anlatan tek bir kelime yaz.", "Karıştırılan kelime kartlarını, sahipleriyle eşleştir.", "Doğru eşleştirme puan getirir; yanlış eşleştirme puan götürür."],
+  "sizma": ["Bir oyuncunun kelimesi diğerlerinden farklıdır.", "Herkes iki tur boyunca kelimesini söylemeden sesli ipucu verir.", "Sonunda gizlice oy vererek sızmacıyı bulmaya çalış."],
+  "sozluk-blofu": ["Gösterilen kelime için gerçekmiş gibi sahte bir tanım yaz.", "Gerçek tanımla oyuncuların sahte tanımları karıştırılacak.", "Gerçeği seçerek ve kendi sahte tanımına başkalarını inandırarak puan kazan."],
+  "cagrisim-agi": ["Ekranda herkesin gördüğü ortak bir kelime olacak.", "Aklına gelen tek bir çağrışımı gizlice yaz.", "Aynı cevabı veren oyuncular birlikte puan kazanır."],
+  "butona-bas": ["45 saniye boyunca büyük butonu istediğin an kullan.", "Aynı kısa zaman aralığında en az iki kişi basarsa her biri puan kazanır.", "Tek başına basan puan kaybeder; arkadaşlarınla zamanı tuttur."],
+  "rus-ruleti": ["Silah sırası sana geldiğinde hayatta olan birini veya kendini seç.", "Her güvenli atıştan sonra patlama riski artar.", "Mini oyun sonunda hayatta kalanlar puan kazanır."],
+  "gizli-hirsiz": ["30 saniye içinde gizlice Çal veya hiç dokunma.", "Yalnızca bir kişi çalmaya kalkarsa o kişi puan kazanır.", "Birden fazla kişi çalarsa çalanların her biri puan kaybeder."],
+  "kor-kronometre": ["Gizli sayaç başladı; gerçek zamanı göremeyeceksin.", "10. saniyeye olabildiğince yakın anda bir kez bas.", "En yakına basan iki oyuncu sırasıyla puan kazanır."],
+  "kor-bomba": ["Bomba rastgele bir oyuncuda başlar ve gizli bir anda patlar.", "Bombayı başka bir oyuncuya devredebilirsin; her pas süreyi değiştirir.", "Bomba patladığında elinde tutan oyuncu puan kaybeder."],
+  "rusvet-darbe": ["Önce masada pazarlık yapıp gizlice başkan adayına oy ver.", "En fazla oy alan kişi başkan olur.", "Başkan kendisi hariç oyunculara sınırlı puan dağıtır."],
+  "acgozluluk-limiti": ["Oyuncu sayısına kadar bir sayı seç.", "Herkesin seçtiği sayılar gizlice toplanacak.", "Ortak limit aşılmazsa seçtiğin kadar puan kazanırsın; aşılırsa kimse kazanamaz."],
+  "ortalamanin-yarisi": ["0 ile 100 arasında gizlice tam sayı seç.", "Hedef, herkesin seçtiği sayıların ortalamasının yarısıdır.", "Bu hedefe en yakın oyuncular puan kazanır."],
+  "gizli-kareler": ["Tahtadaki bir kareyi herkesten gizli seç.", "Başka oyuncuyla aynı kareyi seçersen bu mini oyunda elenirsin.", "Çakışmadan iki aşamayı da tamamlayarak puan topla."],
+  "karalama-defteri": ["Herkes bir nesne çizer; bir oyuncuya farklı ama benzer kelime verilmiştir.", "Çizimlerinizi inceleyip yüz yüze tartışın.", "Oylamada farklı kelimeyi alan oyuncuyu bulmaya çalışın."],
+  "ittifak": ["Masadaki oyuncularla yüz yüze anlaşmalar yap.", "Birbirinize oy sözü verebilirsiniz ama sözünüzü tutmak zorunda değilsiniz.", "Sürenin sonunda kendin hariç bir kişiye gizli oy ver."],
+  "son-kisi": ["Sistemin belirlediği bitiş anı gizlidir.", "Bitişten önce dilediğin anda yalnızca bir kez kaçışa bas.", "Gizli bitişten önce en son kaçabilen oyuncu puan kazanır."],
+  "cizgiyi-gecme": ["0 ile 100 arasında gizlice risk sayısı seç.", "Aynı onluk dilimi seçen oyuncular değerlendirme dışı kalır.", "Tek kalan dilimlerin en yüksek sayılarını seçenler puan kazanır."],
+  "gizli-alisveris": ["60 kredi bütçeyle istediğin ürünleri gizlice seç.", "Bir ürünü birden çok kişi alırsa ürünün değeri paylaşılır.", "Bütçeni ve rakiplerinin seçimlerini tahmin ederek en değerli sepeti kur."],
+  "asiri-yukleme": ["Tıklamalar ortak enerji çubuğunu doldurur.", "100 kapasitesini aşan son tıklama yapan oyuncu ceza alır.", "Patlatmadan en fazla katkıyı sağlayan oyuncular puan kazanır."],
+  "kontrol-paneli-kaosu": ["Kendi telefonundaki kablo panelini ve ipucunu incele.", "İpucundaki sıra ve renk koşullarını kontrol et.", "Doğru kabloyu keserek puan kazanmaya çalış."],
+  "zehirli-kadeh": ["Kadehinin zehirli olup olmadığını bilmiyorsun.", "Bir kez başka oyuncuyla kadehini takas edebilirsin.", "Süre dolunca temiz kadeh taşıyanlar puan kazanır."],
+  "capraz-ates": ["Kendin dışında bir oyuncuyu gizlice hedefle.", "Herkesin seçimi süre sonunda aynı anda açılır.", "Kime nişan aldığın ve kimin seni hedeflediği puanını belirler."],
+  "zaman-bombasi-hafizasi": ["Yanan renkleri gösterildiği sırayla ezberle.", "Sıra sana geldiğinde renk dizisini doğru tekrar et.", "Dizi giderek uzar; hata yapanlar bu mini oyunda elenir."]
+};
 
-  return [
-    `${game.name} nesnesini ve hedefini oku.`,
-    "Hazır olduğunda kendi telefonunda onay ver.",
-    `Sıra geldiğinde ${action}.`
-  ];
+function tutorialStepsForGame(game: GameDefinition): readonly string[] {
+  return GAME_TUTORIAL_STEPS[game.id as GameId];
 }
 
 function MatchScreen({
