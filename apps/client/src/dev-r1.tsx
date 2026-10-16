@@ -1,12 +1,11 @@
-import { StrictMode, useState } from "react";
+import { StrictMode, useState, type JSX } from "react";
 import { createRoot } from "react-dom/client";
 import { HomeScreen } from "./visuals/home/HomeScreen";
 import { RoomEntryScreen } from "./visuals/home/RoomEntryScreen";
 import { LobbyScreen } from "./visuals/lobby/LobbyScreen";
 import { BriefingScreen } from "./visuals/briefing/BriefingScreen";
 import { ResultOverlay } from "./visuals/overlays/ResultOverlay";
-import { GameViewport } from "./visuals/viewport/GameViewport";
-import { GAME_CATALOG, type GameId } from "@glix/shared";
+import { GAME_CATALOG, type GameId, type LobbyState, type MatchPlayerState } from "@glix/shared";
 import "./styles.css";
 import "./r1-mobile.css";
 
@@ -67,24 +66,24 @@ function R1PreviewHarness(): JSX.Element {
 
   if (view === "lobby") {
     const playerCount = density === "8players" ? 8 : 2;
-    const mockPlayers = Array.from({ length: playerCount }, (_, i) => ({
+    const mockPlayers: MatchPlayerState[] = Array.from({ length: playerCount }, (_, i) => ({
       id: `p-${i + 1}`,
       nickname: i === 0 ? "OdaKrali" : `Oyuncu ${i + 1}`,
       connected: true,
       score: 0,
-      roundScore: 0,
       miniGameScore: 0,
-      eliminated: false,
-      ready: false
+      currentGameParticipant: true,
+      eliminated: false
     }));
 
-    const mockLobbyState = {
+    const mockLobbyState: LobbyState = {
       roomCode: "GLIX9",
       hostPlayerId: "p-1",
       players: mockPlayers,
       selectedGameIds: selectedGames,
       selectionMode: "manual" as const,
-      randomGameCount: 5
+      randomGameCount: 5,
+      phase: "lobby"
     };
 
     return (
@@ -117,11 +116,15 @@ function R1PreviewHarness(): JSX.Element {
   }
 
   if (view === "briefing") {
-    const mockPlayers = [
-      { id: "p-1", nickname: "NeonKedi", connected: true },
-      { id: "p-2", nickname: "SiberKurt", connected: true },
-      { id: "p-3", nickname: "PikselKral", connected: true }
-    ];
+    const mockPlayers: MatchPlayerState[] = ["NeonKedi", "SiberKurt", "PikselKral"].map((nickname, index) => ({
+      id: `p-${index + 1}`,
+      nickname,
+      score: 0,
+      miniGameScore: 0,
+      connected: true,
+      currentGameParticipant: true,
+      eliminated: false
+    }));
 
     return (
       <div className="glix-app" style={{ position: "relative", width: "100%", height: "100dvh" }}>
